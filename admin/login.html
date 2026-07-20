@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Admin Login — RumaLink Enterprise</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{--ink:#060910;--navy:#0b1220;--mid:#111c32;--teal:#00d4aa;--teal2:#00b894;--amber:#f39c12;--red:#e74c3c;--white:#eef2ff;--muted:#7a8baa;--card:#0f1a2e;--border:#1a2a45;--font-head:'Syne',sans-serif;--font-body:'DM Sans',sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--ink);color:var(--white);font-family:var(--font-body);min-height:100vh;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.bg-mesh{position:fixed;inset:0;background:radial-gradient(ellipse 60% 50% at 20% 50%,rgba(0,212,170,.06),transparent 70%),radial-gradient(ellipse 40% 40% at 80% 30%,rgba(243,156,18,.04),transparent 60%);pointer-events:none}
+.bg-grid{position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,170,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,170,.03) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}
+.login-wrap{position:relative;z-index:2;width:100%;max-width:440px;padding:24px}
+.brand-center{text-align:center;margin-bottom:32px}
+.brand-icon{width:56px;height:56px;background:rgba(0,212,170,.12);border:1px solid rgba(0,212,170,.25);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin:0 auto 14px}
+.brand-name{font-family:var(--font-head);font-size:1.5rem;font-weight:800;color:var(--teal)}
+.brand-sub{font-size:.82rem;color:var(--muted);margin-top:3px}
+.admin-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(243,156,18,.1);border:1px solid rgba(243,156,18,.2);color:var(--amber);padding:5px 14px;border-radius:100px;font-size:.75rem;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-top:10px}
+.box{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:36px;box-shadow:0 24px 80px rgba(0,0,0,.5)}
+.box h2{font-family:var(--font-head);font-size:1.35rem;font-weight:700;margin-bottom:6px}
+.box p{color:var(--muted);font-size:.86rem;font-weight:300;margin-bottom:28px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:6px;font-weight:500;letter-spacing:.2px}
+.form-group input{width:100%;background:var(--mid);border:1.5px solid var(--border);border-radius:9px;padding:12px 14px;color:var(--white);font-family:var(--font-body);font-size:.95rem;outline:none;transition:border-color .2s}
+.form-group input:focus{border-color:var(--amber)}
+.btn-admin{width:100%;padding:14px;background:linear-gradient(135deg,var(--amber),#e67e22);color:#fff;border:none;border-radius:10px;font-family:var(--font-head);font-size:1rem;font-weight:700;cursor:pointer;transition:all .2s;margin-top:8px;letter-spacing:.3px}
+.btn-admin:hover{opacity:.9;transform:translateY(-1px);box-shadow:0 8px 24px rgba(243,156,18,.25)}
+.btn-admin:disabled{opacity:.5;transform:none;cursor:not-allowed}
+.err{background:rgba(231,76,60,.1);color:var(--red);border:1px solid rgba(231,76,60,.2);border-radius:8px;padding:11px 14px;font-size:.86rem;margin-bottom:14px;display:none}
+.back-link{text-align:center;margin-top:20px;font-size:.82rem;color:var(--muted)}
+.back-link a{color:var(--teal);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="bg-mesh"></div>
+<div class="bg-grid"></div>
+<div class="login-wrap">
+  <div class="brand-center">
+    <div class="brand-icon">🛡️</div>
+    <div class="brand-name">RumaLink Enterprise</div>
+    <div class="brand-sub">Platform Administration</div>
+    <div class="admin-badge">⚡ Super Admin Access</div>
+  </div>
+  <div class="box">
+    <h2>Admin Sign In</h2>
+    <p>Restricted access. Authorised personnel only.</p>
+    <div class="err" id="err"></div>
+    <div class="form-group"><label>Admin Email</label><input type="email" id="email" placeholder="admin@rumalink.co.ke" autocomplete="username"/></div>
+    <div class="form-group"><label>Password</label><input type="password" id="pass" placeholder="••••••••" autocomplete="current-password"/></div>
+    <button class="btn-admin" id="btn" onclick="doLogin()">🔐 Sign In to Admin Panel</button>
+  </div>
+  <div class="back-link"><a href="/">← Back to RumaLink</a></div>
+</div>
+<script>
+const API = 'https://rumalinkenterprise.online/api';
+document.getElementById('pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+async function doLogin(){
+  const btn=document.getElementById('btn'),err=document.getElementById('err');
+  err.style.display='none';
+  const email=document.getElementById('email').value.trim(),pass=document.getElementById('pass').value;
+  if(!email||!pass){err.textContent='Enter email and password.';err.style.display='block';return;}
+  btn.disabled=true;btn.textContent='Signing in…';
+  try{
+    const res=await fetch(`${API}/auth/admin/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pass})});
+    const json=await res.json();
+    if(res.ok){
+      localStorage.setItem('rl_admin_token',json.token);
+      localStorage.setItem('rl_admin_refresh',json.refreshToken);
+      localStorage.setItem('rl_admin',JSON.stringify(json.admin));
+      window.location.href='/admin/dashboard.html';
+    }else{err.textContent=json.error||'Invalid credentials.';err.style.display='block';btn.disabled=false;btn.textContent='🔐 Sign In to Admin Panel';}
+  }catch(e){err.textContent='Connection error. Is the server running?';err.style.display='block';btn.disabled=false;btn.textContent='🔐 Sign In to Admin Panel';}
+}
+</script>
+</body>
+</html>

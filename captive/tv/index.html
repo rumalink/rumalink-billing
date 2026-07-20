@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TV Wi-Fi Login</title>
+    <style>
+        :root { --bg: #0f172a; --text: #f8fafc; --primary: #00d4aa; --card: #1e293b; }
+        body { margin: 0; padding: 0; font-family: sans-serif; background: var(--bg); color: var(--text); display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+        
+        /* Modal Overlay */
+        #device-check-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-box { background: var(--card); padding: 40px; border-radius: 12px; text-align: center; max-width: 500px; border: 2px solid var(--primary); }
+        .modal-box h1 { margin-top: 0; font-size: 2rem; }
+        .modal-box p { font-size: 1.2rem; color: #cbd5e1; margin-bottom: 30px; }
+        .btn-group { display: flex; gap: 20px; justify-content: center; }
+        button { padding: 15px 30px; font-size: 1.2rem; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-yes { background: var(--primary); color: #000; }
+        .btn-no { background: #334155; color: white; }
+        
+        /* QR View */
+        #qr-view { display: none; text-align: center; width: 100%; max-width: 600px; padding: 20px; }
+        .qr-box { background: white; padding: 20px; border-radius: 12px; display: inline-block; margin: 20px 0; }
+        .qr-box img { width: 250px; height: 250px; }
+    </style>
+</head>
+<body>
+
+    <div id="device-check-modal">
+        <div class="modal-box">
+            <h1>Quick Connection</h1>
+            <p>Do you have a smartphone nearby to help connect this TV to the Wi-Fi?</p>
+            <div class="btn-group">
+                <button class="btn-yes" onclick="showQR()">Yes, I have my phone</button>
+                <button class="btn-no" onclick="fallbackToClassic()">No, continue on TV</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="qr-view">
+        <h1>Scan to Connect TV</h1>
+        <p style="font-size: 1.2rem; color: #cbd5e1;">Open your phone's camera and scan this code.<br>Once you pay on your phone, this TV will connect automatically!</p>
+        <div class="qr-box">
+            <img id="qr-image" src="" alt="Loading QR...">
+        </div>
+        <p>TV MAC Address: <span id="display-mac" style="color: var(--primary);">Loading...</span></p>
+        <button class="btn-no" onclick="location.reload()" style="margin-top: 20px;">Restart</button>
+    </div>
+
+    <script>
+        // Extract parameters from the MikroTik URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const tvMac = urlParams.get('mac') || 'Unknown';
+        const ispId = urlParams.get('isp') || '';
+        const cacheBuster = Math.random().toString(36).substring(7);
+
+        // Display MAC address on the screen
+        document.getElementById('display-mac').innerText = tvMac;
+
+        // Base URL for your original portal
+        const classicPortalUrl = 'https://rumalinkenterprise.online/captive/classic.html';
+
+        // 1. QR CODE LOGIC (Smartphone Flow)
+        // Generates a link to classic.html, but passes the TV's MAC address to the phone
+        const paymentUrl = `${classicPortalUrl}?isp=${ispId}&mac=${tvMac}&tv_auth=true&cb=${cacheBuster}`;
+        document.getElementById('qr-image').src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(paymentUrl)}`;
+
+        // 2. BUTTON BEHAVIORS
+        function showQR() {
+            document.getElementById('device-check-modal').style.display = 'none';
+            document.getElementById('qr-view').style.display = 'block';
+        }
+
+        function fallbackToClassic() {
+            // Instantly redirects the TV to the original portal, carrying over all MikroTik URL data
+            window.location.href = `${classicPortalUrl}${window.location.search}`;
+        }
+    </script>
+</body>
+</html>

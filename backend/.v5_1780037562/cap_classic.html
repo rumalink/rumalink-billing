@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+<meta name="theme-color" content="#00d4aa"/>
+<title id="portal-title">WiFi Login</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --primary: #00d4aa;
+  --primary-dark: #00b894;
+  --bg: #f0f4ff;
+  --card: #ffffff;
+  --text: #1a1a2e;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --success-bg: #d1fae5;
+  --success-text: #065f46;
+  --error-bg: #fee2e2;
+  --error-text: #991b1b;
+  --warning-bg: #fef3c7;
+  --warning-text: #92400e;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{font-size:16px}
+body{
+  background:var(--bg);
+  font-family:'DM Sans',sans-serif;
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:12px;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ── CARD ── */
+.card{
+  background:var(--card);
+  border-radius:20px;
+  padding:28px 24px;
+  width:100%;
+  max-width:440px;
+  box-shadow:0 8px 40px rgba(0,0,0,.1);
+}
+
+/* ── LOGO ── */
+.logo-wrap{text-align:center;margin-bottom:20px}
+.logo-wrap img{max-height:56px;border-radius:10px;object-fit:contain}
+.logo-text{font-size:1.35rem;font-weight:700;color:var(--text);margin-top:6px}
+
+/* ── WELCOME ── */
+.welcome{text-align:center;margin-bottom:20px}
+.welcome h1{font-size:1.15rem;font-weight:600;color:var(--text);margin-bottom:5px;line-height:1.35}
+.welcome p{font-size:.85rem;color:var(--muted);font-weight:300;line-height:1.5}
+
+/* ── PACKAGES ── */
+.packages{display:flex;flex-direction:column;gap:9px;margin-bottom:18px}
+.pkg{
+  border:2px solid var(--border);
+  border-radius:12px;
+  padding:13px 14px;
+  cursor:pointer;
+  transition:all .18s;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+}
+.pkg:hover,.pkg.selected{border-color:var(--primary);background:rgba(0,212,170,.06)}
+.pkg.selected{background:rgba(0,212,170,.1)}
+.pkg-info{flex:1;min-width:0}
+.pkg-info .pkg-name{font-weight:600;font-size:.92rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pkg-info .pkg-detail{font-size:.76rem;color:var(--muted);margin-top:2px;line-height:1.4}
+.pkg-price{font-weight:700;font-size:1.05rem;color:var(--primary);white-space:nowrap;flex-shrink:0}
+
+/* ── DIVIDER ── */
+.divider{
+  display:flex;align-items:center;gap:10px;
+  margin:16px 0;color:var(--muted);font-size:.8rem;font-weight:500;
+}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ── FORM ── */
+.input-group{margin-bottom:11px}
+.input-group label{display:block;font-size:.78rem;font-weight:500;color:var(--muted);margin-bottom:4px}
+.input-group input{
+  width:100%;border:1.5px solid var(--border);border-radius:9px;
+  padding:10px 12px;font-family:'DM Sans',sans-serif;font-size:.92rem;
+  outline:none;transition:border-color .18s;color:var(--text);background:#fff;
+}
+.input-group input:focus{border-color:var(--primary)}
+input[type="tel"]{-webkit-appearance:none}
+
+/* ── BUTTONS ── */
+.btn{
+  width:100%;padding:13px;border-radius:10px;border:none;
+  font-family:'DM Sans',sans-serif;font-size:.93rem;font-weight:600;
+  cursor:pointer;transition:all .18s;margin-top:4px;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn-primary{background:var(--primary);color:#0d1530}
+.btn-primary:hover:not(:disabled){background:var(--primary-dark)}
+.btn-outline{background:transparent;border:1.5px solid var(--primary);color:var(--primary);margin-top:8px}
+.btn-outline:hover:not(:disabled){background:rgba(0,212,170,.07)}
+
+/* ── MESSAGES ── */
+.msg{
+  padding:11px 13px;border-radius:9px;font-size:.86rem;
+  text-align:left;margin-top:12px;display:none;line-height:1.55;
+  white-space:pre-line;word-break:break-word;
+}
+.msg.success{background:var(--success-bg);color:var(--success-text)}
+.msg.error{background:var(--error-bg);color:var(--error-text)}
+.msg.warning{background:var(--warning-bg);color:var(--warning-text)}
+.msg.info{background:#eff6ff;color:#1e40af}
+
+/* ── SPINNER ── */
+.spinner{display:none;text-align:center;padding:10px;color:var(--muted);font-size:.86rem}
+.spinner::before{content:'⏳ '}
+
+/* ── PAYMENT STATUS ── */
+.pay-status{display:none;padding:16px;border-radius:12px;background:#f0fdf4;border:1.5px solid #86efac;margin-top:12px;text-align:center}
+.pay-status .pay-icon{font-size:2rem;margin-bottom:8px}
+.pay-status .pay-title{font-weight:600;color:#166534;margin-bottom:4px;font-size:.95rem}
+.pay-status .pay-sub{font-size:.82rem;color:#16a34a;line-height:1.4}
+.pay-timer{font-size:.8rem;color:var(--muted);margin-top:6px}
+
+/* ── SUPPORT BUTTON ── */
+.support-bar{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  margin-top:16px;padding-top:14px;border-top:1px solid var(--border);
+}
+.support-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.25);
+  border-radius:20px;padding:7px 14px;
+  color:var(--primary);font-size:.82rem;font-weight:500;
+  text-decoration:none;cursor:pointer;transition:all .18s;
+  font-family:'DM Sans',sans-serif;
+}
+.support-btn:hover{background:rgba(0,212,170,.15)}
+
+/* ── TV MODE ── */
+.tv-bar{
+  text-align:center;margin-top:14px;padding-top:14px;
+  border-top:1px solid var(--border);
+}
+.tv-bar-title{font-size:.76rem;color:var(--muted);margin-bottom:10px;font-weight:500}
+#tv-qr{display:inline-block}
+#tv-qr img,#tv-qr canvas{max-width:120px;height:auto;border-radius:8px;border:3px solid var(--border)}
+
+/* ── POWERED ── */
+.powered{text-align:center;font-size:.7rem;color:var(--muted);margin-top:14px}
+.powered a{color:var(--primary);text-decoration:none}
+
+/* ═══ SMART TV PAGE ═══ */
+#tv-page{display:none}
+.tv-page-wrap{
+  min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#0d1530 0%,#1a2a50 100%);
+  padding:40px;text-align:center;
+}
+.tv-logo{margin-bottom:24px}
+.tv-logo img{max-height:70px;border-radius:12px}
+.tv-logo-text{font-size:2rem;font-weight:700;color:#fff;margin-top:8px}
+.tv-title{font-size:1.8rem;font-weight:700;color:#fff;margin-bottom:8px}
+.tv-subtitle{font-size:1rem;color:rgba(255,255,255,.6);margin-bottom:36px;line-height:1.5}
+.tv-qr-box{
+  background:#fff;padding:20px;border-radius:16px;display:inline-block;
+  margin-bottom:28px;box-shadow:0 10px 60px rgba(0,0,0,.3);
+}
+.tv-qr-box canvas,.tv-qr-box img{width:200px!important;height:200px!important}
+.tv-steps{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;max-width:640px}
+.tv-step{
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);
+  border-radius:12px;padding:16px 20px;flex:1;min-width:160px;max-width:200px;text-align:center;
+}
+.tv-step .step-num{
+  width:32px;height:32px;border-radius:50%;
+  background:var(--primary);color:#0d1530;
+  font-weight:700;font-size:.9rem;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;
+}
+.tv-step p{font-size:.82rem;color:rgba(255,255,255,.75);line-height:1.4}
+.tv-support{
+  margin-top:28px;color:rgba(255,255,255,.5);font-size:.85rem;
+}
+.tv-support a{color:var(--primary);text-decoration:none}
+
+/* ── RESPONSIVE ── */
+@media(max-width:480px){
+  body{padding:10px;align-items:flex-start;padding-top:16px}
+  .card{padding:22px 18px;border-radius:16px}
+  .logo-text{font-size:1.2rem}
+  .welcome h1{font-size:1.05rem}
+  .pkg{padding:11px 12px}
+  .pkg-info .pkg-name{font-size:.88rem}
+  .pkg-price{font-size:1rem}
+  .btn{padding:12px}
+}
+@media(max-width:360px){
+  .card{padding:18px 14px}
+  .pkg{flex-direction:column;align-items:flex-start}
+  .pkg-price{align-self:flex-end}
+}
+@media(min-width:600px){
+  .card{max-width:480px}
+}
+
+/* TV responsive */
+@media(max-width:600px){
+  .tv-title{font-size:1.3rem}
+  .tv-qr-box canvas,.tv-qr-box img{width:160px!important;height:160px!important}
+  .tv-steps{flex-direction:column;align-items:center}
+  .tv-step{max-width:100%;width:100%}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ NORMAL PAGE ══ -->
+<div class="card" id="main-page">
+  <div class="logo-wrap" id="logo-section">
+    <div class="logo-text" id="isp-name">WiFi Network</div>
+  </div>
+
+  <div class="welcome">
+    <h1 id="welcome-title">Welcome! Connect to WiFi</h1>
+    <p id="welcome-sub">Select a package to get started</p>
+  </div>
+
+  <div class="packages" id="packages-list"></div>
+
+  <div class="divider">Pay & Connect</div>
+
+  <div id="pay-section">
+    <div class="input-group">
+      <label>M-Pesa Phone Number</label>
+      <input type="tel" id="phone" placeholder="e.g. 0712 345 678" inputmode="tel" autocomplete="tel"/>
+    </div>
+    <button class="btn btn-primary" id="pay-btn" onclick="initiatePayment()">
+      💳 Pay & Connect
+    </button>
+  </div>
+
+  <!-- Payment pending status -->
+  <div class="pay-status" id="pay-status">
+    <div class="pay-icon">📱</div>
+    <div class="pay-title">M-Pesa Prompt Sent!</div>
+    <div class="pay-sub" id="pay-status-msg">Enter your PIN on your phone to complete payment.</div>
+    <div class="pay-timer" id="pay-timer"></div>
+    <button class="btn btn-outline" style="margin-top:12px" onclick="cancelWaiting()">Try Again</button>
+  </div>
+
+  <div class="divider">Already have a voucher?</div>
+
+  <div class="input-group">
+    <label>Voucher Code</label>
+    <input type="text" id="voucher-code" placeholder="e.g. HS1234ABCD" style="text-transform:uppercase" autocomplete="off"/>
+  </div>
+  <div class="input-group">
+    <label>Phone for SMS receipt <span style="color:var(--muted);font-weight:300">(optional)</span></label>
+    <input type="tel" id="voucher-phone" placeholder="0712 345 678" inputmode="tel"/>
+  </div>
+  <button class="btn btn-outline" onclick="redeemVoucher()">🎟️ Redeem Voucher</button>
+
+  <div class="spinner" id="spinner">Please wait…</div>
+  <div class="msg" id="msg"></div>
+
+  <!-- Support -->
+  <div class="support-bar" id="support-bar" style="display:none">
+    <span style="font-size:.78rem;color:var(--muted)" id="support-label">Need Help?</span>
+    <a class="support-btn" id="support-link" href="#" onclick="return false">
+      📞 <span id="support-number-txt">Call Support</span>
+    </a>
+  </div>
+
+  <!-- Smart TV QR -->
+  <div class="tv-bar" id="tv-bar" style="display:none">
+    <div class="tv-bar-title">📺 On a Smart TV? Scan to pay from your phone</div>
+    <div id="tv-qr"></div>
+  </div>
+
+  <div class="powered" id="powered-by">Powered by <a href="https://rumalink.co.ke" target="_blank">RumaLink Enterprise</a></div>
+</div>
+
+<!-- ══ SMART TV FULL PAGE ══ -->
+<div id="tv-page">
+  <div class="tv-page-wrap">
+    <div class="tv-logo" id="tv-logo-wrap">
+      <div class="tv-logo-text" id="tv-isp-name">WiFi Network</div>
+    </div>
+    <div class="tv-title">Connect to WiFi from Your Smart TV</div>
+    <div class="tv-subtitle" id="tv-subtitle">Scan the QR code with your phone to select a package and pay via M-Pesa.</div>
+    <div class="tv-qr-box">
+      <div id="tv-main-qr"></div>
+    </div>
+    <div class="tv-steps">
+      <div class="tv-step">
+        <div class="step-num">1</div>
+        <p>Open your phone camera or M-Pesa app</p>
+      </div>
+      <div class="tv-step">
+        <div class="step-num">2</div>
+        <p>Scan the QR code to open the payment page</p>
+      </div>
+      <div class="tv-step">
+        <div class="step-num">3</div>
+        <p>Select package and pay — TV connects automatically</p>
+      </div>
+    </div>
+    <div class="tv-support" id="tv-support-wrap" style="display:none">
+      Need help? Call <a id="tv-support-link" href="#">support</a>
+    </div>
+  </div>
+</div>
+
+<!-- QRCode.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const API = window.RUMALINK_API || 'https://rumalinkenterprise.online/api';
+const ISP_ID = window.PORTAL_ISP_ID
+  || new URLSearchParams(location.search).get('isp')
+  || location.pathname.split('/').pop();
+
+let selectedPackage = null;
+let portalData = null;
+let paymentId = null;
+let pollTimer = null;
+let pollCount = 0;
+const MAX_POLL = 24; // 2 min at 5s intervals
+
+// ── Detect Smart TV ──────────────────────────────────────────
+function isSmartTV() {
+  const ua = navigator.userAgent || '';
+  return /SmartTV|SMART-TV|Tizen|WebOS|NetCast|NETTV|HbbTV|CE-HTML|PhilipsTV|SonyKDL|BRAVIA/i.test(ua)
+    || (window.screen && window.screen.width >= 1280 && !('ontouchstart' in window) && window.devicePixelRatio === 1);
+}
+
+// ── Init ─────────────────────────────────────────────────────
+async function init() {
+  if (!ISP_ID || ISP_ID === 'classic.html') {
+    document.body.innerHTML = '<p style="text-align:center;padding:40px;color:#999">Invalid portal link. Add ?isp=YOUR_ISP_ID to the URL.</p>';
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/captive/${ISP_ID}`);
+    if (!res.ok) throw new Error('Portal not found');
+    portalData = await res.json();
+    const { isp, portal, packages } = portalData;
+
+    // Apply branding
+    document.title = `${isp.company_name} — WiFi`;
+    document.getElementById('isp-name').textContent = isp.company_name;
+    document.getElementById('tv-isp-name').textContent = isp.company_name;
+    document.getElementById('welcome-title').textContent = portal.welcome_title || 'Welcome! Connect to WiFi';
+    document.getElementById('welcome-sub').textContent = portal.welcome_subtitle || 'Select a package to get started';
+    document.documentElement.style.setProperty('--primary', portal.primary_color || '#00d4aa');
+    if (portal.secondary_color) {
+      document.documentElement.style.setProperty('--bg', portal.secondary_color + '15');
+    }
+
+    if (isp.logo_url) {
+      const baseOrigin = API.replace('/api', '');
+      document.getElementById('logo-section').innerHTML = `
+        <img src="${baseOrigin}${isp.logo_url}" alt="${isp.company_name}" onerror="this.style.display='none'"/>
+        <div class="logo-text">${isp.company_name}</div>`;
+      document.getElementById('tv-logo-wrap').innerHTML = `
+        <img src="${baseOrigin}${isp.logo_url}" alt="${isp.company_name}" style="max-height:70px;border-radius:12px"/>
+        <div class="tv-logo-text">${isp.company_name}</div>`;
+    }
+
+    if (!portal.show_powered_by) document.getElementById('powered-by').style.display = 'none';
+
+    // Support number
+    const suppNum = portal.support_number;
+    if (suppNum) {
+      document.getElementById('support-bar').style.display = 'flex';
+      document.getElementById('support-label').textContent = portal.support_label || 'Need Help?';
+      document.getElementById('support-number-txt').textContent = suppNum;
+      const suppLink = document.getElementById('support-link');
+      suppLink.href = `tel:${suppNum}`;
+      suppLink.onclick = null;
+      // TV support
+      document.getElementById('tv-support-wrap').style.display = 'block';
+      const tvSupp = document.getElementById('tv-support-link');
+      tvSupp.href = `tel:${suppNum}`;
+      tvSupp.textContent = suppNum;
+    }
+
+    renderPackages(packages || []);
+
+    if (!packages?.some(p => p.price > 0)) {
+      document.getElementById('pay-section').style.display = 'none';
+    }
+
+    // Smart TV detection
+    if (isSmartTV() && portal.enable_tv_mode !== false) {
+      showTVPage();
+    } else {
+      // Show compact QR for regular pages
+      if (portal.enable_tv_mode !== false) {
+        showPortalQR();
+      }
+    }
+
+  } catch (e) {
+    showMsg('Failed to load portal. Check your connection and try again.', 'error');
+  }
+}
+
+// ── Render packages ──────────────────────────────────────────
+function renderPackages(pkgs) {
+  const list = document.getElementById('packages-list');
+  if (!pkgs.length) {
+    list.innerHTML = '<p style="text-align:center;color:var(--muted);font-size:.86rem">No packages available at this time.</p>';
+    return;
+  }
+  list.innerHTML = pkgs.map(p => {
+    const details = [
+      p.duration_hours ? (p.duration_hours >= 24 ? `${Math.floor(p.duration_hours/24)}d` : `${p.duration_hours}hr`) : 'Unlimited',
+      p.bandwidth_down_mbps ? `${p.bandwidth_down_mbps}Mbps` : null,
+      p.data_limit_mb ? `${(p.data_limit_mb/1024).toFixed(1)}GB` : null
+    ].filter(Boolean).join(' · ');
+
+    return `
+      <div class="pkg" id="pkg-${p.id}" onclick="selectPkg('${p.id}',${p.price})" role="button" tabindex="0"
+           onkeypress="if(event.key==='Enter')selectPkg('${p.id}',${p.price})">
+        <div class="pkg-info">
+          <div class="pkg-name">${escHtml(p.name)}</div>
+          <div class="pkg-detail">${details}</div>
+        </div>
+        <div class="pkg-price">KES ${parseFloat(p.price).toLocaleString()}</div>
+      </div>`;
+  }).join('');
+}
+
+function selectPkg(id, price) {
+  selectedPackage = { id, price };
+  document.querySelectorAll('.pkg').forEach(p => p.classList.remove('selected'));
+  document.getElementById('pkg-' + id)?.classList.add('selected');
+}
+
+// ── Initiate STK Push payment ─────────────────────────────────
+async function initiatePayment() {
+  if (!selectedPackage) { showMsg('Please select a package first.', 'error'); return; }
+  const phone = document.getElementById('phone').value.trim();
+  if (!phone) { showMsg('Enter your M-Pesa phone number.', 'error'); return; }
+  const cleanPhone = phone.replace(/[\s\-]/g,'');
+  if (!/^(07|01|2547|2541|\+2547|\+2541)\d{7,8}$/.test(cleanPhone)) {
+    showMsg('Enter a valid Kenyan phone number (e.g. 0712345678).', 'error');
+    return;
+  }
+
+  setLoading(true);
+  hideMsg();
+
+  try {
+    const mac = await getMac();
+    const res = await fetch(`${API}/captive/${ISP_ID}/pay`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: cleanPhone, package_id: selectedPackage.id, mac })
+    });
+    const json = await res.json();
+
+    if (res.ok && json.payment_id) {
+      paymentId = json.payment_id;
+      document.getElementById('pay-section').style.display = 'none';
+      document.getElementById('pay-status').style.display = 'block';
+      document.getElementById('pay-status-msg').textContent =
+        `Enter your PIN on ${cleanPhone} to complete. Your voucher will be sent via SMS.`;
+      startPaymentPolling();
+    } else {
+      showMsg(json.error || 'Payment failed. Please try again.', 'error');
+    }
+  } catch (e) {
+    showMsg('Network error. Please check your connection.', 'error');
+  }
+  setLoading(false);
+}
+
+// ── Poll payment status ───────────────────────────────────────
+function startPaymentPolling() {
+  pollCount = 0;
+  let secs = 120;
+  const timerEl = document.getElementById('pay-timer');
+
+  const tick = () => { timerEl.textContent = `Waiting for payment… ${secs}s`; secs--; };
+  tick();
+  const countdown = setInterval(tick, 1000);
+
+  pollTimer = setInterval(async () => {
+    pollCount++;
+    try {
+      const res = await fetch(`${API}/captive/${ISP_ID}/payment-status/${paymentId}`);
+      const json = await res.json();
+
+      if (json.status === 'paid') {
+        clearInterval(pollTimer);
+        clearInterval(countdown);
+        document.getElementById('pay-status').style.display = 'none';
+        showMsg(`✅ Payment confirmed! Your voucher has been sent via SMS.\n${json.mpesa_receipt ? 'M-Pesa Receipt: ' + json.mpesa_receipt : ''}`, 'success');
+        document.getElementById('pay-section').style.display = 'none';
+        setLoading(false);
+        return;
+      }
+      if (json.status === 'failed' || pollCount >= MAX_POLL) {
+        clearInterval(pollTimer);
+        clearInterval(countdown);
+        cancelWaiting();
+        if (json.status === 'failed') {
+          showMsg('Payment was cancelled or failed. Please try again.', 'error');
+        } else {
+          showMsg('Payment timed out. Please try again or contact support.', 'warning');
+        }
+      }
+    } catch (e) { /* network hiccup, keep polling */ }
+  }, 5000);
+}
+
+function cancelWaiting() {
+  clearInterval(pollTimer);
+  document.getElementById('pay-status').style.display = 'none';
+  document.getElementById('pay-section').style.display = 'block';
+  paymentId = null;
+  pollCount = 0;
+}
+
+// ── Redeem voucher ────────────────────────────────────────────
+async function redeemVoucher() {
+  const code = document.getElementById('voucher-code').value.trim().toUpperCase();
+  const phone = document.getElementById('voucher-phone').value.trim();
+  if (!code) { showMsg('Enter a voucher code.', 'error'); return; }
+  setLoading(true);
+  hideMsg();
+
+  try {
+    const mac = await getMac();
+    const res = await fetch(`${API}/captive/${ISP_ID}/redeem`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, mac, phone })
+    });
+    const json = await res.json();
+
+    if (res.ok) {
+      const exp = json.expires_at ? `\nExpires: ${new Date(json.expires_at).toLocaleString('en-KE')}` : '';
+      const speed = json.bandwidth_down ? `\nSpeed: ${json.bandwidth_down}Mbps` : '';
+      const sms = phone ? `\n📱 SMS sent to ${phone}` : '';
+      showMsg(`✅ Connected!\nUsername: ${json.username}${speed}${exp}${sms}`, 'success');
+      document.getElementById('pay-section').style.display = 'none';
+    } else {
+      showMsg(json.error || 'Invalid voucher code. Please try again.', 'error');
+    }
+  } catch (e) {
+    showMsg('Network error. Please check your connection.', 'error');
+  }
+  setLoading(false);
+}
+
+// ── Smart TV QR Code ─────────────────────────────────────────
+function showPortalQR() {
+  const tvBar = document.getElementById('tv-bar');
+  const qrEl = document.getElementById('tv-qr');
+  const url = location.href.split('?')[0] + `?isp=${ISP_ID}`;
+  try {
+    tvBar.style.display = 'block';
+    new QRCode(qrEl, { text: url, width: 110, height: 110, colorDark: '#1a1a2e', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  } catch(e) { tvBar.style.display = 'none'; }
+}
+
+function showTVPage() {
+  document.getElementById('main-page').style.display = 'none';
+  document.getElementById('tv-page').style.display = 'block';
+  document.body.style.padding = '0';
+  document.body.style.alignItems = 'stretch';
+
+  const url = location.href.split('?')[0] + `?isp=${ISP_ID}`;
+  const qrEl = document.getElementById('tv-main-qr');
+  try {
+    new QRCode(qrEl, { text: url, width: 200, height: 200, colorDark: '#1a1a2e', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  } catch(e) {
+    qrEl.innerHTML = `<p style="color:#666;padding:20px">Scan: ${url}</p>`;
+  }
+}
+
+// ── Helpers ──────────────────────────────────────────────────
+async function getMac() {
+  try {
+    const r = await fetch('http://192.168.88.1/login?mac', { timeout: 2000 });
+    return (await r.text()).trim() || 'unknown';
+  } catch { return 'unknown'; }
+}
+
+function setLoading(v) {
+  document.getElementById('spinner').style.display = v ? 'block' : 'none';
+  document.querySelectorAll('.btn').forEach(b => b.disabled = v);
+}
+function showMsg(msg, type) {
+  const el = document.getElementById('msg');
+  el.textContent = msg;
+  el.className = `msg ${type}`;
+  el.style.display = 'block';
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function hideMsg() {
+  document.getElementById('msg').style.display = 'none';
+}
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+init();
+</script>
+
+<!-- Payment spinner widget -->
+<div id="rml-spinner-include"></div>
+<script>
+fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
+  document.getElementById('rml-spinner-include').innerHTML = html;
+  // Re-execute scripts (innerHTML doesn't run them)
+  document.querySelectorAll('#rml-spinner-include script').forEach(s => {
+    var n = document.createElement('script');
+    n.textContent = s.textContent;
+    document.body.appendChild(n);
+  });
+});
+</script>
+
+<script>
+// Hook into existing pay() flow — wrap fetch responses to show spinner
+(function(){
+  var origFetch = window.fetch;
+  window.fetch = function(url, opts) {
+    var prom = origFetch.apply(this, arguments);
+    if (typeof url === 'string' && url.indexOf('/pay') > -1 && opts && opts.method === 'POST') {
+      prom.then(r => r.clone().json()).then(data => {
+        if (data && data.payment_id && typeof rumalinkShowPaymentSpinner === 'function') {
+          var body = {};
+          try { body = JSON.parse(opts.body || '{}'); } catch(e){}
+          var ispId = (typeof ISP_ID !== 'undefined') ? ISP_ID : (location.search.match(/isp=([^&]+)/)||[])[1];
+          rumalinkShowPaymentSpinner({
+            phone: body.phone,
+            amount: data.amount,
+            paymentId: data.payment_id,
+            statusUrl: '/api/captive/' + ispId + '/payment-status/' + data.payment_id
+          });
+        }
+      }).catch(()=>{});
+    }
+    return prom;
+  };
+})();
+</script>
+</body>
+</html>

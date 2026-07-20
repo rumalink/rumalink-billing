@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>ISP Login — RumaLink Enterprise</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{--ink:#0a0f1e;--navy:#0d1530;--mid:#132044;--teal:#00d4aa;--teal2:#00b894;--white:#f0f4ff;--muted:#8899bb;--card:#111d3a;--border:#1e2f52;--font-head:'Syne',sans-serif;--font-body:'DM Sans',sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--ink);color:var(--white);font-family:var(--font-body);min-height:100vh;display:grid;grid-template-columns:1fr 1fr}
+.left{background:var(--navy);display:flex;flex-direction:column;justify-content:center;align-items:center;padding:60px;position:relative;overflow:hidden}
+.left::before{content:'';position:absolute;bottom:-100px;right:-100px;width:400px;height:400px;background:radial-gradient(circle,rgba(0,212,170,.15),transparent 65%);pointer-events:none}
+.brand{font-family:var(--font-head);font-size:2rem;font-weight:800;color:var(--teal);margin-bottom:8px}
+.brand-sub{color:var(--muted);font-size:.9rem;margin-bottom:60px}
+.feature-list{list-style:none;width:100%}
+.feature-list li{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--border);color:var(--muted);font-size:.9rem;font-weight:300}
+.feature-list li:last-child{border:none}
+.feature-list li::before{content:attr(data-icon);font-size:1.2rem;flex-shrink:0}
+.right{display:flex;align-items:center;justify-content:center;padding:60px}
+.login-box{width:100%;max-width:400px}
+.login-box h1{font-family:var(--font-head);font-size:2rem;font-weight:800;margin-bottom:8px}
+.login-box p{color:var(--muted);font-size:.9rem;font-weight:300;margin-bottom:36px}
+.form-group{margin-bottom:18px}
+.form-group label{display:block;font-size:.82rem;color:var(--muted);margin-bottom:7px;font-weight:500}
+.form-group input{width:100%;background:var(--card);border:1.5px solid var(--border);border-radius:8px;padding:12px 14px;color:var(--white);font-family:var(--font-body);font-size:.95rem;outline:none;transition:border-color .2s}
+.form-group input:focus{border-color:var(--teal)}
+.forgot{display:block;text-align:right;color:var(--teal);font-size:.82rem;text-decoration:none;margin-top:-10px;margin-bottom:24px}
+.btn-login{width:100%;padding:14px;background:var(--teal);color:var(--ink);border:none;border-radius:10px;font-family:var(--font-head);font-size:1rem;font-weight:700;cursor:pointer;transition:all .2s}
+.btn-login:hover{background:var(--teal2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,212,170,.3)}
+.btn-login:disabled{opacity:.6;transform:none;cursor:not-allowed}
+.login-footer{text-align:center;margin-top:24px;font-size:.85rem;color:var(--muted)}
+.login-footer a{color:var(--teal);text-decoration:none}
+#err-msg{background:rgba(231,76,60,.12);color:#e74c3c;border-radius:8px;padding:12px 14px;font-size:.88rem;margin-bottom:16px;display:none}
+@media(max-width:900px){body{grid-template-columns:1fr}.left{display:none}.right{padding:40px 24px}}
+@media(max-width:480px){.right{padding:28px 16px}.card{padding:24px 18px}}
+@media(max-width:360px){.right{padding:20px 12px}.card{padding:18px 14px}}
+</style>
+</head>
+<body>
+<div class="left">
+  <div class="brand">RumaLink Enterprise</div>
+  <div class="brand-sub">WiFi Billing Platform for Kenyan ISPs</div>
+  <ul class="feature-list">
+    <li data-icon="📡">MikroTik auto-provisioning in seconds</li>
+    <li data-icon="💳">MPesa STK push payments</li>
+    <li data-icon="🎟️">Hotspot voucher management</li>
+    <li data-icon="👥">PPPoE subscriber billing</li>
+    <li data-icon="💬">SMS alerts & reminders</li>
+    <li data-icon="📊">Real-time revenue analytics</li>
+  </ul>
+</div>
+<div class="right">
+  <div class="login-box">
+    <h1>Welcome Back</h1>
+    <p>Sign in to your ISP dashboard</p>
+    <div id="err-msg"></div>
+    <div class="form-group">
+      <label>Email Address</label>
+      <input type="email" id="email" placeholder="you@yourcompany.co.ke" autocomplete="email"/>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+    <a href="/forgot-password.html" class="forgot">Forgot password?</a>
+    <button class="btn-login" id="login-btn" onclick="doLogin()">Sign In →</button>
+    <div class="login-footer">
+      New to RumaLink? <a href="/">Register your ISP</a>
+      &nbsp;·&nbsp; <a href="/admin/login.html">Admin Login</a>
+    </div>
+  </div>
+</div>
+<script>
+const API = 'https://rumalinkenterprise.online/api';
+document.getElementById('password').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+async function doLogin(){
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('err-msg');
+  err.style.display='none';
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  if(!email||!password){err.textContent='Enter email and password.';err.style.display='block';return;}
+  btn.disabled=true;btn.textContent='Signing in…';
+  try{
+    const res = await fetch(`${API}/auth/isp/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    const json = await res.json();
+    if(res.ok){
+      localStorage.setItem('rl_token',json.token);
+      localStorage.setItem('rl_refresh',json.refreshToken);
+      localStorage.setItem('rl_isp',JSON.stringify(json.isp));
+      window.location.href='/isp/dashboard.html';
+    }else{
+      err.textContent=json.error||'Invalid credentials.';
+      err.style.display='block';
+      btn.disabled=false;btn.textContent='Sign In →';
+    }
+  }catch(e){
+    err.textContent='Connection error. Is the server running?';
+    err.style.display='block';
+    btn.disabled=false;btn.textContent='Sign In →';
+  }
+}
+</script>
+</body>
+</html>

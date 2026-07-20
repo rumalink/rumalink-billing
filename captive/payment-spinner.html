@@ -1,0 +1,80 @@
+<style>
+.rml-spinner-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:99999;display:none;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+.rml-spinner-overlay.show{display:flex}
+.rml-spinner-card{background:#0d1530;border:1px solid rgba(0,212,170,.2);border-radius:18px;padding:36px 30px;max-width:380px;width:90%;text-align:center;box-shadow:0 30px 60px rgba(0,0,0,.4)}
+.rml-spin-icon{width:84px;height:84px;margin:0 auto 20px;position:relative}
+.rml-spin-icon svg{width:100%;height:100%}
+.rml-circle{fill:none;stroke-width:5;stroke-linecap:round;transform-origin:center;transform:rotate(-90deg)}
+.rml-circle-bg{stroke:rgba(255,255,255,.08)}
+.rml-circle-fg{stroke:#00d4aa;stroke-dasharray:188;stroke-dashoffset:60;animation:rml-rotate 1.2s linear infinite}
+@keyframes rml-rotate{0%{stroke-dashoffset:188;transform:rotate(-90deg)}50%{stroke-dashoffset:47;transform:rotate(90deg)}100%{stroke-dashoffset:188;transform:rotate(270deg)}}
+.rml-check{width:84px;height:84px;margin:0 auto 20px;border-radius:50%;background:#00d4aa;display:flex;align-items:center;justify-content:center;animation:rml-pop .4s ease}
+.rml-check svg{width:46px;height:46px}
+@keyframes rml-pop{0%{transform:scale(0)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+.rml-cross{width:84px;height:84px;margin:0 auto 20px;border-radius:50%;background:#e74c3c;display:flex;align-items:center;justify-content:center;animation:rml-pop .4s ease;color:#fff;font-size:48px;font-weight:300}
+.rml-spin-title{color:#fff;font-size:1.2rem;font-weight:600;margin:0 0 8px}
+.rml-spin-msg{color:rgba(255,255,255,.7);font-size:.92rem;line-height:1.55;margin:0 0 18px}
+.rml-spin-amount{background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.2);border-radius:9px;padding:10px 14px;margin-bottom:14px;color:#00d4aa;font-size:1.05rem;font-weight:600}
+.rml-spin-step{font-size:.82rem;color:rgba(255,255,255,.45);margin-top:12px}
+.rml-spin-receipt{background:rgba(0,212,170,.08);border-radius:8px;padding:8px 12px;font-family:monospace;font-size:.82rem;color:#00d4aa;margin:12px 0 4px;word-break:break-all}
+.rml-spin-action{background:#00d4aa;color:#0d1530;border:none;border-radius:9px;padding:11px 26px;font-weight:700;cursor:pointer;font-size:.92rem;margin-top:14px;font-family:inherit}
+.rml-spin-action.alt{background:transparent;color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.2);margin-left:8px}
+</style>
+<div class="rml-spinner-overlay" id="rml-spinner-overlay">
+  <div class="rml-spinner-card">
+    <div id="rml-state-pending">
+      <div class="rml-spin-icon"><svg viewBox="0 0 80 80"><circle class="rml-circle rml-circle-bg" cx="40" cy="40" r="30"></circle><circle class="rml-circle rml-circle-fg" cx="40" cy="40" r="30"></circle></svg></div>
+      <div class="rml-spin-title">Sending M-Pesa Prompt…</div>
+      <div class="rml-spin-msg" id="rml-pending-msg">Check your phone for the M-Pesa request and enter your PIN.</div>
+      <div class="rml-spin-amount" id="rml-pending-amount">KES 0</div>
+      <div class="rml-spin-step" id="rml-step">Waiting for STK push…</div>
+    </div>
+    <div id="rml-state-success" style="display:none">
+      <div class="rml-check"><svg viewBox="0 0 52 52" fill="none"><path d="M14 27 L23 36 L40 17" stroke="#0d1530" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="rml-spin-title" style="color:#00d4aa">Payment Successful</div>
+      <div class="rml-spin-msg" id="rml-success-msg">Your payment has been received.</div>
+      <div class="rml-spin-receipt" id="rml-receipt"></div>
+      <button class="rml-spin-action" onclick="rumalinkClosePaymentSpinner()">Continue</button>
+    </div>
+    <div id="rml-state-failure" style="display:none">
+      <div class="rml-cross">✕</div>
+      <div class="rml-spin-title" style="color:#e74c3c">Payment Failed</div>
+      <div class="rml-spin-msg" id="rml-failure-msg">The payment could not be completed.</div>
+      <button class="rml-spin-action" onclick="rumalinkRetryPayment()">Try Again</button>
+      <button class="rml-spin-action alt" onclick="rumalinkClosePaymentSpinner()">Close</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){var _pi=null,_pc=0,_cfg={};
+window.rumalinkShowPaymentSpinner=function(o){_cfg=o||{};_pc=0;if(_pi)clearInterval(_pi);
+document.getElementById('rml-state-pending').style.display='';
+document.getElementById('rml-state-success').style.display='none';
+document.getElementById('rml-state-failure').style.display='none';
+document.getElementById('rml-pending-amount').textContent='KES '+(parseFloat(o.amount||0)).toLocaleString();
+if(o.phone)document.getElementById('rml-pending-msg').innerHTML='Check <b style="color:#fff">'+o.phone+'</b> for the M-Pesa prompt and enter your PIN.';
+document.getElementById('rml-step').textContent='Waiting for confirmation…';
+document.getElementById('rml-spinner-overlay').classList.add('show');
+if(!o.statusUrl)return;
+_pi=setInterval(async function(){_pc++;try{var r=await fetch(o.statusUrl,{cache:'no-store'});var d=await r.json();
+if(d.status==='paid'||d.status==='completed'){clearInterval(_pi);_ok(d);}
+else if(d.status==='failed'||d.status==='cancelled'){clearInterval(_pi);_no(d);}
+else{document.getElementById('rml-step').textContent='Waiting for confirmation'+'.'.repeat(_pc%4);}
+}catch(e){}
+if(_pc>60){clearInterval(_pi);_no({failure_reason:'Payment timed out. If you completed the payment, it will reflect shortly.'});}
+},3000);};
+window.rumalinkClosePaymentSpinner=function(){if(_pi)clearInterval(_pi);document.getElementById('rml-spinner-overlay').classList.remove('show');if(typeof _cfg.onClose==='function')_cfg.onClose();};
+window.rumalinkRetryPayment=function(){rumalinkClosePaymentSpinner();if(typeof _cfg.onRetry==='function')_cfg.onRetry();};
+function _ok(d){document.getElementById('rml-state-pending').style.display='none';document.getElementById('rml-state-success').style.display='';
+/* RL_TV_SUCCESS_MSG: TV purchase shows the TV-connected message (no voucher code / no receipt); phone keeps the voucher display. */
+if(_cfg.isTv){ var _tn=_cfg.tvName||'Your TV'; document.getElementById('rml-receipt').style.display='none'; document.getElementById('rml-success-msg').innerHTML='<b style="color:#00d4aa;display:block;margin-bottom:6px">Your TV is now connected!</b><span style="font-size:.9rem">“'+_tn+'” will get internet automatically when it joins the WiFi. This phone stays on the free portal.</span>'; if(typeof _cfg.onSuccess==='function')_cfg.onSuccess(d); return; }
+if(d.transaction_id){document.getElementById('rml-receipt').innerHTML='Receipt: <b>'+d.transaction_id+'</b>';document.getElementById('rml-receipt').style.display='';}
+else{document.getElementById('rml-receipt').style.display='none';}
+if(d.voucher_code){document.getElementById('rml-success-msg').innerHTML='Your WiFi voucher:<br><b style="color:#00d4aa;font-family:monospace;font-size:1.3rem;letter-spacing:2px;display:block;margin-top:8px">'+d.voucher_code+'</b><div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-top:6px">Save this code — use it to login if disconnected</div>';}
+else{document.getElementById('rml-success-msg').textContent='Your payment has been received successfully.';}
+if(typeof _cfg.onSuccess==='function')_cfg.onSuccess(d);}
+function _no(d){document.getElementById('rml-state-pending').style.display='none';document.getElementById('rml-state-failure').style.display='';
+document.getElementById('rml-failure-msg').textContent=d.failure_reason||'The payment was cancelled or could not be completed.';
+if(typeof _cfg.onFailure==='function')_cfg.onFailure(d);}
+})();
+</script>

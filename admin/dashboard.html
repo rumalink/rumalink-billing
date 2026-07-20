@@ -1,0 +1,2571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Admin Dashboard — RumaLink Enterprise</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root{--ink:#060910;--navy:#0b1220;--mid:#111c32;--teal:#00d4aa;--teal2:#00b894;--amber:#f39c12;--red:#e74c3c;--green:#2ecc71;--white:#eef2ff;--muted:#7a8baa;--card:#0f1a2e;--border:#1a2a45;--sidebar:230px;--font-head:'Syne',sans-serif;--font-body:'DM Sans',sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{background:var(--ink);color:var(--white);font-family:var(--font-body);display:flex}
+
+/* SIDEBAR */
+.sidebar{width:var(--sidebar);background:var(--navy);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;position:sticky;top:0;flex-shrink:0}
+.sb-logo{padding:20px 18px 14px;border-bottom:1px solid var(--border)}
+.sb-logo-top{font-family:var(--font-head);font-size:1.05rem;font-weight:800;color:var(--teal)}
+.sb-logo-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(243,156,18,.1);border:1px solid rgba(243,156,18,.2);color:var(--amber);padding:3px 10px;border-radius:100px;font-size:.68rem;font-weight:700;letter-spacing:.5px;margin-top:6px}
+.sb-admin{padding:12px 18px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.2)}
+.sb-admin-name{font-size:.85rem;font-weight:500}
+.sb-admin-role{font-size:.7rem;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.sb-nav{flex:1;padding:10px 0;overflow-y:auto}
+.nav-group{font-size:.63rem;color:var(--border);text-transform:uppercase;letter-spacing:1.5px;padding:12px 18px 4px;font-weight:700}
+.nav-item{display:flex;align-items:center;gap:11px;padding:9px 18px;color:var(--muted);font-size:.86rem;cursor:pointer;transition:all .15s;border-left:3px solid transparent;user-select:none}
+.nav-item:hover{color:var(--white);background:rgba(255,255,255,.04)}
+.nav-item.active{color:var(--amber);background:rgba(243,156,18,.07);border-left-color:var(--amber);font-weight:500}
+.nav-item .icon{width:17px;text-align:center;font-size:.95rem;flex-shrink:0}
+.sb-bottom{padding:14px 18px;border-top:1px solid var(--border)}
+.sb-stats{background:rgba(0,212,170,.06);border:1px solid rgba(0,212,170,.12);border-radius:9px;padding:11px;margin-bottom:10px}
+.sb-stat-label{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.sb-stat-val{font-family:var(--font-head);font-size:1.15rem;font-weight:700;color:var(--teal);margin-top:1px}
+.btn-logout{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:.82rem;cursor:pointer;padding:3px 0;background:none;border:none;font-family:var(--font-body)}
+.btn-logout:hover{color:var(--red)}
+.btn-amber{background:var(--amber);color:var(--ink);border:none;border-radius:8px;padding:10px 20px;font-family:var(--font-body);font-weight:600;cursor:pointer;transition:all .2s}
+.btn-amber:hover:not(:disabled){background:#e67e22;transform:translateY(-1px)}
+.btn-amber:disabled{opacity:.55;cursor:not-allowed}
+
+/* MAIN */
+.main{flex:1;height:100vh;overflow-y:auto;display:flex;flex-direction:column}
+.topbar{padding:13px 26px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:rgba(6,9,16,.9);backdrop-filter:blur(12px);position:sticky;top:0;z-index:50}
+.topbar-title{font-family:var(--font-head);font-size:1.05rem;font-weight:700}
+.topbar-right{display:flex;align-items:center;gap:14px}
+.notif-btn{position:relative;background:none;border:none;color:var(--muted);font-size:1.15rem;cursor:pointer}
+.notif-dot{position:absolute;top:0;right:0;width:7px;height:7px;background:var(--red);border-radius:50%}
+.admin-av{width:32px;height:32px;background:linear-gradient(135deg,var(--amber),#e67e22);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:.8rem;font-weight:700;color:#fff}
+.content{flex:1;padding:26px}
+
+/* PAGES */
+.page{display:none}.page.active{display:block}
+
+/* STAT CARDS */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;margin-bottom:22px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;position:relative;overflow:hidden;transition:border-color .2s}
+.stat-card::after{content:'';position:absolute;top:0;right:0;width:60px;height:60px;border-radius:0 12px 0 60px;background:rgba(255,255,255,.02)}
+.stat-card:hover{border-color:rgba(0,212,170,.2)}
+.sc-label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.sc-icon{font-size:1rem;opacity:.6}
+.sc-val{font-family:var(--font-head);font-size:1.9rem;font-weight:700;line-height:1}
+.sc-val.teal{color:var(--teal)}.sc-val.amber{color:var(--amber)}.sc-val.red{color:var(--red)}.sc-val.green{color:var(--green)}
+.sc-sub{font-size:.74rem;color:var(--muted);margin-top:6px}
+.sc-change{font-size:.75rem;padding:2px 8px;border-radius:100px;font-weight:600}
+.sc-change.up{background:rgba(46,204,113,.1);color:var(--green)}.sc-change.down{background:rgba(231,76,60,.1);color:var(--red)}
+
+/* LAYOUT */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-bottom:20px}
+.grid-2-1{display:grid;grid-template-columns:2fr 1fr;gap:18px;margin-bottom:20px}
+
+/* PANEL */
+.panel{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:0}
+.panel-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.panel-head h3{font-family:var(--font-head);font-size:.9rem;font-weight:700}
+.panel-body{padding:18px}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;font-size:.84rem}
+.tbl-wrap{overflow-x:auto}
+.tbl th{text-align:left;padding:9px 13px;font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);border-bottom:1px solid var(--border);font-weight:600;white-space:nowrap}
+.tbl td{padding:11px 13px;border-bottom:1px solid rgba(255,255,255,.03);color:var(--muted);vertical-align:middle}
+.tbl td.name{color:var(--white);font-weight:500}
+.tbl tr:last-child td{border:none}
+.tbl tr:hover td{background:rgba(255,255,255,.015)}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:100px;font-size:.71rem;font-weight:600;letter-spacing:.2px;white-space:nowrap}
+.bg{background:rgba(46,204,113,.1);color:var(--green)}
+.ba{background:rgba(243,156,18,.1);color:var(--amber)}
+.br{background:rgba(231,76,60,.1);color:var(--red)}
+.bm{background:rgba(122,139,170,.1);color:var(--muted)}
+.bt{background:rgba(0,212,170,.1);color:var(--teal)}
+
+/* BUTTONS */
+.btn{padding:8px 16px;border-radius:8px;font-family:var(--font-body);font-weight:600;font-size:.84rem;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:6px;transition:all .15s;text-decoration:none;white-space:nowrap}
+.btn-teal{background:var(--teal);color:var(--ink)}.btn-teal:hover{background:var(--teal2)}
+.btn-amber{background:var(--amber);color:#fff}.btn-amber:hover{opacity:.9}
+.btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--muted)}.btn-outline:hover{border-color:var(--teal);color:var(--teal)}
+.btn-red{background:rgba(231,76,60,.12);color:var(--red);border:1px solid rgba(231,76,60,.2)}.btn-red:hover{background:var(--red);color:#fff}
+.btn-green{background:rgba(46,204,113,.12);color:var(--green);border:1px solid rgba(46,204,113,.2)}.btn-green:hover{background:var(--green);color:#fff}
+.btn-sm{padding:5px 11px;font-size:.78rem}
+
+/* FORMS */
+.fg{margin-bottom:14px}
+.fg label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:5px;font-weight:500}
+.fg input,.fg select,.fg textarea{width:100%;background:var(--mid);border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--white);font-family:var(--font-body);font-size:.88rem;outline:none;transition:border-color .2s}
+.fg input:focus,.fg select:focus{border-color:var(--amber)}
+.fg select option{background:var(--navy)}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(5px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--navy);border:1px solid var(--border);border-radius:16px;padding:30px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;animation:mup .2s ease}
+@keyframes mup{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal h2{font-family:var(--font-head);font-size:1.15rem;font-weight:700;margin-bottom:6px}
+.modal .modal-sub{color:var(--muted);font-size:.85rem;margin-bottom:22px;font-weight:300}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+
+/* ISP DETAIL SIDE PANEL */
+.side-panel{position:fixed;top:0;right:-520px;width:500px;height:100vh;background:var(--navy);border-left:1px solid var(--border);z-index:300;overflow-y:auto;transition:right .3s ease;box-shadow:-20px 0 60px rgba(0,0,0,.5)}
+.side-panel.open{right:0}
+.sp-head{padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--navy);z-index:1}
+.sp-close{background:none;border:none;color:var(--muted);font-size:1.3rem;cursor:pointer;padding:4px}
+.sp-close:hover{color:var(--white)}
+.sp-body{padding:22px}
+.sp-section{margin-bottom:22px}
+.sp-section h4{font-family:var(--font-head);font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:12px}
+.sp-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.85rem}
+.sp-row:last-child{border:none}
+.sp-row .sp-key{color:var(--muted);font-weight:300}
+.sp-row .sp-val{color:var(--white);font-weight:500;text-align:right}
+
+/* TOASTS */
+.toast-container{position:fixed;bottom:22px;right:22px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;font-size:.86rem;display:flex;align-items:center;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,.5);animation:tslide .3s ease;min-width:250px}
+.toast.success{border-color:rgba(0,212,170,.3)}.toast.error{border-color:rgba(231,76,60,.3)}
+@keyframes tslide{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* SEARCH / FILTER BAR */
+.filter-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.filter-bar input,.filter-bar select{background:var(--mid);border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--white);font-family:var(--font-body);font-size:.84rem;outline:none;transition:border-color .2s}
+.filter-bar input:focus,.filter-bar select:focus{border-color:var(--amber)}
+.filter-bar select option{background:var(--navy)}
+
+/* LOADING */
+.loading{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--muted);gap:12px;font-size:.88rem}
+.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--amber);border-radius:50%;animation:spin 1s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* PLAN SPLIT DONUT */
+.donut-wrap{display:flex;align-items:center;gap:20px}
+.donut-legend{flex:1}
+.legend-item{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:.84rem;color:var(--muted)}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+/* ─── HAMBURGER ─── */
+.hamburger-btn{display:none;background:none;border:none;color:var(--white);font-size:1.3rem;cursor:pointer;padding:4px 8px;line-height:1}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:149}
+.sidebar-overlay.open{display:block}
+
+/* ─── RESPONSIVE ─── */
+@media(max-width:1100px){:root{--sidebar:200px}.content{padding:18px}}
+@media(max-width:1000px){.grid-2,.grid-3,.grid-2-1{grid-template-columns:1fr}}
+@media(max-width:900px){
+  :root{--sidebar:260px}
+  .sidebar{position:fixed;left:-280px;top:0;height:100vh;z-index:150;transition:left .28s cubic-bezier(.4,0,.2,1);box-shadow:4px 0 28px rgba(0,0,0,.5)}
+  .sidebar.open{left:0}
+  .hamburger-btn{display:block}
+  .main{width:100%}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .topbar{padding:12px 16px}
+  .content{padding:16px}
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .modal{max-width:calc(100vw - 32px);margin:16px}
+}
+@media(max-width:600px){
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .topbar-title{font-size:.9rem}
+  .topbar-right{gap:8px}
+  .content{padding:12px}
+  .card{padding:14px}
+  .tbl th,.tbl td{padding:8px 10px;font-size:.78rem}
+  .filter-bar{flex-wrap:wrap;gap:8px}
+  .donut-wrap{flex-direction:column}
+}
+@media(max-width:420px){
+  .stats-grid{grid-template-columns:1fr}
+  .content{padding:10px}
+  .topbar{padding:10px 12px}
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-top">RumaLink Enterprise</div>
+    <div class="sb-logo-badge">⚡ Admin Console</div>
+  </div>
+  <div class="sb-admin">
+    <div class="sb-admin-name" id="sb-admin-name">Admin</div>
+    <div class="sb-admin-role">Super Administrator</div>
+  </div>
+  <nav class="sb-nav">
+    <div class="nav-group">Overview</div>
+    <div class="nav-item active" data-page="dashboard"><span class="icon">📊</span> Dashboard</div>
+
+    <div class="nav-group">ISP Management</div>
+    <div class="nav-item" data-page="isps"><span class="icon">🏢</span> All ISPs</div>
+    <div class="nav-item" data-page="isp-pending"><span class="icon">⏳</span> Pending Review</div>
+    <div class="nav-item" data-page="isp-suspended"><span class="icon">🚫</span> Suspended</div>
+    <div class="nav-item" data-page="isp-expired"><span class="icon">⏰</span> Expired</div>
+
+    <div class="nav-group">Revenue</div>
+    <div class="nav-item" data-page="payments"><span class="icon">📒</span> All Payments</div>
+    <div class="nav-item" data-page="intasend-tracking"><span class="icon">🏦</span> IntaSend Tracking</div>  <!-- RL_INTASEND_TRACKING -->
+    <div class="nav-item" data-page="commissions"><span class="icon">💰</span> Commissions</div>
+    <div class="nav-item" data-page="platform-invoices"><span class="icon">🧾</span> Platform Invoices</div>
+    <div class="nav-item" data-page="billing"><span class="icon">💳</span> Charge ISPs</div>
+    <div class="nav-item" data-page="sms-reseller"><span class="icon">📱</span> SMS Reseller</div>
+    <div class="nav-item" data-page="payouts"><span class="icon">💸</span> Payouts</div>
+
+    <div class="nav-group">Monitoring</div>
+    <div class="nav-item" data-page="sessions"><span class="icon">📡</span> Live Sessions</div>
+    <div class="nav-item" data-page="devices"><span class="icon">🖥️</span> All Devices</div>
+
+    <div class="nav-group">Platform</div>
+    <div class="nav-item" data-page="notifications"><span class="icon">🔔</span> Notifications</div>
+    <div class="nav-item" data-page="support"><span class="icon">🎧</span> Support Tickets</div>
+    <div class="nav-item" data-page="settings"><span class="icon">⚙️</span> Settings</div>
+    <div class="nav-group">E-Commerce</div>
+    <div class="nav-item" data-page="shop"><span class="icon">🛒</span> Shop<span id="shop-order-badge" style="display:none;background:var(--red,#e74c3c);color:#fff;font-size:.68rem;font-weight:700;min-width:18px;height:18px;border-radius:9px;padding:0 5px;margin-left:8px;align-items:center;justify-content:center;line-height:1">0</span></div>
+  </nav>
+  <div class="sb-bottom">
+    <div class="sb-stats">
+      <div class="sb-stat-label">Total Commission</div>
+      <div class="sb-stat-val" id="sb-commission">KES —</div>
+    </div>
+    <button class="btn-logout" onclick="logout()">🚪 Sign Out</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Open menu">☰</button>
+      <div class="topbar-title" id="page-title">Dashboard</div>
+    </div>
+    <div class="topbar-right">
+      <button class="notif-btn" onclick="showPage('notifications')" title="Notifications">🔔<span class="notif-dot" id="notif-dot" style="display:none"></span></button>
+      <div class="admin-av" id="admin-av">A</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ══ DASHBOARD ══ -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="sc-label">Total ISPs <span class="sc-icon">🏢</span></div><div class="sc-val teal" id="ds-total-isps">—</div><div class="sc-sub"><span id="ds-new-isps">—</span> new this month</div></div>
+        <div class="stat-card"><div class="sc-label">Active ISPs <span class="sc-icon">✅</span></div><div class="sc-val green" id="ds-active-isps">—</div><div class="sc-sub">Generating revenue</div></div>
+        <div class="stat-card"><div class="sc-label">Total Commission <span class="sc-icon">💰</span></div><div class="sc-val amber" id="ds-total-comm">—</div><div class="sc-sub">All time</div></div>
+        <div class="stat-card"><div class="sc-label">This Month <span class="sc-icon">📅</span></div><div class="sc-val teal" id="ds-month-comm">—</div><div class="sc-sub">Commission earned</div></div>
+        <div class="stat-card"><div class="sc-label">Total Processed <span class="sc-icon">💳</span></div><div class="sc-val" id="ds-processed">—</div><div class="sc-sub">Platform lifetime</div></div>
+        <div class="stat-card"><div class="sc-label">Live Sessions <span class="sc-icon">📡</span></div><div class="sc-val teal" id="ds-sessions">—</div><div class="sc-sub" id="ds-sessions-sub">—</div></div>
+        <div class="stat-card"><div class="sc-label">Pending Review <span class="sc-icon">⏳</span></div><div class="sc-val amber" id="ds-pending">—</div><div class="sc-sub">Need attention</div></div>
+        <div class="stat-card"><div class="sc-label">Today Transactions <span class="sc-icon">🔄</span></div><div class="sc-val" id="ds-today-tx">—</div><div class="sc-sub">Across all ISPs</div></div>
+      </div>
+
+      <div class="grid-2-1">
+        <div class="panel">
+          <div class="panel-head"><h3>Platform Revenue (<span id="rev-year"></span>)</h3><span class="badge bt" id="chart-total-badge">—</span></div>
+          <div class="panel-body"><canvas id="admin-revenue-chart" height="180"></canvas></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>ISP Plans Split</h3></div>
+          <div class="panel-body">
+            <div class="donut-wrap">
+              <canvas id="plans-donut" width="120" height="120" style="flex-shrink:0"></canvas>
+              <div class="donut-legend">
+                <div class="legend-item"><div class="legend-dot" style="background:#00d4aa"></div><div><div style="color:var(--white);font-weight:500">Hotspot</div><div id="hotspot-count" style="font-size:.8rem">— ISPs</div></div></div>
+                <div class="legend-item"><div class="legend-dot" style="background:#f39c12"></div><div><div style="color:var(--white);font-weight:500">PPPoE</div><div id="pppoe-count" style="font-size:.8rem">— ISPs</div></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><h3>Recent ISP Signups</h3><button class="btn btn-outline btn-sm" onclick="showPage('isps')">View All</button></div>
+          <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Company</th><th>Plan</th><th>Status</th><th>Joined</th><th></th></tr></thead><tbody id="dash-recent-isps"></tbody></table></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Recent Commissions</h3><button class="btn btn-outline btn-sm" onclick="showPage('commissions')">View All</button></div>
+          <div class="tbl-wrap"><table class="tbl"><thead><tr><th>ISP</th><th>Amount</th><th>Rate</th><th>Date</th></tr></thead><tbody id="dash-recent-comm"></tbody></table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ALL ISPs ══ -->
+    <div class="page" id="page-isps">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px">
+        <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700">All ISPs</h2>
+        <div class="filter-bar">
+          <input type="text" id="isp-search" placeholder="Search name, email…" style="width:220px" oninput="loadISPs()"/>
+          <select id="isp-status-filter" onchange="loadISPs()"><option value="">All Status</option><option value="active">Active</option><option value="pending">Pending</option><option value="suspended">Suspended</option><option value="cancelled">Cancelled</option></select>
+          <select id="isp-plan-filter" onchange="loadISPs()"><option value="">All Plans</option><option value="hotspot">Hotspot</option><option value="pppoe">PPPoE</option></select>
+          <button class="btn btn-outline btn-sm" onclick="loadISPs()">🔄 Refresh</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>Company</th><th>Owner</th><th>Email</th><th>Plan</th><th>Status</th><th>Devices</th><th>Revenue</th><th>Commission</th><th>Joined</th><th>Actions</th></tr></thead>
+          <tbody id="isps-tbody"><tr><td colspan="10"><div class="loading"><div class="spinner"></div>Loading ISPs…</div></td></tr></tbody>
+        </table></div>
+        <div style="padding:12px 18px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border)">
+          <span class="sc-sub" id="isp-count-label">—</span>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-outline btn-sm" onclick="ispPage--;loadISPs()">← Prev</button>
+            <button class="btn btn-outline btn-sm" onclick="ispPage++;loadISPs()">Next →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PENDING ISPs ══ -->
+    <div class="page" id="page-isp-pending">
+      <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:18px">Pending ISPs</h2>
+      <div class="panel">
+        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Company</th><th>Owner</th><th>Email</th><th>Phone</th><th>Plan</th><th>Location</th><th>Registered</th><th>Actions</th></tr></thead><tbody id="pending-tbody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ══ SUSPENDED ISPs ══ -->
+    <div class="page" id="page-isp-expired">
+      <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:18px">Expired ISPs</h2>
+      <div class="panel"><div class="panel-body" style="padding:0">
+        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Company</th><th>Plan</th><th>Email</th><th>Expired</th><th>Actions</th></tr></thead><tbody id="expired-tbody"></tbody></table></div>
+      </div></div>
+    </div>
+    <div class="page" id="page-isp-suspended">
+      <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:18px">Suspended ISPs</h2>
+      <div class="panel">
+        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Company</th><th>Plan</th><th>Email</th><th>Actions</th></tr></thead><tbody id="suspended-tbody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ══ COMMISSIONS ══ -->
+    <div class="page" id="page-commissions">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px">
+        <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700">Commissions</h2>
+        <div class="filter-bar">
+          <select id="comm-month" onchange="loadCommissions()">
+            <option value="">All Months</option>
+            <option value="1">January</option><option value="2">February</option><option value="3">March</option><option value="4">April</option><option value="5">May</option><option value="6">June</option><option value="7">July</option><option value="8">August</option><option value="9">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+          </select>
+          <select id="comm-year" onchange="loadCommissions()"><option value="">All Years</option><option value="2024">2024</option><option value="2025">2025</option></select>
+        </div>
+      </div>
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px">
+        <div class="stat-card"><div class="sc-label">Platform Revenue (Invoiced)</div><div class="sc-val amber" id="comm-total">—</div></div>
+        <div class="stat-card"><div class="sc-label">Paid</div><div class="sc-val green" id="comm-settled">—</div></div>
+        <div class="stat-card"><div class="sc-label">Pending</div><div class="sc-val amber" id="comm-pending-val">—</div></div>
+      </div>
+      <div class="panel">
+        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>ISP</th><th>Invoice Total</th><th>Hotspot Rate</th><th>Hotspot Rev.</th><th>Breakdown</th><th>Status</th><th>Date</th></tr></thead><tbody id="comm-tbody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ══ PLATFORM INVOICES ══ -->
+    <div class="page" id="page-platform-invoices">
+      <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:18px">Platform Invoices (PPPoE)</h2>
+      <div class="panel">
+        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>ISP</th><th>Period</th><th>Users</th><th>Amount</th><th>Due</th><th>Status</th></tr></thead><tbody id="platform-inv-tbody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ══ PAYOUTS ══ -->
+    <!-- RL_INTASEND_ADMIN_PAGE -->
+    <div class="page" id="page-payouts">
+      <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:18px">Payouts</h2>
+      <div class="panel">
+        <div class="panel-body">
+          <p style="color:var(--muted);font-size:.9rem">ISP wallet withdrawal requests and payout management will appear here. This section is used to manage when ISPs request withdrawal of their earned balance minus commissions.</p>
+          <div style="margin-top:20px;padding:24px;background:rgba(0,212,170,.04);border:1px solid var(--border);border-radius:10px;text-align:center;color:var(--muted)">No pending payout requests.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ LIVE SESSIONS ══ -->
+    <div class="page" id="page-sessions">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+        <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700">Live Sessions</h2>
+        <button class="btn btn-outline btn-sm" onclick="loadSessions()">🔄 Refresh</button>
+      </div>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><h3>Hotspot Sessions</h3><span class="badge bg" id="hs-count">0</span></div>
+          <div class="tbl-wrap"><table class="tbl"><thead><tr><th>ISP</th><th>MAC</th><th>IP</th><th>Voucher</th><th>Started</th></tr></thead><tbody id="hs-sessions-tbody"></tbody></table></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>PPPoE Sessions</h3><span class="badge bg" id="pppoe-count-badge">0</span></div>
+          <div class="tbl-wrap"><table class="tbl"><thead><tr><th>ISP</th><th>Username</th><th>IP</th><th>↓ DL</th><th>Started</th></tr></thead><tbody id="pppoe-sessions-tbody"></tbody></table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ALL DEVICES ══ -->
+    <div class="page" id="page-devices">
+      <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:18px">All MikroTik Devices</h2>
+      <div class="panel">
+        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>ISP</th><th>Name</th><th>Identity</th><th>IP</th><th>Status</th><th>Provisioned</th><th>Last Seen</th></tr></thead><tbody id="all-devices-tbody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ══ NOTIFICATIONS ══ -->
+    <div class="page" id="page-notifications">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+        <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700">Platform Notifications</h2>
+        <button class="btn btn-outline btn-sm" onclick="loadAdminNotifications()">🔄 Refresh</button>
+      </div>
+      <div id="admin-notif-list"></div>
+    </div>
+
+    <!-- ══ SUPPORT ══ -->
+    <div class="page" id="page-support">
+      <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:18px">Support Tickets</h2>
+      <div class="panel">
+        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>ISP</th><th>Subject</th><th>Priority</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody id="admin-tickets-tbody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ══ SETTINGS ══ -->
+
+    <!-- ══ BILLING PAGE ══ -->
+    <div class="page" id="page-billing">
+      <div class="grid-2-1">
+        <div>
+          <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:4px">Charge ISPs — M-Pesa STK Push</h2>
+          <p style="color:var(--muted);font-size:.82rem;margin-bottom:20px">Send payment requests directly to ISP phones for platform fees, PPPoE billing, or outstanding invoices.</p>
+
+          <!-- Quick charge form -->
+          <div class="card" style="margin-bottom:20px">
+            <div style="font-size:.88rem;font-weight:600;margin-bottom:14px;color:var(--white)">⚡ Quick Charge</div>
+            <div class="grid-2" style="gap:12px;margin-bottom:12px">
+              <div>
+                <label style="font-size:.78rem;color:var(--muted);display:block;margin-bottom:5px">Select ISP</label>
+                <select id="bill-isp-sel" style="width:100%;background:var(--mid);border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--white);font-size:.88rem;outline:none">
+                  <option value="">Loading ISPs…</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:.78rem;color:var(--muted);display:block;margin-bottom:5px">Amount (KES)</label>
+                <input type="number" id="bill-amount" placeholder="e.g. 3200" min="1"
+                  style="width:100%;background:var(--mid);border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--white);font-size:.88rem;outline:none"/>
+              </div>
+            </div>
+            <div class="grid-2" style="gap:12px;margin-bottom:12px">
+              <div>
+                <label style="font-size:.78rem;color:var(--muted);display:block;margin-bottom:5px">Phone to Charge</label>
+                <input type="tel" id="bill-phone" placeholder="0712345678" inputmode="tel"
+                  style="width:100%;background:var(--mid);border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--white);font-size:.88rem;outline:none"/>
+              </div>
+              <div>
+                <label style="font-size:.78rem;color:var(--muted);display:block;margin-bottom:5px">Charge Type</label>
+                <select id="bill-type" style="width:100%;background:var(--mid);border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--white);font-size:.88rem;outline:none">
+                  <option value="pppoe_monthly">PPPoE Monthly Fee</option>
+                  <option value="platform_fee">Platform Fee</option>
+                  <option value="hotspot_commission">Hotspot Commission</option>
+                  <option value="setup_fee">One-time Setup Fee</option>
+                  <option value="custom">Custom Invoice</option>
+                </select>
+              </div>
+            </div>
+            <div style="margin-bottom:14px">
+              <label style="font-size:.78rem;color:var(--muted);display:block;margin-bottom:5px">Description / Invoice Note</label>
+              <input type="text" id="bill-desc" placeholder="e.g. PPPoE billing for May 2026 — 100 users × KES 32"
+                style="width:100%;background:var(--mid);border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--white);font-size:.88rem;outline:none"/>
+            </div>
+            <button class="btn btn-amber" style="width:100%;padding:12px;font-size:.9rem;font-weight:600" onclick="sendISPCharge()">
+              📱 Send M-Pesa STK Push to ISP
+            </button>
+            <div id="bill-msg" style="display:none;margin-top:12px;padding:10px 12px;border-radius:8px;font-size:.84rem"></div>
+          </div>
+
+          <!-- Auto-bill PPPoE ISPs -->
+          <div class="card" style="margin-bottom:20px">
+            <div style="font-size:.88rem;font-weight:600;margin-bottom:4px;color:var(--white)">🔄 Auto-Bill PPPoE ISPs</div>
+            <div style="font-size:.8rem;color:var(--muted);margin-bottom:14px">Generate and send monthly invoices for all active PPPoE ISPs based on their current subscriber count.</div>
+            <div class="grid-2" style="gap:12px;margin-bottom:14px">
+              <div>
+                <label style="font-size:.78rem;color:var(--muted);display:block;margin-bottom:5px">Month</label>
+                <select id="autobill-month" style="width:100%;background:var(--mid);border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--white);font-size:.88rem;outline:none">
+                  <option value="1">January</option><option value="2">February</option><option value="3">March</option>
+                  <option value="4">April</option><option value="5">May</option><option value="6">June</option>
+                  <option value="7">July</option><option value="8">August</option><option value="9">September</option>
+                  <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:.78rem;color:var(--muted);display:block;margin-bottom:5px">Year</label>
+                <input type="number" id="autobill-year" value="2026" min="2024" max="2030"
+                  style="width:100%;background:var(--mid);border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--white);font-size:.88rem;outline:none"/>
+              </div>
+            </div>
+            <button class="btn btn-amber" style="padding:10px 20px;font-size:.86rem" onclick="autoBillPPPoE()">
+              🧾 Generate & Send All PPPoE Invoices
+            </button>
+            <div id="autobill-msg" style="display:none;margin-top:10px;padding:10px;border-radius:8px;font-size:.82rem"></div>
+          </div>
+        </div>
+
+        <!-- Right: Charge history -->
+        <div>
+          <div class="card">
+            <div style="font-size:.88rem;font-weight:600;margin-bottom:14px;color:var(--white)">Recent Charges</div>
+            <div class="tbl-wrap">
+              <table class="tbl" style="font-size:.78rem">
+                <thead><tr><th>ISP</th><th>Amount</th><th>Type</th><th>Status</th><th>Date</th></tr></thead>
+                <tbody id="charge-history-tbody">
+                  <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card" style="margin-top:16px">
+            <div style="font-size:.88rem;font-weight:600;margin-bottom:12px;color:var(--white)">📊 Outstanding Invoices</div>
+            <div id="outstanding-list" style="font-size:.82rem;color:var(--muted)">Loading…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-payments">
+      <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:16px">All Payments</h2>
+      <div class="panel" style="margin-bottom:16px"><div class="panel-body">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+          <div class="fg" style="margin:0"><label>Status</label><select id="ap-status"><option value="">All</option><option value="paid">Paid</option><option value="pending">Pending</option><option value="failed">Failed</option></select></div>
+          <div class="fg" style="margin:0"><label>Gateway</label><select id="ap-gateway"><option value="">All</option><option value="jenga">Equity (Jenga)</option><option value="mpesa_stk">M-Pesa (Daraja)</option></select></div>
+          <div class="fg" style="margin:0"><label>Phone</label><input type="text" id="ap-phone" placeholder="2547…"/></div>
+          <div class="fg" style="margin:0"><label>From</label><input type="date" id="ap-from"/></div>
+          <div class="fg" style="margin:0"><label>To</label><input type="date" id="ap-to"/></div>
+          <button class="btn btn-amber btn-sm" onclick="payFilterApply()">Filter</button>
+          <button class="btn btn-outline btn-sm" onclick="payFilterReset()">Reset</button>
+        </div>
+      </div></div>
+      <div id="ap-totals" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px"></div>
+      <div class="panel"><div class="panel-body" style="padding:0">
+        <div class="tbl-wrap"><table class="tbl"><thead><tr>
+          <th>Date</th><th>ISP</th><th>Customer</th><th>Amount</th><th>Commission</th><th>Gateway</th><th>Status</th><th>Ref</th>
+        </tr></thead><tbody id="ap-tbody"></tbody></table></div>
+      </div></div>
+      <div id="ap-pager" style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:14px"></div>
+    </div>
+
+    <div class="page" id="page-settings">
+      <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:16px">Platform Settings</h2>
+      <!-- RL_SETTINGS_TABS -->
+      <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap" id="set-tabs">
+        <button class="btn btn-sm set-tab active" data-stab="platform" onclick="setTab('platform')">⚙️ Platform</button>
+        <button class="btn btn-sm set-tab" data-stab="jenga" onclick="setTab('jenga')">🏦 Equity (Jenga)</button>
+        <button class="btn btn-sm set-tab" data-stab="daraja" onclick="setTab('daraja')">📱 Daraja</button>
+        <button class="btn btn-sm set-tab" data-stab="intasend" onclick="setTab('intasend')">💸 IntaSend</button>
+      </div>
+
+      <div class="set-stab" id="set-stab-platform">
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><h3>Platform Commission Defaults</h3></div>
+          <div class="panel-body">
+            <div class="fg"><label>Default Hotspot Commission (%)</label><input type="number" id="set-hotspot-rate" value="3" step="0.1" min="0" max="100"/></div>
+            <div class="fg"><label>PPPoE Rate per User (KES)</label><input type="number" id="set-pppoe-rate" value="32.25"/></div>
+            <button class="btn btn-amber" onclick="saveSettings()">💾 Save Settings</button>
+          </div>
+        </div>
+        <div class="panel" style="border:1px solid rgba(231,76,60,.4);grid-column:1/-1;margin-top:8px">
+          <div class="panel-head" style="background:rgba(231,76,60,.06)"><h3 style="color:#e74c3c">⚠ Reset to Production <!-- RL_RESET_PANEL --></h3></div>
+          <div class="panel-body">
+            <p style="font-size:.86rem;color:var(--muted);line-height:1.6;margin:0 0 10px">
+              Wipes <strong>all test data</strong> — ISPs, payments, vouchers, sessions, devices, RADIUS.
+              <strong>Keeps</strong> your admin login, IntaSend/Daraja keys, and fee/commission settings.
+              A full database backup is saved <strong>before</strong> anything is deleted. This cannot be
+              undone except by restoring that backup.
+            </p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+              <button class="btn btn-sm btn-outline" onclick="rlTestBackup()">💾 Test backup now (no wipe)</button>
+              <span id="rl-backup-status" style="font-size:.8rem;color:var(--muted);align-self:center"></span>
+            </div>
+            <div class="fg" style="max-width:360px">
+              <label style="font-size:.82rem">Type <code style="color:#e74c3c">RESET TO PRODUCTION</code> to enable:</label>
+              <input type="text" id="rl-reset-phrase" autocomplete="off" oninput="rlResetPhraseCheck()" placeholder="RESET TO PRODUCTION"/>
+            </div>
+            <button class="btn btn-sm" id="rl-reset-btn" disabled onclick="rlDoReset()" style="background:#e74c3c;color:#fff;opacity:.5;cursor:not-allowed">🗑 Reset to Production</button>
+            <div id="rl-reset-status" style="font-size:.82rem;margin-top:10px"></div>
+            <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
+            <h4 style="margin:0 0 6px;font-size:.95rem"><!-- RL_RESTORE_UI -->↩ Restore from Backup</h4>
+            <p style="font-size:.82rem;color:var(--muted);line-height:1.5;margin:0 0 10px">
+              Replaces the <strong>entire</strong> database with a saved backup. Everything created since
+              that backup is lost. A snapshot of the current state is saved first, so this is undoable.
+            </p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+              <select id="rl-restore-file" style="min-width:280px"></select>
+              <button class="btn btn-sm btn-outline" onclick="rlLoadBackups()">🔄 Refresh list</button>
+            </div>
+            <div class="fg" style="max-width:360px">
+              <label style="font-size:.82rem">Type <code style="color:#e67e22">RESTORE DATABASE</code> to enable:</label>
+              <input type="text" id="rl-restore-phrase" autocomplete="off" oninput="rlRestorePhraseCheck()" placeholder="RESTORE DATABASE"/>
+            </div>
+            <button class="btn btn-sm" id="rl-restore-btn" disabled onclick="rlDoRestore()" style="background:#e67e22;color:#fff;opacity:.5;cursor:not-allowed">↩ Restore selected backup</button>
+            <div id="rl-restore-status" style="font-size:.82rem;margin-top:10px"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Admin Account</h3></div>
+          <div class="panel-body">
+            <div class="fg"><label>Admin Name</label><input type="text" id="set-admin-name"/></div>
+            <div class="fg"><label>Email</label><input type="email" id="set-admin-email" readonly style="color:var(--muted)"/></div>
+            <div class="fg"><label>New Password</label><input type="password" id="set-admin-pw" placeholder="Leave blank to keep current"/></div>
+            <button class="btn btn-amber btn-sm" onclick="saveAdminProfile()">Update Profile</button>
+          </div>
+        </div>
+      </div>
+      </div><!-- /set-stab-platform -->
+
+      <div class="set-stab" id="set-stab-jenga" style="display:none">
+      <div class="panel">
+        <div class="panel-head"><h3>🏦 Equity Bank (Jenga) — Collection Provider</h3></div>
+        <div class="panel-body">
+          <p style="color:var(--muted);font-size:.84rem;margin-bottom:14px">Your single platform Jenga / Finserve credentials. Used to collect M-Pesa STK payments that settle directly into each ISP's own Equity account (you never hold the funds). Secrets are write-only — saved values show as a placeholder; leave a field blank to keep the stored value.</p>
+          <div class="grid-2">
+            <div class="fg"><label>Merchant Code</label><input type="text" id="jenga-merchant" placeholder="From JengaHQ"/></div>
+            <div class="fg"><label>API Key</label><input type="password" id="jenga-apikey" placeholder="From JengaHQ"/></div>
+            <div class="fg"><label>Consumer Key</label><input type="text" id="jenga-ck" placeholder="From JengaHQ"/></div>
+            <div class="fg"><label>Consumer Secret</label><input type="password" id="jenga-cs" placeholder="From JengaHQ"/></div>
+          </div>
+          <div class="fg"><label>Base URL <span style="color:var(--muted);font-weight:normal;font-size:.78rem">(use your sandbox URL while testing)</span></label><input type="text" id="jenga-baseurl" placeholder="https://api.finserve.africa" value="https://api.finserve.africa"/></div>
+          <div class="fg"><label>RSA Private Key (PEM — for request signing)</label><textarea id="jenga-pk" rows="5" placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----" style="resize:vertical;font-family:monospace;font-size:.76rem;width:100%;box-sizing:border-box"></textarea></div>
+          <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="jenga-sandbox" style="width:auto"/> Sandbox / Test mode</label></div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-amber" onclick="saveJenga()">💾 Save Jenga Config</button>
+            <button class="btn btn-outline" onclick="testJenga()" id="jenga-test-btn">🔌 Test Connection</button>
+            <span id="jenga-status" style="font-size:.82rem;color:var(--muted)"></span>
+          </div>
+        </div>
+      </div>
+      </div><!-- /set-stab-jenga -->
+
+      <div class="set-stab" id="set-stab-daraja" style="display:none">
+      <div class="panel">
+        <div class="panel-head"><h3>📱 Safaricom Daraja (M-Pesa STK) — Platform Fallback</h3></div>
+        <div class="panel-body">
+          <p style="color:var(--muted);font-size:.84rem;margin-bottom:14px">Platform M-Pesa Daraja credentials, used as the fallback STK rail for PPPoE self-service payments when an ISP has not configured their own M-Pesa. Secrets are write-only — saved values show as a placeholder; leave blank to keep the stored value.</p>
+          <div class="grid-2">
+            <div class="fg"><label>Shortcode / Paybill</label><input type="text" id="daraja-shortcode" placeholder="e.g. 174379"/></div>
+            <div class="fg"><label>Passkey</label><input type="password" id="daraja-passkey" placeholder="From Daraja portal"/></div>
+            <div class="fg"><label>Consumer Key</label><input type="text" id="daraja-ck" placeholder="From Daraja app"/></div>
+            <div class="fg"><label>Consumer Secret</label><input type="password" id="daraja-cs" placeholder="From Daraja app"/></div>
+          </div>
+          <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="daraja-sandbox" style="width:auto"/> Sandbox / Test mode</label></div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-amber" onclick="saveDaraja()">💾 Save Daraja Config</button>
+            <button class="btn btn-outline" onclick="testDaraja()" id="daraja-test-btn">🔌 Test Connection</button>
+            <span id="daraja-status" style="font-size:.82rem;color:var(--muted)"></span>
+          </div>
+        </div>
+      </div>
+      </div><!-- /set-stab-daraja -->
+
+      <div class="set-stab" id="set-stab-intasend" style="display:none">
+
+        <div class="panel" style="max-width:640px">
+          <div class="panel-head"><h3>Platform IntaSend Account</h3><span id="is-active-badge" class="badge" style="padding:3px 10px;border-radius:20px">—</span></div>
+          <div class="panel-body">
+            <div class="fg"><label>Publishable / API Key</label><input type="text" id="is-apikey" placeholder="ISPubKey_..."/></div>
+            <div class="fg"><label>Secret / Private Key</label><input type="password" id="is-privkey" placeholder="ISSecretKey_..."/></div>
+            <div class="fg"><label>Base URL</label><input type="text" id="is-baseurl" placeholder="https://payment.intasend.com"/></div>
+            <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="is-sandbox" style="width:auto"/> Sandbox mode (test)</label></div>
+            <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="is-active" style="width:auto"/> <b>Active</b> — enable live payouts</label></div>
+            <p style="font-size:.78rem;color:var(--muted)">Leave key fields blank to keep the saved keys and only change the toggles. Get your keys from the IntaSend dashboard ▸ Settings ▸ API Keys.</p>
+            <button class="btn-amber" onclick="isSaveKeys()">💾 Save IntaSend Config</button>
+          </div>
+        </div>
+        <div style="margin-top:18px"></div>
+
+        <div class="panel" style="max-width:680px">
+          <div class="panel-head"><h3>Fees &amp; Threshold</h3></div>
+          <div class="panel-body">
+            <div style="font-weight:600;margin:6px 0 8px">Collection fees (money in)</div>
+            <div class="fg2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div class="fg"><label>M-Pesa %</label><input type="number" step="0.001" id="fee-col-mpesa"/></div>
+              <div class="fg"><label>M-Pesa max cap (KES)</label><input type="number" step="1" id="fee-col-mpesa-max"/></div>
+              <div class="fg"><label>Card %</label><input type="number" step="0.001" id="fee-col-card"/></div>
+              <div class="fg"><label>Card (intl) %</label><input type="number" step="0.001" id="fee-col-cardintl"/></div>
+            </div>
+            <div style="font-weight:600;margin:14px 0 8px">Payout — M-Pesa (percent with min/max)</div>
+            <div class="fg2" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+              <div class="fg"><label>M-Pesa %</label><input type="number" step="0.001" id="fee-pay-mpesa-pct"/></div>
+              <div class="fg"><label>Min (KES)</label><input type="number" step="1" id="fee-pay-mpesa-min"/></div>
+              <div class="fg"><label>Max (KES)</label><input type="number" step="1" id="fee-pay-mpesa-max"/></div>
+            </div>
+            <div style="font-weight:600;margin:14px 0 8px">Payout — Bank (PesaLink) tiers</div>
+              <div class="fg2" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="fg"><label>Tier 1 ≤ (KES)</label><input type="number" step="1" id="fee-bank-t1-max"/></div><div class="fg"><label>Fee (KES)</label><input type="number" step="1" id="fee-bank-t1-fee"/></div></div>
+              <div class="fg2" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="fg"><label>Tier 2 ≤ (KES)</label><input type="number" step="1" id="fee-bank-t2-max"/></div><div class="fg"><label>Fee (KES)</label><input type="number" step="1" id="fee-bank-t2-fee"/></div></div>
+              <div class="fg2" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="fg"><label>Tier 3 ≤ (KES)</label><input type="number" step="1" id="fee-bank-t3-max"/></div><div class="fg"><label>Fee (KES)</label><input type="number" step="1" id="fee-bank-t3-fee"/></div></div>
+              <div class="fg2" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="fg"><label>Tier 4 ≤ (KES)</label><input type="number" step="1" id="fee-bank-t4-max"/></div><div class="fg"><label>Fee (KES)</label><input type="number" step="1" id="fee-bank-t4-fee"/></div></div>
+              <div class="fg2" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="fg"><label>Tier 5 ≤ (KES)</label><input type="number" step="1" id="fee-bank-t5-max"/></div><div class="fg"><label>Fee (KES)</label><input type="number" step="1" id="fee-bank-t5-fee"/></div></div>
+            <div style="font-weight:600;margin:14px 0 8px">Payout — Paybill tiers</div>
+              <div class="fg2" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="fg"><label>Tier 1 ≤ (KES)</label><input type="number" step="1" id="fee-pb-t1-max"/></div><div class="fg"><label>Fee (KES)</label><input type="number" step="1" id="fee-pb-t1-fee"/></div></div>
+              <div class="fg2" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="fg"><label>Tier 2 ≤ (KES)</label><input type="number" step="1" id="fee-pb-t2-max"/></div><div class="fg"><label>Fee (KES)</label><input type="number" step="1" id="fee-pb-t2-fee"/></div></div>
+              <div class="fg2" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="fg"><label>Tier 3 ≤ (KES)</label><input type="number" step="1" id="fee-pb-t3-max"/></div><div class="fg"><label>Fee (KES)</label><input type="number" step="1" id="fee-pb-t3-fee"/></div></div>
+              <div class="fg2" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="fg"><label>Tier 4 ≤ (KES)</label><input type="number" step="1" id="fee-pb-t4-max"/></div><div class="fg"><label>Fee (KES)</label><input type="number" step="1" id="fee-pb-t4-fee"/></div></div>
+              <div class="fg2" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="fg"><label>Tier 5 ≤ (KES)</label><input type="number" step="1" id="fee-pb-t5-max"/></div><div class="fg"><label>Fee (KES)</label><input type="number" step="1" id="fee-pb-t5-fee"/></div></div>
+              <div class="fg2" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="fg"><label>Tier 6 ≤ (KES)</label><input type="number" step="1" id="fee-pb-t6-max"/></div><div class="fg"><label>Fee (KES)</label><input type="number" step="1" id="fee-pb-t6-fee"/></div></div>
+              <div class="fg2" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="fg"><label>Tier 7 ≤ (KES)</label><input type="number" step="1" id="fee-pb-t7-max"/></div><div class="fg"><label>Fee (KES)</label><input type="number" step="1" id="fee-pb-t7-fee"/></div></div>
+            <div style="font-weight:600;margin:14px 0 8px">Payout — Till (B2B) flat</div>
+            <div class="fg2" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+              <div class="fg"><label>Threshold (KES)</label><input type="number" step="1" id="fee-till-threshold"/></div>
+              <div class="fg"><label>Fee below (KES)</label><input type="number" step="1" id="fee-till-low"/></div>
+              <div class="fg"><label>Fee at/above (KES)</label><input type="number" step="1" id="fee-till-high"/></div>
+            </div>
+            <div style="font-weight:600;margin:14px 0 8px">Threshold &amp; methods</div>
+            <div class="fg"><label>Max fee ratio (fee ÷ payout, e.g. 0.10 = 10%)</label><input type="number" step="0.01" id="fee-ratio"/></div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;margin:6px 0 4px">
+              <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="m-mpesa" style="width:auto"/> M-Pesa payout</label>
+              <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="m-bank" style="width:auto"/> Bank (PesaLink) payout</label>
+              <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="m-paybill" style="width:auto"/> Paybill payout</label>
+              <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="m-till" style="width:auto"/> Till payout</label>
+            </div>
+            <button class="btn-amber" onclick="isSaveFees()">💾 Save Fees</button>
+          </div>
+        </div>
+      </div><!-- /set-stab-intasend -->
+    </div>
+
+    <!-- RL_INTASEND_TRACKING: separate page for withdrawals + collections -->
+    <!-- RL_TRACKING_STYLED -->
+    <div class="page" id="page-intasend-tracking">  <!-- RL_TRACKING_CSS_FIX -->
+      <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:4px">IntaSend Tracking</h2>
+      <p style="color:var(--muted);font-size:.84rem;margin-bottom:18px">IntaSend collections and withdrawals only. Payments made with an ISP's own credentials are not shown here.</p>
+
+      <div class="stats-grid">
+        <div class="stat-card"><div class="sc-label">Collected (IntaSend) <span class="sc-icon">📥</span></div><div class="sc-val" id="ist-col-gross">KES 0</div><div class="sc-sub" id="ist-col-n">0 payments</div></div>
+        <div class="stat-card"><div class="sc-label">Withdrawn <span class="sc-icon">💸</span></div><div class="sc-val" id="ist-wd-net">KES 0</div><div class="sc-sub" id="ist-wd-n">0 withdrawals</div></div>
+        <div class="stat-card"><div class="sc-label">Fees Collected <span class="sc-icon">🧾</span></div><div class="sc-val" id="ist-fees">KES 0</div><div class="sc-sub">collection + payout fees</div></div>
+        <div class="stat-card"><div class="sc-label">Pending / Failed <span class="sc-icon">⏳</span></div><div class="sc-val" id="ist-pending">0 / 0</div><div class="sc-sub">withdrawals needing attention</div></div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin:18px 0;flex-wrap:wrap" id="ist-tabs">
+        <button class="btn btn-sm ist-tab active" data-stab="withdrawals" onclick="istTab('withdrawals')">💸 Withdrawals</button>
+        <button class="btn btn-sm ist-tab" data-stab="collections" onclick="istTab('collections')">📥 Collections</button>
+      </div>
+
+      <div class="ist-stab" id="ist-stab-withdrawals">
+        <div class="panel">
+          <div class="panel-head"><h3>ISP Withdrawals</h3><button class="btn btn-outline btn-sm" onclick="isLoadWithdrawals()">↻ Refresh</button></div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+          <input id="wdt-q" type="text" placeholder="Search phone, transaction ID, ISP, amount, status…"
+                 oninput="wdtSearch()" style="flex:1;min-width:240px;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--mid);color:var(--white);font-size:.86rem"/>
+          <select id="wdt-limit" onchange="wdtGo(1)" style="padding:9px;border-radius:8px;border:1px solid var(--border);background:var(--mid);color:var(--white);font-size:.84rem">
+            <option value="25">25 / page</option><option value="50">50 / page</option><option value="100">100 / page</option>
+          </select>
+          <span id="wdt-count" style="color:var(--muted);font-size:.82rem"></span>
+        </div>
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead><tr><th>Date</th><th>ISP</th><th>Destination</th><th>Method</th><th>Gross</th><th>Fee</th><th>Net Paid</th><th>Status</th><th>IntaSend Ref</th></tr></thead>
+              <tbody id="is-wd-tbody"><tr><td colspan="9" style="color:var(--muted);text-align:center;padding:20px">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:12px">
+          <button class="btn btn-outline btn-sm" onclick="wdtPrev()">‹ Prev</button>
+          <span id="wdt-page" style="color:var(--muted);font-size:.82rem">Page 1</span>
+          <button class="btn btn-outline btn-sm" onclick="wdtNext()">Next ›</button>
+        </div>
+        </div>
+      </div>
+
+      <div class="ist-stab" id="ist-stab-collections" style="display:none">
+        <div class="panel">
+          <div class="panel-head"><h3>IntaSend Collections</h3><button class="btn btn-outline btn-sm" onclick="isLoadCollections()">↻ Refresh</button></div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+          <input id="colt-q" type="text" placeholder="Search phone, transaction ID, ISP, amount, status…"
+                 oninput="coltSearch()" style="flex:1;min-width:240px;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--mid);color:var(--white);font-size:.86rem"/>
+          <select id="colt-limit" onchange="coltGo(1)" style="padding:9px;border-radius:8px;border:1px solid var(--border);background:var(--mid);color:var(--white);font-size:.84rem">
+            <option value="25">25 / page</option><option value="50">50 / page</option><option value="100">100 / page</option>
+          </select>
+          <span id="colt-count" style="color:var(--muted);font-size:.82rem"></span>
+        </div>
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead><tr><th>Date</th><th>ISP</th><th>Phone</th><th>Transaction ID</th><th>Amount</th><th>Fee</th><th>Net to ISP</th><th>Status</th></tr></thead>
+              <tbody id="is-col-tbody"><tr><td colspan="8" style="color:var(--muted);text-align:center;padding:20px">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:12px">
+          <button class="btn btn-outline btn-sm" onclick="coltPrev()">‹ Prev</button>
+          <span id="colt-page" style="color:var(--muted);font-size:.82rem">Page 1</span>
+          <button class="btn btn-outline btn-sm" onclick="coltNext()">Next ›</button>
+        </div>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="page" id="page-shop">
+      <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:6px">🛒 Shop Management</h2>
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:20px">Sell internet-related items. Revenue is tracked separately from ISP billing.</p>
+      <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap" id="shop-tabs">
+        <button class="btn btn-sm shop-tab active" data-stab="products" onclick="shopTab('products')">📦 Products</button>
+        <button class="btn btn-sm shop-tab" data-stab="orders" onclick="shopTab('orders')">🧾 Orders</button>
+        <button class="btn btn-sm shop-tab" data-stab="revenue" onclick="shopTab('revenue')">💰 Revenue</button>
+        <button class="btn btn-sm shop-tab" data-stab="settings" onclick="shopTab('settings')">⚙️ Settings</button>
+      </div>
+
+      <div class="shop-stab" id="shop-stab-products">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <h3 style="font-family:var(--font-head);font-size:1rem">Products</h3>
+          <button class="btn btn-amber btn-sm" onclick="openProductModal()">+ Add Product</button>
+        </div>
+        <div class="card"><div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th></th></tr></thead>
+          <tbody id="shop-products-body"><tr><td colspan="6" style="text-align:center;color:var(--muted)">Loading…</td></tr></tbody>
+        </table></div></div>
+      </div>
+
+      <div class="shop-stab" id="shop-stab-orders" style="display:none">
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+          <h3 style="font-family:var(--font-head);font-size:1rem;margin-right:auto">Orders</h3>
+          <input id="shop-order-search" placeholder="🔍 Search order #, phone, name…" oninput="shopOrderSearch()" style="background:var(--mid);border:1.5px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--white);font-size:.84rem;min-width:230px">
+          <select id="shop-order-filter" onchange="shopOrdersReset()" style="background:var(--mid);border:1.5px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--white);font-size:.84rem">
+            <option value="">All</option><option value="paid">Paid</option><option value="processing">Processing</option>
+            <option value="delivered">Delivered</option><option value="pending_payment">Pending Payment</option><option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div class="card"><div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>Order #</th><th>Customer</th><th>Total</th><th>Payment</th><th>Status</th><th>Date</th><th></th></tr></thead>
+          <tbody id="shop-orders-body"><tr><td colspan="7" style="text-align:center;color:var(--muted)">Loading…</td></tr></tbody>
+        </table></div></div>
+        <div id="shop-orders-pager" style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:16px"></div>
+      </div>
+
+      <div class="shop-stab" id="shop-stab-revenue" style="display:none">
+        <div class="stats-grid" id="shop-revenue-cards" style="margin-bottom:10px">
+          <div class="stat-card"><div class="sc-label">Today <span class="sc-icon">💰</span></div><div class="sc-val green" id="shop-rev-today">—</div><div class="sc-sub">Revenue today</div></div>
+          <div class="stat-card"><div class="sc-label">This Month <span class="sc-icon">📅</span></div><div class="sc-val teal" id="shop-rev-month">—</div><div class="sc-sub">Month to date</div></div>
+          <div class="stat-card"><div class="sc-label">All-Time Revenue <span class="sc-icon">📈</span></div><div class="sc-val teal" id="shop-rev-total">—</div><div class="sc-sub">Shop lifetime</div></div>
+          <div class="stat-card"><div class="sc-label">Delivery Fees <span class="sc-icon">🚚</span></div><div class="sc-val amber" id="shop-rev-delivery">—</div><div class="sc-sub">Collected on paid orders</div></div>
+          <div class="stat-card"><div class="sc-label">Paid Orders <span class="sc-icon">✅</span></div><div class="sc-val" id="shop-rev-orders">—</div><div class="sc-sub">Completed payments</div></div>
+          <div class="stat-card"><div class="sc-label">Pending <span class="sc-icon">⏳</span></div><div class="sc-val amber" id="shop-rev-pending">—</div><div class="sc-sub">Awaiting payment</div></div>
+        </div>
+        <p style="color:var(--muted);font-size:.8rem">Shop revenue is completely separate from ISP subscription and SMS revenue.</p>
+      </div>
+
+      <div class="shop-stab" id="shop-stab-settings" style="display:none">
+        <div class="card" style="max-width:560px;margin-bottom:16px">
+          <div class="panel-head"><h3>🚚 Delivery & Shop</h3></div>
+          <div style="padding:6px 2px">
+            <div class="fg"><label>Default Delivery Fee (KES)</label><input type="number" id="shop-delivery-fee" placeholder="0"/></div>
+            <div class="fg"><label>Free Delivery Over (KES, optional)</label><input type="number" id="shop-free-over" placeholder="Leave blank to disable"/></div>
+            <div class="fg"><label>Order Number Prefix</label><input type="text" id="shop-order-prefix" placeholder="RL" maxlength="10"/></div>
+            <div class="fg"><label>Free Delivery Locations (comma-separated)</label><textarea id="shop-free-locations" rows="3" placeholder="e.g. Nairobi CBD, Westlands, Kikuyu Town"></textarea><span style="font-size:.74rem;color:var(--muted)">Customers choosing these get free delivery. Any other location = fee arranged after.</span></div>
+            <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="shop-enabled" style="width:auto"/> Shop open (accept orders)</label></div>
+            <button class="btn btn-amber btn-sm" onclick="saveShopSettings()">💾 Save Settings</button>
+            <span id="shop-settings-status" style="font-size:.82rem;color:var(--muted);margin-left:10px"></span>
+          </div>
+        </div>
+        <div class="card" style="max-width:560px">
+          <div class="panel-head"><h3>📲 WhatsApp Order Alerts</h3></div>
+          <div style="padding:6px 2px">
+            <p style="color:var(--muted);font-size:.82rem;margin-bottom:14px">WhatsApp Business API (Cloud API). Order alerts are sent to the admin numbers below. Secrets are write-only — leave blank to keep stored values.</p>
+            <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="shop-wa-enabled" style="width:auto"/> Enable WhatsApp alerts</label></div>
+            <div class="fg"><label>Phone Number ID</label><input type="text" id="shop-wa-phoneid" placeholder="From Meta WhatsApp"/></div>
+            <div class="fg"><label>Access Token</label><input type="password" id="shop-wa-token" placeholder="From Meta WhatsApp"/></div>
+            <div class="fg"><label>Admin Numbers (comma-separated, e.g. 2547...,2547...)</label><input type="text" id="shop-wa-numbers" placeholder="254712345678,254798765432"/></div>
+            <button class="btn btn-amber btn-sm" onclick="saveShopSettings()">💾 Save WhatsApp Config</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-sms-reseller">
+      <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:6px">SMS Reseller</h2>
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:18px">Resell SMS to ISPs via your TalkSasa account. You buy at cost, sell at your price — the margin is your profit.</p>
+
+      <div class="stat-grid" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px">
+        <div class="stat-card"><div class="sc-label">Live TalkSasa Balance <span class="sc-icon">📲</span></div><div class="sc-val teal" id="sms-admin-balance">—</div><div class="sc-sub">Real account (drops when SMS sent)</div></div>
+        <div class="stat-card"><div class="sc-label">Available Pool <span class="sc-icon">📦</span></div><div class="sc-val" id="sms-available-pool" style="color:#6cb4ff">—</div><div class="sc-sub">Owned but not yet sold</div></div>
+        <div class="stat-card"><div class="sc-label">Allocated to ISPs <span class="sc-icon">📤</span></div><div class="sc-val amber" id="sms-allocated">—</div><div class="sc-sub">Remaining / total sold</div></div>
+      </div>
+      <div class="stat-grid" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px">
+        <div class="stat-card"><div class="sc-label">Reseller Revenue <span class="sc-icon">💰</span></div><div class="sc-val amber" id="sms-revenue">—</div><div class="sc-sub">From ISP purchases</div></div>
+        <div class="stat-card"><div class="sc-label">Reseller Profit <span class="sc-icon">📈</span></div><div class="sc-val green" id="sms-profit">—</div><div class="sc-sub">Price minus cost</div></div>
+        <div class="stat-card"><div class="sc-label">SMS Sold / Gifted <span class="sc-icon">✉️</span></div><div class="sc-val" id="sms-sold">—</div><div class="sc-sub">Purchased / free signup</div></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><h3>📱 TalkSasa Gateway Credentials</h3></div>
+          <div class="panel-body">
+            <p style="color:var(--muted);font-size:.82rem;margin-bottom:12px">Your platform TalkSasa API key. Used to send SMS for ISPs on the "RumaLink SMS" gateway and to read your live balance. Secret is write-only.</p>
+            <div class="fg"><label>API Key (Bearer token)</label><input type="password" id="sms-api-key" placeholder="From TalkSasa"/></div>
+            <div class="fg"><label>Sender ID</label><input type="text" id="sms-sender-id" placeholder="e.g. RUMALINK"/></div>
+            <div class="fg"><label>Base URL</label><input type="text" id="sms-base-url" value="https://bulksms.talksasa.com/api/v3"/></div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <button class="btn btn-amber" onclick="saveSmsConfig()">💾 Save Credentials</button>
+              <button class="btn btn-outline" onclick="refreshSmsBalance()" id="sms-bal-btn">🔄 Refresh Balance</button>
+              <span id="sms-config-status" style="font-size:.82rem;color:var(--muted)"></span>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>💵 SMS Pricing (adjustable)</h3></div>
+          <div class="panel-body">
+            <div class="fg"><label>Price per SMS — charged to ISP (KES)</label><input type="number" id="sms-price" step="0.01" min="0" value="0.50" oninput="smsProfitEach()"/></div>
+            <div class="fg"><label>Cost per SMS — your TalkSasa cost (KES)</label><input type="number" id="sms-cost" step="0.01" min="0" value="0.35" oninput="smsProfitEach()"/></div>
+            <div class="fg"><label>Free SMS on ISP signup</label><input type="number" id="sms-bonus" step="1" min="0" value="50"/></div>
+            <div style="background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.25);border-radius:8px;padding:10px 12px;margin:8px 0 14px;font-size:.85rem">Profit per SMS: <strong id="sms-profit-each" style="color:#00d4aa">KES 0.15</strong></div>
+            <button class="btn btn-amber" onclick="saveSmsPricing()">💾 Save Pricing</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:18px">
+        <div class="panel-head"><h3>Reseller History</h3></div>
+        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Date</th><th>ISP</th><th>Type</th><th>SMS</th><th>Unit Price</th><th>Paid</th><th>Profit</th><th>Status</th></tr></thead><tbody id="sms-history-tbody"></tbody></table></div>
+      </div>
+    </div>
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- ISP DETAIL SIDE PANEL -->
+<div class="side-panel" id="isp-detail-panel">
+  <div class="sp-head">
+    <div>
+      <div style="font-family:var(--font-head);font-size:1rem;font-weight:700" id="sp-isp-name">ISP Details</div>
+      <div style="font-size:.78rem;color:var(--muted)" id="sp-isp-email">—</div>
+    </div>
+    <button class="sp-close" onclick="closeISPPanel()">✕</button>
+  </div>
+  <div class="sp-body">
+    <div class="sp-section">
+      <h4>Account Info</h4>
+      <div class="sp-row"><span class="sp-key">Plan</span><span class="sp-val" id="sp-plan">—</span></div>
+      <div class="sp-row"><span class="sp-key">Status</span><span class="sp-val" id="sp-status">—</span></div>
+      <div class="sp-row"><span class="sp-key">Owner</span><span class="sp-val" id="sp-owner">—</span></div>
+      <div class="sp-row"><span class="sp-key">Phone</span><span class="sp-val" id="sp-phone">—</span></div>
+      <div class="sp-row"><span class="sp-key">Location</span><span class="sp-val" id="sp-location">—</span></div>
+      <div class="sp-row"><span class="sp-key">Registered</span><span class="sp-val" id="sp-joined">—</span></div>
+      <div class="sp-row"><span class="sp-key">Last Login</span><span class="sp-val" id="sp-last-login">—</span></div>
+    </div>
+    <div class="sp-section">
+      <h4>Revenue & Billing</h4>
+      <div class="sp-row"><span class="sp-key">Total Revenue</span><span class="sp-val teal" id="sp-revenue" style="color:var(--teal)">—</span></div>
+      <div class="sp-row"><span class="sp-key">Commission Paid</span><span class="sp-val" id="sp-commission">—</span></div>
+      <div class="sp-row"><span class="sp-key">Wallet Balance</span><span class="sp-val" id="sp-wallet">—</span></div>
+    </div>
+    <div class="sp-section">
+      <h4>Infrastructure</h4>
+      <div class="sp-row"><span class="sp-key">Devices</span><span class="sp-val" id="sp-devices">—</span></div>
+      <div class="sp-row"><span class="sp-key">PPPoE Users</span><span class="sp-val" id="sp-pppoe-users">—</span></div>
+      <div class="sp-row"><span class="sp-key">API Key</span><span class="sp-val" style="font-size:.75rem;font-family:monospace;word-break:break-all" id="sp-apikey">—</span></div>
+    </div>
+    <div class="sp-section">
+      <h4>License / Expiry</h4>
+      <div class="sp-row"><span class="sp-key">Expires</span><span class="sp-val" id="sp-expiry">—</span></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+        <input type="datetime-local" id="sp-expiry-input" style="flex:1;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:transparent;color:inherit;font-size:.8rem"/>
+        <button class="btn btn-amber btn-sm" onclick="saveExpiry(currentISPId)">Save</button>
+      <div id="sp-license-host" style="margin:10px 0"></div>
+      </div>
+    </div>
+    <div class="sp-section">
+      <h4>Actions</h4>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <button class="btn btn-amber btn-sm" onclick="impersonateISP(currentISPId)">🔓 Open Dashboard</button>
+        <button class="btn btn-green btn-sm" id="sp-activate-btn" onclick="updateISPStatus(currentISPId,'active')">✅ Activate</button>
+        <button class="btn btn-red btn-sm" id="sp-suspend-btn" onclick="updateISPStatus(currentISPId,'suspended')">🚫 Suspend</button>
+        <button class="btn btn-outline btn-sm" onclick="updateISPStatus(currentISPId,'cancelled')">❌ Cancel</button>
+      </div>
+    </div>
+    <div class="sp-section">
+      <h4>Recent Payments</h4>
+      <div class="tbl-wrap"><table class="tbl" style="font-size:.8rem"><thead><tr><th>Amount</th><th>Method</th><th>Status</th><th>Date</th></tr></thead><tbody id="sp-payments-tbody"></tbody></table></div>
+    </div>
+  </div>
+</div>
+<div id="sp-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:299" onclick="closeISPPanel()"></div>
+
+<!-- Modals -->
+<div class="modal-overlay" id="modal-note">
+  <div class="modal">
+    <h2>Send Notification to ISP</h2>
+    <div class="modal-sub">This will appear in the ISP's notification panel.</div>
+    <div class="fg"><label>Type</label><select id="note-type"><option value="info">ℹ️ Info</option><option value="success">✅ Success</option><option value="warning">⚠️ Warning</option><option value="error">❌ Alert</option></select></div>
+    <div class="fg"><label>Title</label><input type="text" id="note-title" placeholder="e.g. Action Required"/></div>
+    <div class="fg"><label>Message</label><textarea id="note-msg" rows="3" style="resize:vertical"></textarea></div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('modal-note')">Cancel</button><button class="btn btn-amber" onclick="sendNotification()">Send Notification</button></div>
+  </div>
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<script>
+const API = 'https://rumalinkenterprise.online/api';
+let token = localStorage.getItem('rl_admin_token');
+let admin = JSON.parse(localStorage.getItem('rl_admin') || '{}');
+let ispPage = 1, currentISPId = null;
+let revenueChart = null, donutChart = null;
+
+if (!token) window.location.href = '/admin/login.html';
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('sb-admin-name').textContent = admin.name || 'Admin';
+  document.getElementById('admin-av').textContent = (admin.name||'A')[0].toUpperCase();
+  document.querySelectorAll('.nav-item[data-page]').forEach(el => el.addEventListener('click', () => showPage(el.dataset.page)));
+  loadDashboard();
+});
+
+function showPage(id) {
+    if(id==='shop'){ if(typeof markShopSeen==='function') markShopSeen(); }
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const pg = document.getElementById('page-' + id);
+  if (pg) pg.classList.add('active');
+  const nv = document.querySelector(`.nav-item[data-page="${id}"]`);
+  if (nv) nv.classList.add('active');
+  const titles = { shop:'Shop Management',dashboard:'Dashboard',isps:'All ISPs','isp-pending':'Pending ISPs','isp-suspended':'Suspended ISPs','isp-expired':'Expired ISPs',commissions:'Commissions','platform-invoices':'Platform Invoices',billing:'Charge ISPs',payments:'All Payments',payouts:'Payouts',sessions:'Live Sessions', 'intasend-tracking':'IntaSend Tracking',devices:'All Devices',notifications:'Notifications',support:'Support Tickets',settings:'Settings','sms-reseller':'SMS Reseller'};
+  document.getElementById('page-title').textContent = titles[id] || id;
+  const loaders = {isps:loadISPs,'isp-pending':loadPendingISPs,'isp-suspended':loadSuspendedISPs,'isp-expired':loadExpiredISPs,commissions:loadCommissions,'platform-invoices':loadPlatformInvoices,billing:loadBilling,payments:loadAllPayments,sessions:loadSessions,devices:loadAllDevices,notifications:loadAdminNotifications,support:loadAdminTickets,settings:loadAdminSettings,'sms-reseller':loadSmsReseller};
+  if (loaders[id]) loaders[id]();
+  // Real-time SMS Reseller: poll while on the page, stop when leaving.
+  if (window._smsPollTimer) { clearInterval(window._smsPollTimer); window._smsPollTimer = null; }
+  if (id === 'sms-reseller') {
+    window._smsPollTimer = setInterval(() => {
+      if (typeof refreshSmsBalance === 'function') refreshSmsBalance();
+      if (typeof loadSmsHistory === 'function') loadSmsHistory();
+    }, 15000);
+  }
+}
+
+// Refresh SMS cards when returning to the tab while on the reseller page.
+if (!window._smsVisHooked) {
+  window._smsVisHooked = true;
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && window._smsPollTimer) {
+      if (typeof refreshSmsBalance === 'function') refreshSmsBalance();
+      if (typeof loadSmsHistory === 'function') loadSmsHistory();
+    }
+  });
+}
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(API + path, { ...opts, headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, ...(opts.headers || {}) } });
+  if (res.status === 401) { logout(); return; }
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'API error');
+  return json;
+}
+
+function logout() { localStorage.clear(); window.location.href = '/admin/login.html'; }
+
+let apPage=1;
+function payFilterApply(){ apPage=1; loadAllPayments(); }
+function payFilterReset(){ ['ap-status','ap-gateway','ap-phone','ap-from','ap-to'].forEach(id=>{const e=document.getElementById(id); if(e) e.value='';}); apPage=1; loadAllPayments(); }
+function payGo(p){ apPage=p; loadAllPayments(); }
+async function loadAllPayments(){
+  const tb=document.getElementById('ap-tbody'); if(!tb) return;
+  tb.innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--muted)">Loading…</td></tr>';
+  const q=new URLSearchParams({page:apPage, limit:25});
+  const g=id=>document.getElementById(id)?document.getElementById(id).value:'';
+  if(g('ap-status'))q.set('status',g('ap-status'));
+  if(g('ap-gateway'))q.set('gateway',g('ap-gateway'));
+  if(g('ap-phone'))q.set('phone',g('ap-phone'));
+  if(g('ap-from'))q.set('date_from',g('ap-from'));
+  if(g('ap-to'))q.set('date_to',g('ap-to')+'T23:59:59');
+  try{
+    const d=await apiFetch('/admin/payments?'+q.toString());
+    const rows=d.payments||[];
+    if(!rows.length){ tb.innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--muted)">No payments found</td></tr>'; }
+    else {
+      const gw={jenga:'Equity (Jenga)',mpesa_stk:'M-Pesa',mpesa:'M-Pesa'};
+      const sc={paid:'#00d4aa',pending:'#f39c12',failed:'#e74c3c'};
+      tb.innerHTML=rows.map(r=>'<tr>'+
+        '<td>'+new Date(r.created_at).toLocaleString()+'</td>'+
+        '<td>'+(r.company_name||'—')+'</td>'+
+        '<td>'+(r.phone_number||'—')+'</td>'+
+        '<td>KES '+Number(r.amount||0).toFixed(2)+'</td>'+
+        '<td>KES '+Number(r.commission_amount||0).toFixed(2)+'</td>'+
+        '<td>'+(gw[r.payment_gateway]||r.payment_gateway||'—')+'</td>'+
+        '<td><span style="color:'+(sc[r.status]||'var(--muted)')+';font-weight:600">'+r.status+'</span></td>'+
+        '<td style="font-family:monospace;font-size:.75rem">'+(r.gateway_reference||r.transaction_id||'—')+'</td>'+
+      '</tr>').join('');
+    }
+    const t=d.totals||{};
+    document.getElementById('ap-totals').innerHTML=
+      '<div class="panel" style="flex:1;min-width:150px"><div class="panel-body"><div style="font-size:.75rem;color:var(--muted)">Paid Total</div><div style="font-size:1.2rem;font-weight:700;color:var(--teal)">KES '+Number(t.paid_total||0).toFixed(2)+'</div></div></div>'+
+      '<div class="panel" style="flex:1;min-width:150px"><div class="panel-body"><div style="font-size:.75rem;color:var(--muted)">Commission</div><div style="font-size:1.2rem;font-weight:700">KES '+Number(t.commission_total||0).toFixed(2)+'</div></div></div>'+
+      '<div class="panel" style="flex:1;min-width:150px"><div class="panel-body"><div style="font-size:.75rem;color:var(--muted)">Paid Count</div><div style="font-size:1.2rem;font-weight:700">'+(t.paid_count||0)+'</div></div></div>';
+    const pg=d.pagination||{}; const pager=document.getElementById('ap-pager');
+    if(pg.pages>1){
+      pager.innerHTML='<button class="btn btn-outline btn-sm" '+(pg.page<=1?'disabled':'')+' onclick="payGo('+(pg.page-1)+')">Prev</button>'+
+        '<span style="color:var(--muted);font-size:.85rem">Page '+pg.page+' of '+pg.pages+'</span>'+
+        '<button class="btn btn-outline btn-sm" '+(pg.page>=pg.pages?'disabled':'')+' onclick="payGo('+(pg.page+1)+')">Next</button>';
+    } else pager.innerHTML='';
+  }catch(e){ tb.innerHTML='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--red)">Failed to load</td></tr>'; }
+}
+
+
+
+// ── Admin: trial controls + expired banner (Phase 5) ──
+async function loadLicenseInto(id){
+  try{
+    const d = await apiFetch(`/admin/isps/${id}/license`);
+    const host = document.getElementById('sp-license-host');
+    if(!host) return;
+    const exp = d.license_expires_at ? new Date(d.license_expires_at) : null;
+    const expStr = exp ? exp.toLocaleString('en-KE',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+    const status = d.license_status || '—';
+    const banner = d.expired
+      ? '<div style="background:linear-gradient(90deg,#c0392b,#e74c3c);color:#fff;padding:9px 12px;border-radius:8px;margin-bottom:10px;font-size:.82rem;font-weight:700">\u26A0\uFE0F LICENSE EXPIRED \u2014 '+expStr+'</div>'
+      : '';
+    const isTrial = (status === 'trial');
+    const btn = isTrial
+      ? '<button class="btn btn-amber btn-sm" onclick="endTrial(currentISPId)">Remove Trial (start billing now)</button>'
+      : '<button class="btn btn-outline btn-sm" onclick="startTrial(currentISPId)">Start Trial</button>';
+    host.innerHTML = banner +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'+
+        '<span style="font-size:.8rem;color:var(--muted)">License: <strong style="color:inherit">'+status+'</strong>'+(d.billing_exempt?' <span style="color:#f39c12">(exempt)</span>':'')+'</span>'+
+        btn+
+      '</div>';
+  }catch(e){}
+}
+async function startTrial(id){
+  if(!confirm('Put this ISP into a 30-day trial?')) return;
+  try{ await apiFetch(`/admin/isps/${id}/start-trial`,{method:'POST'}); toast('Trial started'); loadLicenseInto(id); if(window.loadExpiryInto)loadExpiryInto(id); }
+  catch(e){ toast(e.message||'Failed','error'); }
+}
+async function endTrial(id){
+  if(!confirm('Remove trial and start the license billing immediately from now? Expiry will be set to one month from this moment.')) return;
+  try{ await apiFetch(`/admin/isps/${id}/end-trial`,{method:'POST'}); toast('Trial removed \u2014 license now active'); loadLicenseInto(id); if(window.loadExpiryInto)loadExpiryInto(id); }
+  catch(e){ toast(e.message||'Failed','error'); }
+}
+
+(function(){
+  var _prevOpen = window.openISPPanel;
+  window.openISPPanel = async function(id){
+    if(_prevOpen) await _prevOpen(id);
+    loadLicenseInto(id);
+  };
+})();
+
+async function impersonateISP(id){
+  if(!id) return;
+  if(!confirm('Open this ISP\u2019s dashboard as an administrator? This action is logged.')) return;
+  try{
+    const d = await apiFetch('/admin/isps/'+id+'/impersonate', {method:'POST', body: JSON.stringify({})});
+    if(!d || !d.token){ toast('Could not open ISP dashboard','error'); return; }
+    localStorage.setItem('rl_token', d.token);
+    localStorage.setItem('rl_isp', JSON.stringify(d.isp||{}));
+    localStorage.setItem('rl_impersonating','1');
+    window.open('/isp/dashboard.html','_blank');
+    toast('Opening ISP dashboard in a new tab\u2026');
+  }catch(e){ toast(e.message||'Failed to open','error'); }
+}
+
+async function loadExpiryInto(id){
+  try{
+    const d = await apiFetch('/admin/isps/'+id+'/expiry');
+    if(!d) return;
+    const span=document.getElementById('sp-expiry'); const inp=document.getElementById('sp-expiry-input');
+    if(d.trial_ends_at){
+      const dt=new Date(d.trial_ends_at);
+      if(span) span.textContent=dt.toLocaleString();
+      if(inp){ const p=n=>String(n).padStart(2,'0'); inp.value=dt.getFullYear()+'-'+p(dt.getMonth()+1)+'-'+p(dt.getDate())+'T'+p(dt.getHours())+':'+p(dt.getMinutes()); }
+    } else { if(span) span.textContent='Not set'; }
+  }catch(e){}
+}
+
+async function saveExpiry(id){
+  if(!id) return;
+  const inp=document.getElementById('sp-expiry-input');
+  if(!inp||!inp.value){ toast('Pick a date and time first','error'); return; }
+  try{
+    const iso=new Date(inp.value).toISOString();
+    await apiFetch('/admin/isps/'+id+'/expiry', {method:'PUT', body: JSON.stringify({expiry: iso})});
+    toast('Expiry date updated'); loadExpiryInto(id);
+  }catch(e){ toast(e.message||'Failed to update','error'); }
+}
+
+(function(){
+  var _o = window.openISPPanel;
+  window.openISPPanel = async function(id){
+    if(_o){ try{ await _o(id); }catch(e){} }
+    loadExpiryInto(id);
+  };
+})();
+
+
+function toast(msg, type = 'success') {
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<span>${type === 'success' ? '✅' : '❌'}</span><span>${msg}</span>`;
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(() => t.remove(), 4000);
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); }));
+
+const kes = v => `KES ${parseFloat(v || 0).toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
+const dt = v => v ? new Date(v).toLocaleDateString('en-KE') : '—';
+const dts = v => v ? new Date(v).toLocaleString('en-KE', { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' }) : '—';
+const bytes = b => b > 1073741824 ? (b / 1073741824).toFixed(1) + ' GB' : b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : (b / 1024).toFixed(0) + ' KB';
+
+// ── DASHBOARD ──
+async function loadDashboard() {
+  try {
+    const d = await apiFetch('/admin/stats');
+    const i = d.isps, r = d.revenue, s = d.sessions, dv = d.devices;
+    document.getElementById('ds-total-isps').textContent = i.total || 0;
+    document.getElementById('ds-new-isps').textContent = i.new_this_month || 0;
+    document.getElementById('ds-active-isps').textContent = i.active || 0;
+    document.getElementById('ds-total-comm').textContent = kes(r.total_commission);
+    document.getElementById('ds-month-comm').textContent = kes(r.this_month_commission);
+    document.getElementById('sb-commission').textContent = kes(r.total_commission);
+    document.getElementById('ds-processed').textContent = kes(r.total_processed);
+    document.getElementById('ds-sessions').textContent = (parseInt(s.active_hotspot) + parseInt(s.active_pppoe)) || 0;
+    document.getElementById('ds-sessions-sub').textContent = `${s.active_hotspot || 0} hotspot · ${s.active_pppoe || 0} pppoe`;
+    document.getElementById('ds-pending').textContent = i.pending || 0;
+    document.getElementById('ds-today-tx').textContent = r.today_transactions || 0;
+
+    // Donut chart
+    const hc = parseInt(i.hotspot_isps) || 0, pc = parseInt(i.pppoe_isps) || 0;
+    document.getElementById('hotspot-count').textContent = `${hc} ISPs`;
+    document.getElementById('pppoe-count').textContent = `${pc} ISPs`;
+    if (donutChart) donutChart.destroy();
+    donutChart = new Chart(document.getElementById('plans-donut'), {
+      type: 'doughnut',
+      data: { labels: ['Hotspot', 'PPPoE'], datasets: [{ data: [hc || 1, pc || 0], backgroundColor: ['#00d4aa', '#f39c12'], borderWidth: 0, hoverOffset: 4 }] },
+      options: { responsive: false, plugins: { legend: { display: false } }, cutout: '72%' }
+    });
+  } catch (e) { toast('Failed to load dashboard', 'error'); }
+
+  // Revenue chart
+  try {
+    const d = await apiFetch('/admin/revenue-chart?monthly=1');
+    const data = d.data || [];
+    const labels = data.map(x => x.label);
+    const rev = data.map(x => parseFloat(x.total_revenue || 0));
+    const comm = data.map(x => parseFloat(x.commission || 0));
+    const total = rev.reduce((a, b) => a + b, 0);
+    document.getElementById('chart-total-badge').textContent = kes(total);
+    var _ry=document.getElementById('rev-year'); if(_ry) _ry.textContent = d.year || new Date().getFullYear();
+    if (revenueChart) revenueChart.destroy();
+    revenueChart = new Chart(document.getElementById('admin-revenue-chart'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Gross Revenue', data: rev, backgroundColor: 'rgba(0,212,170,.15)', borderColor: '#00d4aa', borderWidth: 1.5, borderRadius: 4 },
+          { label: 'Commission', data: comm, backgroundColor: 'rgba(243,156,18,.2)', borderColor: '#f39c12', borderWidth: 1.5, borderRadius: 4 }
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#7a8baa', font: { size: 11 } } } }, scales: { x: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: '#7a8baa', font: { size: 10 } } }, y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: '#7a8baa', font: { size: 10 }, callback: v => 'KES ' + Number(v).toLocaleString() } } } }
+    });
+  } catch (e) {}
+
+  // Recent ISPs
+  try {
+    const d = await apiFetch('/admin/isps?limit=6');
+    document.getElementById('dash-recent-isps').innerHTML = (d.isps || []).map(i => `
+      <tr>
+        <td class="name">${i.company_name}</td>
+        <td><span class="badge ${i.plan_type === 'hotspot' ? 'bt' : 'ba'}">${i.plan_type}</span></td>
+        <td><span class="badge ${i.status === 'active' ? 'bg' : i.status === 'pending' ? 'ba' : 'br'}">${i.status}</span></td>
+        <td>${dt(i.created_at)}</td>
+        <td><button class="btn btn-outline btn-sm" onclick="openISPPanel('${i.id}')">View</button></td>
+      </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No ISPs yet</td></tr>';
+  } catch (e) {}
+
+  // Recent commissions
+  try {
+    const d = await apiFetch('/admin/commissions');
+    document.getElementById('dash-recent-comm').innerHTML = (d.commissions || []).slice(0, 6).map(c => `
+      <tr>
+        <td class="name">${c.company_name}</td>
+        <td style="color:var(--amber);font-weight:600">${kes(c.amount)}</td>
+        <td><span class="badge bm">${(parseFloat(c.rate) * 100).toFixed(1)}%</span></td>
+        <td>${dt(c.created_at)}</td>
+      </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">No commissions yet</td></tr>';
+  } catch (e) {}
+}
+
+// ── ALL ISPs ──
+async function loadISPs() {
+  const search = document.getElementById('isp-search')?.value || '';
+  const status = document.getElementById('isp-status-filter')?.value || '';
+  const plan = document.getElementById('isp-plan-filter')?.value || '';
+  const tbody = document.getElementById('isps-tbody');
+  tbody.innerHTML = '<tr><td colspan="10"><div class="loading"><div class="spinner"></div>Loading…</div></td></tr>';
+  try {
+    const d = await apiFetch(`/admin/isps?page=${ispPage}&limit=20&exclude_expired=1${search ? '&search=' + encodeURIComponent(search) : ''}${status ? '&status=' + status : ''}${plan ? '&plan_type=' + plan : ''}`);
+    document.getElementById('isp-count-label').textContent = `${d.pagination?.total || 0} ISPs total`;
+    tbody.innerHTML = (d.isps || []).map(i => `
+      <tr>
+        <td class="name" style="cursor:pointer" onclick="openISPPanel('${i.id}')">${i.company_name}</td>
+        <td style="color:var(--muted);font-size:.82rem">${i.owner_name}</td>
+        <td style="color:var(--muted);font-size:.82rem">${i.email}</td>
+        <td><span class="badge ${i.plan_type === 'hotspot' ? 'bt' : 'ba'}">${i.plan_type}</span></td>
+        <td><span class="badge ${i.status === 'active' ? 'bg' : i.status === 'pending' ? 'ba' : 'br'}">${i.status}</span></td>
+        <td>${i.device_count || 0}</td>
+        <td style="color:var(--teal);font-weight:500">${kes(i.total_commission)}</td>
+        <td style="color:var(--amber)">${kes(i.total_commission)}</td>
+        <td>${dt(i.created_at)}</td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-outline btn-sm" onclick="openISPPanel('${i.id}')">Details</button>
+          <button class="btn btn-sm ${i.status === 'active' ? 'btn-red' : 'btn-green'}" onclick="updateISPStatus('${i.id}','${i.status === 'active' ? 'suspended' : 'active'}')">
+            ${i.status === 'active' ? 'Suspend' : 'Activate'}
+          </button>
+        </td>
+      </tr>`).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:24px">No ISPs found</td></tr>';
+  } catch (e) { toast('Failed to load ISPs', 'error'); }
+}
+
+async function loadPendingISPs() {
+  try {
+    const d = await apiFetch('/admin/isps?status=pending&limit=50');
+    document.getElementById('pending-tbody').innerHTML = (d.isps || []).map(i => `
+      <tr>
+        <td class="name">${i.company_name}</td>
+        <td>${i.owner_name}</td>
+        <td>${i.email}</td>
+        <td>${i.phone}</td>
+        <td><span class="badge ${i.plan_type === 'hotspot' ? 'bt' : 'ba'}">${i.plan_type}</span></td>
+        <td>${[i.county, i.town].filter(Boolean).join(', ') || '—'}</td>
+        <td>${dt(i.created_at)}</td>
+        <td><button class="btn btn-green btn-sm" onclick="updateISPStatus('${i.id}','active')">✅ Activate</button></td>
+      </tr>`).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">No pending ISPs 🎉</td></tr>';
+  } catch (e) {}
+}
+
+async function loadExpiredISPs() {
+  try {
+    const d = await apiFetch('/admin/isps?expired=1&limit=50');
+    document.getElementById('expired-tbody').innerHTML = (d.isps || []).map(i => `
+      <tr>
+        <td class="name" style="cursor:pointer" onclick="openISPPanel('${i.id}')">${i.company_name}</td>
+        <td><span class="badge ${i.plan_type === 'hotspot' ? 'bt' : 'ba'}">${i.plan_type}</span></td>
+        <td style="color:var(--muted);font-size:.82rem">${i.email}</td>
+        <td><span class="badge br">${i.license_expires_at ? dt(i.license_expires_at) : '—'}</span></td>
+        <td><button class="btn btn-outline btn-sm" onclick="openISPPanel('${i.id}')">Details</button></td>
+      </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">No expired ISPs</td></tr>';
+  } catch (e) { toast('Failed to load expired ISPs', 'error'); }
+}
+
+async function loadSuspendedISPs() {
+  try {
+    const d = await apiFetch('/admin/isps?status=suspended&limit=50');
+    document.getElementById('suspended-tbody').innerHTML = (d.isps || []).map(i => `
+      <tr>
+        <td class="name">${i.company_name}</td>
+        <td><span class="badge ${i.plan_type === 'hotspot' ? 'bt' : 'ba'}">${i.plan_type}</span></td>
+        <td>${i.email}</td>
+        <td><button class="btn btn-green btn-sm" onclick="updateISPStatus('${i.id}','active')">Reactivate</button></td>
+      </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px">No suspended ISPs</td></tr>';
+  } catch (e) {}
+}
+
+// ── ISP DETAIL PANEL ──
+async function openISPPanel(id) {
+  currentISPId = id;
+  document.getElementById('isp-detail-panel').classList.add('open');
+  document.getElementById('sp-overlay').style.display = 'block';
+  try {
+    const d = await apiFetch(`/admin/isps/${id}`);
+    const i = d.isp;
+    document.getElementById('sp-isp-name').textContent = i.company_name;
+    document.getElementById('sp-isp-email').textContent = i.email;
+    document.getElementById('sp-plan').innerHTML = `<span class="badge ${i.plan_type === 'hotspot' ? 'bt' : 'ba'}">${i.plan_type}</span>`;
+    document.getElementById('sp-status').innerHTML = `<span class="badge ${i.status === 'active' ? 'bg' : i.status === 'pending' ? 'ba' : 'br'}">${i.status}</span>`;
+    document.getElementById('sp-owner').textContent = i.owner_name;
+    document.getElementById('sp-phone').textContent = i.phone || '—';
+    document.getElementById('sp-location').textContent = [i.county, i.town].filter(Boolean).join(', ') || '—';
+    document.getElementById('sp-joined').textContent = dt(i.created_at);
+    document.getElementById('sp-last-login').textContent = dts(i.last_login);
+    document.getElementById('sp-revenue').textContent = kes(i.total_revenue);
+    document.getElementById('sp-commission').textContent = kes(i.total_commission);
+    document.getElementById('sp-wallet').textContent = kes(i.wallet_balance);
+    document.getElementById('sp-devices').textContent = i.device_count || 0;
+    document.getElementById('sp-pppoe-users').textContent = `${i.active_pppoe_users || 0} active / ${i.total_pppoe_users || 0} total`;
+    document.getElementById('sp-apikey').textContent = i.api_key || '—';
+    document.getElementById('sp-payments-tbody').innerHTML = (d.recent_payments || []).map(p => `
+      <tr><td style="color:var(--teal)">${kes(p.amount)}</td><td>${p.payment_method}</td><td><span class="badge ${p.status === 'paid' ? 'bg' : 'ba'}">${p.status}</span></td><td>${dt(p.created_at)}</td></tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--muted)">No payments</td></tr>';
+  } catch (e) { toast('Failed to load ISP details', 'error'); }
+}
+
+function closeISPPanel() {
+  document.getElementById('isp-detail-panel').classList.remove('open');
+  document.getElementById('sp-overlay').style.display = 'none';
+  currentISPId = null;
+}
+
+async function updateISPStatus(id, status) {
+  if (!confirm(`${status === 'active' ? 'Activate' : status === 'suspended' ? 'Suspend' : 'Cancel'} this ISP account?`)) return;
+  try {
+    await apiFetch(`/admin/isps/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+    toast(`ISP ${status} successfully`);
+    closeISPPanel();
+    loadISPs(); loadDashboard();
+    if (status === 'suspended') loadSuspendedISPs();
+    if (status === 'active') loadPendingISPs();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── COMMISSIONS ──
+async function loadCommissions() {
+  const month = document.getElementById('comm-month')?.value;
+  const year = document.getElementById('comm-year')?.value;
+  try {
+    const d = await apiFetch(`/admin/commissions${month ? '?month=' + month : ''}${year ? (month ? '&' : '?') + 'year=' + year : ''}`);
+    document.getElementById('comm-total').textContent = kes(d.totals?.total);
+    document.getElementById('comm-settled').textContent = kes(d.totals?.settled);
+    document.getElementById('comm-pending-val').textContent = kes((parseFloat(d.totals?.total) - parseFloat(d.totals?.settled)) || 0);
+    document.getElementById('comm-tbody').innerHTML = (d.commissions || []).map(c => `
+      <tr>
+        <td class="name">${c.company_name}</td>
+        <td style="color:var(--amber);font-weight:600">${kes(c.amount)}</td>
+        <td><span class="badge bm">${(parseFloat(c.rate) * 100).toFixed(1)}%</span></td>
+        <td style="color:var(--teal)">${kes(c.payment_amount)}</td>
+        <td>${c.payment_method}</td>
+        <td><span class="badge ${c.is_settled ? 'bg' : 'ba'}">${c.is_settled ? 'Settled' : 'Pending'}</span></td>
+        <td>${dt(c.created_at)}</td>
+      </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">No commissions yet</td></tr>';
+  } catch (e) {}
+}
+
+// ── PLATFORM INVOICES ──
+async function loadPlatformInvoices() {
+  try {
+    const d = await apiFetch('/admin/platform-invoices');
+    document.getElementById('platform-inv-tbody').innerHTML = (d.invoices || []).map(i => `
+      <tr>
+        <td class="name">${i.company_name}</td>
+        <td>${i.period_month}/${i.period_year}</td>
+        <td>${i.pppoe_user_count}</td>
+        <td style="color:var(--amber);font-weight:600">${kes(i.total_amount)}</td>
+        <td>${dt(i.due_date)}</td>
+        <td><span class="badge ${i.status === 'paid' ? 'bg' : 'ba'}">${i.status}</span></td>
+      </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No platform invoices yet</td></tr>';
+  } catch (e) {}
+}
+
+// ── SESSIONS ──
+async function loadSessions() {
+  try {
+    const d = await apiFetch('/admin/sessions');
+    document.getElementById('hs-count').textContent = d.hotspot?.length || 0;
+    document.getElementById('pppoe-count-badge').textContent = d.pppoe?.length || 0;
+    document.getElementById('hs-sessions-tbody').innerHTML = (d.hotspot || []).map(s => `
+      <tr><td class="name">${s.company_name}</td><td style="font-family:monospace;font-size:.8rem">${s.mac_address || '—'}</td><td>${s.ip_address || '—'}</td><td style="font-family:monospace">${s.voucher_code || '—'}</td><td>${dts(s.started_at)}</td></tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No active hotspot sessions</td></tr>';
+    document.getElementById('pppoe-sessions-tbody').innerHTML = (d.pppoe || []).map(s => `
+      <tr><td class="name">${s.company_name}</td><td style="font-family:monospace">${s.username}</td><td>${s.framed_ip || '—'}</td><td>${bytes(s.bytes_downloaded)}</td><td>${dts(s.started_at)}</td></tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No active PPPoE sessions</td></tr>';
+  } catch (e) {}
+}
+
+// ── ALL DEVICES ──
+async function loadAllDevices() {
+  try {
+    const isps = await apiFetch('/admin/isps?limit=200');
+    const rows = [];
+    for (const isp of isps.isps || []) {
+      // We'll just show ISP list with device count for now (full device listing would need a new admin endpoint)
+      if (parseInt(isp.device_count) > 0) {
+        rows.push(`<tr><td class="name">${isp.company_name}</td><td colspan="6" style="color:var(--muted)">${isp.device_count} device(s) — click to view details</td></tr>`);
+      }
+    }
+    document.getElementById('all-devices-tbody').innerHTML = rows.join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">No devices provisioned yet</td></tr>';
+  } catch (e) {}
+}
+
+// ── NOTIFICATIONS ──
+async function loadAdminNotifications() {
+  try {
+    const d = await apiFetch('/admin/notifications');
+    const list = document.getElementById('admin-notif-list');
+    document.getElementById('notif-dot').style.display = d.notifications?.some(n => !n.is_read) ? '' : 'none';
+    list.innerHTML = (d.notifications || []).map(n => `
+      <div style="background:var(--card);border:1px solid ${n.is_read ? 'var(--border)' : 'rgba(243,156,18,.2)'};border-radius:10px;padding:15px 18px;margin-bottom:10px;display:flex;align-items:flex-start;gap:12px">
+        <span style="font-size:1.1rem">${n.type === 'success' ? '✅' : n.type === 'warning' ? '⚠️' : n.type === 'error' ? '❌' : 'ℹ️'}</span>
+        <div style="flex:1">
+          <div style="font-weight:500;font-size:.88rem;${n.is_read ? 'color:var(--muted)' : ''}">${n.title}</div>
+          <div style="color:var(--muted);font-size:.82rem;margin-top:4px;font-weight:300">${n.message}</div>
+          <div style="font-size:.72rem;color:var(--border);margin-top:5px">${dts(n.created_at)}</div>
+        </div>
+      </div>`).join('') || '<div style="text-align:center;color:var(--muted);padding:40px">No notifications</div>';
+  } catch (e) {}
+}
+
+// ── SUPPORT TICKETS ──
+async function loadAdminTickets() {
+  try {
+    // Placeholder — admin would need a dedicated endpoint to list all ISP tickets
+    document.getElementById('admin-tickets-tbody').innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Support ticket management coming soon. ISPs can open tickets which appear here.</td></tr>';
+  } catch (e) {}
+}
+
+// ── SETTINGS ──
+function smsProfitEach() {
+  const p = parseFloat(document.getElementById('sms-price').value) || 0;
+  const c = parseFloat(document.getElementById('sms-cost').value) || 0;
+  const each = Math.round((p - c) * 10000) / 10000;
+  const el = document.getElementById('sms-profit-each');
+  if (el) el.textContent = 'KES ' + each;
+}
+
+async function loadSmsReseller() {
+  try {
+    const d = await apiFetch('/admin/settings/sms');
+    if (d) {
+      document.getElementById('sms-api-key').value = '';
+      document.getElementById('sms-api-key').placeholder = (d.api_key === '***SET***') ? 'saved — leave blank to keep' : 'From TalkSasa';
+      document.getElementById('sms-sender-id').value = d.sender_id || '';
+      document.getElementById('sms-base-url').value = d.base_url || 'https://bulksms.talksasa.com/api/v3';
+      document.getElementById('sms-price').value = (d.price_per_sms != null) ? d.price_per_sms : 0.50;
+      document.getElementById('sms-cost').value = (d.cost_per_sms != null) ? d.cost_per_sms : 0.35;
+      document.getElementById('sms-bonus').value = (d.signup_bonus != null) ? d.signup_bonus : 50;
+      smsProfitEach();
+      const cs = document.getElementById('sms-config-status');
+      if (cs) { cs.textContent = d.is_configured ? 'Configured' : 'Not configured'; cs.style.color = d.is_configured ? '#00d4aa' : 'var(--muted)'; }
+    }
+  } catch (e) {}
+  refreshSmsBalance();
+  loadSmsHistory();
+}
+
+async function refreshSmsBalance() {
+  const el = document.getElementById('sms-admin-balance');
+  if (el) el.textContent = '…';
+  try {
+    const d = await apiFetch('/admin/sms/balance');
+    if (d && d.ok && d.balance != null) {
+      window._talksasaLive = Number(d.balance);
+      if (el) el.textContent = Number(d.balance).toLocaleString();
+    } else {
+      window._talksasaLive = null;
+      if (el) el.textContent = (d && d.error) ? '⚠️' : '—';
+    }
+    const cs = document.getElementById('sms-config-status');
+    if (d && !d.ok && d.error && cs) { cs.textContent = d.error; cs.style.color = '#e74c3c'; }
+  } catch (e) { window._talksasaLive = null; if (el) el.textContent = '—'; }
+  recomputeSmsPool();
+}
+
+function recomputeSmsPool() {
+  // Available Pool = live TalkSasa - sum(ISP remaining). Allocated = remaining / total.
+  const live = window._talksasaLive;
+  const rem = window._smsRemaining || 0;     // R
+  const total = window._smsTotalAllocated || 0;  // A
+  const poolEl = document.getElementById('sms-available-pool');
+  const allocEl = document.getElementById('sms-allocated');
+  if (poolEl) poolEl.textContent = (live != null) ? Math.round((live - rem)).toLocaleString() : '—';
+  if (allocEl) allocEl.textContent = Math.round(rem).toLocaleString() + ' / ' + Math.round(total).toLocaleString();
+}
+
+async function loadSmsHistory() {
+  try {
+    const d = await apiFetch('/admin/sms/history');
+    const s = d.summary || {};
+    window._smsRemaining = Number(s.remaining_allocated||0);
+    window._smsTotalAllocated = Number(s.total_allocated||0);
+    document.getElementById('sms-revenue').textContent = kes(s.total_revenue);
+    document.getElementById('sms-profit').textContent = kes(s.total_profit);
+    document.getElementById('sms-sold').textContent = (Number(s.sms_sold||0)).toLocaleString() + ' / ' + (Number(s.sms_gifted||0)).toLocaleString();
+    recomputeSmsPool();
+    document.getElementById('sms-history-tbody').innerHTML = (d.transactions || []).map(t => `
+      <tr>
+        <td>${dt(t.created_at)}</td>
+        <td class="name">${t.company_name || '—'}</td>
+        <td><span class="badge bm">${t.txn_type}</span></td>
+        <td>${Number(t.sms_count||0).toFixed(2)}</td>
+        <td>${t.unit_price != null ? kes(t.unit_price) : '—'}</td>
+        <td style="color:var(--teal)">${t.amount_paid != null ? kes(t.amount_paid) : '—'}</td>
+        <td style="color:var(--amber)">${t.profit != null ? kes(t.profit) : '—'}</td>
+        <td><span class="badge ${t.status==='completed'?'bg':(t.status==='pending'?'ba':'br')}">${t.status}</span></td>
+      </tr>`).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:22px">No SMS transactions yet</td></tr>';
+  } catch (e) {}
+}
+
+async function saveSmsConfig() {
+  const body = {
+    api_key:   document.getElementById('sms-api-key').value.trim(),
+    sender_id: document.getElementById('sms-sender-id').value.trim(),
+    base_url:  document.getElementById('sms-base-url').value.trim()
+  };
+  try {
+    const d = await apiFetch('/admin/settings/sms', { method:'POST', body: JSON.stringify(body) });
+    if (d && d.ok) { toast('SMS credentials saved'); loadSmsReseller(); }
+    else { toast((d && d.error) || 'Save failed', 'error'); }
+  } catch (e) { toast('Network error', 'error'); }
+}
+
+async function saveSmsPricing() {
+  const body = {
+    price_per_sms: document.getElementById('sms-price').value,
+    cost_per_sms:  document.getElementById('sms-cost').value,
+    signup_bonus:  document.getElementById('sms-bonus').value
+  };
+  try {
+    const d = await apiFetch('/admin/settings/sms', { method:'POST', body: JSON.stringify(body) });
+    if (d && d.ok) { toast('SMS pricing saved — applies to new purchases'); smsProfitEach(); loadSmsHistory(); }
+    else { toast((d && d.error) || 'Save failed', 'error'); }
+  } catch (e) { toast('Network error', 'error'); }
+}
+
+function loadAdminSettings() {
+  document.getElementById('set-admin-name').value = admin.name || '';
+  document.getElementById('set-admin-email').value = admin.email || '';
+  loadCommissionDefaults();
+  loadJengaConfig();
+  loadDarajaConfig();
+}
+
+async function loadJengaConfig() {
+  try {
+    const d = await apiFetch('/admin/settings/jenga');
+    if (!d) return;
+    document.getElementById('jenga-merchant').value = d.merchant_code || '';
+    document.getElementById('jenga-ck').value = (d.consumer_key === '***SET***') ? '' : (d.consumer_key || '');
+    document.getElementById('jenga-cs').value = '';
+    document.getElementById('jenga-apikey').value = '';
+    document.getElementById('jenga-pk').value = '';
+    document.getElementById('jenga-baseurl').value = d.base_url || 'https://api.finserve.africa';
+    document.getElementById('jenga-sandbox').checked = d.is_sandbox !== false;
+    document.getElementById('jenga-cs').placeholder = (d.consumer_secret === '***SET***') ? 'saved — leave blank to keep' : 'From JengaHQ';
+    document.getElementById('jenga-apikey').placeholder = (d.api_key === '***SET***') ? 'saved — leave blank to keep' : 'From JengaHQ';
+    document.getElementById('jenga-pk').placeholder = (d.private_key === '***SET***') ? 'saved — leave blank to keep' : '-----BEGIN PRIVATE KEY-----';
+    const st = document.getElementById('jenga-status');
+    if (st) { st.textContent = d.is_configured ? ('Configured · ' + (d.is_sandbox ? 'Sandbox' : 'Live')) : 'Not configured'; st.style.color = d.is_configured ? '#00d4aa' : 'var(--muted)'; }
+  } catch (e) { /* ignore */ }
+}
+
+async function loadDarajaConfig() {
+  try {
+    const d = await apiFetch('/admin/settings/daraja');
+    if (!d) return;
+    document.getElementById('daraja-shortcode').value = d.shortcode || '';
+    document.getElementById('daraja-ck').value = '';
+    document.getElementById('daraja-cs').value = '';
+    document.getElementById('daraja-passkey').value = '';
+    document.getElementById('daraja-ck').placeholder = (d.consumer_key === '***SET***') ? 'saved — leave blank to keep' : 'From Daraja app';
+    document.getElementById('daraja-cs').placeholder = (d.consumer_secret === '***SET***') ? 'saved — leave blank to keep' : 'From Daraja app';
+    document.getElementById('daraja-passkey').placeholder = (d.passkey === '***SET***') ? 'saved — leave blank to keep' : 'From Daraja portal';
+    document.getElementById('daraja-sandbox').checked = d.is_sandbox !== false;
+    const st = document.getElementById('daraja-status');
+    if (st) { st.textContent = d.is_configured ? ('Configured · ' + (d.is_sandbox ? 'Sandbox' : 'Live')) : 'Not configured'; st.style.color = d.is_configured ? '#00d4aa' : 'var(--muted)'; }
+  } catch (e) { /* ignore */ }
+}
+
+async function saveDaraja() {
+  const body = {
+    shortcode:       document.getElementById('daraja-shortcode').value.trim(),
+    consumer_key:    document.getElementById('daraja-ck').value.trim(),
+    consumer_secret: document.getElementById('daraja-cs').value.trim(),
+    passkey:         document.getElementById('daraja-passkey').value.trim(),
+    is_sandbox:      document.getElementById('daraja-sandbox').checked
+  };
+  if (!body.shortcode || !body.consumer_key || !body.consumer_secret || !body.passkey) {
+    toast('All four Daraja fields are required (shortcode, consumer key, secret, passkey).', 'error'); return;
+  }
+  try {
+    const d = await apiFetch('/admin/settings/daraja', { method: 'POST', body: JSON.stringify(body) });
+    if (d && d.error) { toast(d.error, 'error'); return; }
+    toast('Daraja credentials saved');
+    loadDarajaConfig();
+  } catch (e) { toast(e.message || 'Save failed', 'error'); }
+}
+
+async function testDaraja() {
+  const btn = document.getElementById('daraja-test-btn');
+  const st = document.getElementById('daraja-status');
+  const old = btn.textContent; btn.disabled = true; btn.textContent = 'Testing…';
+  try {
+    const d = await apiFetch('/admin/settings/daraja/test', { method: 'POST', body: JSON.stringify({}) });
+    if (d && d.success) { if (st) { st.textContent = d.message || 'Connected'; st.style.color = '#00d4aa'; } toast('Daraja connection OK'); }
+    else { const msg = (d && d.error) || 'Test failed'; if (st) { st.textContent = msg; st.style.color = '#e74c3c'; } toast(msg, 'error'); }
+  } catch (e) {
+    const msg = e.message || 'Test failed'; if (st) { st.textContent = msg; st.style.color = '#e74c3c'; } toast(msg, 'error');
+  } finally { btn.disabled = false; btn.textContent = old; }
+}
+
+async function saveJenga() {
+  const body = {
+    merchant_code:   document.getElementById('jenga-merchant').value.trim(),
+    consumer_key:    document.getElementById('jenga-ck').value.trim(),
+    consumer_secret: document.getElementById('jenga-cs').value.trim(),
+    api_key:         document.getElementById('jenga-apikey').value.trim(),
+    private_key:     document.getElementById('jenga-pk').value,
+    base_url:        document.getElementById('jenga-baseurl').value.trim(),
+    is_sandbox:      document.getElementById('jenga-sandbox').checked
+  };
+  try {
+    const d = await apiFetch('/admin/settings/jenga', { method: 'POST', body: JSON.stringify(body) });
+    if (d && d.error) { toast(d.error, 'error'); return; }
+    toast('Jenga config saved');
+    loadJengaConfig();
+  } catch (e) { toast(e.message || 'Save failed', 'error'); }
+}
+
+async function testJenga() {
+  const btn = document.getElementById('jenga-test-btn');
+  const st = document.getElementById('jenga-status');
+  const old = btn.textContent; btn.disabled = true; btn.textContent = 'Testing…';
+  try {
+    const d = await apiFetch('/admin/settings/jenga/test', { method: 'POST', body: JSON.stringify({}) });
+    if (d && d.success) { if (st) { st.textContent = d.message || 'Connected'; st.style.color = '#00d4aa'; } toast('Jenga connection OK'); }
+    else { const msg = (d && d.error) || 'Test failed'; if (st) { st.textContent = msg; st.style.color = '#e74c3c'; } toast(msg, 'error'); }
+  } catch (e) {
+    const msg = e.message || 'Test failed'; if (st) { st.textContent = msg; st.style.color = '#e74c3c'; } toast(msg, 'error');
+  } finally { btn.disabled = false; btn.textContent = old; }
+}
+
+async function saveSettings() {
+  const hotspot = document.getElementById('set-hotspot-rate').value;
+  const pppoe = document.getElementById('set-pppoe-rate').value;
+  try {
+    const d = await apiFetch('/admin/settings/commission', { method: 'POST', body: JSON.stringify({
+      hotspot_commission_rate: hotspot,   // percent; backend converts to fraction
+      pppoe_per_user_fee: pppoe
+    }) });
+    if (d && d.ok) { toast('Commission defaults saved — applies to future invoices'); loadCommissionDefaults(); }
+    else { toast((d && d.error) ? d.error : 'Could not save', true); }
+  } catch (e) { toast('Network error saving settings', true); }
+}
+
+async function loadCommissionDefaults() {
+  try {
+    const d = await apiFetch('/admin/settings/commission');
+    if (!d) return;
+    // stored as a fraction; show as a percent in the card
+    const pct = (parseFloat(d.hotspot_commission_rate) * 100);
+    document.getElementById('set-hotspot-rate').value = isFinite(pct) ? (Math.round(pct * 100) / 100) : 3;
+    document.getElementById('set-pppoe-rate').value = (d.pppoe_per_user_fee != null) ? d.pppoe_per_user_fee : 32.25;
+    window._pppoeFee = (d.pppoe_per_user_fee != null) ? parseFloat(d.pppoe_per_user_fee) : 32.25;
+  } catch (e) { /* ignore */ }
+}
+function saveAdminProfile() { toast('Profile updated!'); }
+
+// ── NOTIFY ISP ──
+let notifyISPId = null;
+function openNotifyModal(id) { notifyISPId = id; openModal('modal-note'); }
+async function sendNotification() {
+  if (!notifyISPId) return;
+  try {
+    // This would call a dedicated admin notification endpoint
+    toast('Notification sent to ISP');
+    closeModal('modal-note');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// Auto-refresh dashboard every 30s
+setInterval(() => {
+  const active = document.querySelector('.page.active');
+  if (active?.id === 'page-dashboard') loadDashboard();
+  if (active?.id === 'page-sessions') loadSessions();
+}, 30000);
+
+// ── SIDEBAR TOGGLE ────────────────────────────────────────────
+function toggleSidebar(){
+  const sb = document.querySelector('.sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  const open = sb.classList.toggle('open');
+  ov.classList.toggle('open', open);
+  document.body.style.overflow = open ? 'hidden' : '';
+}
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    if(window.innerWidth <= 900){
+      document.querySelector('.sidebar').classList.remove('open');
+      document.getElementById('sidebar-overlay').classList.remove('open');
+      document.body.style.overflow = '';
+    }
+  });
+});
+
+// ── BILLING PAGE ──────────────────────────────────────────────
+async function loadBilling() {
+  await Promise.all([loadISPsForBilling(), loadChargeHistory(), loadOutstanding()]);
+  // Set current month/year
+  const now = new Date();
+  document.getElementById('autobill-month').value = now.getMonth() + 1;
+  document.getElementById('autobill-year').value = now.getFullYear();
+}
+
+async function loadISPsForBilling() {
+  try {
+    const d = await apiFetch('/admin/isps?limit=200&status=active');
+    const sel = document.getElementById('bill-isp-sel');
+    sel.innerHTML = '<option value="">— Select ISP —</option>' +
+      (d.isps || []).map(i =>
+        `<option value="${i.id}" data-phone="${i.phone}" data-name="${i.company_name}" data-pppoe="${i.active_pppoe_users||0}">
+          ${i.company_name} (${i.plan_type}) — ${i.phone}
+        </option>`
+      ).join('');
+    // Auto-fill phone when ISP selected
+    sel.onchange = function(){
+      const opt = sel.options[sel.selectedIndex];
+      if(opt && opt.dataset.phone) {
+        document.getElementById('bill-phone').value = opt.dataset.phone;
+        // Auto-calculate PPPoE amount
+        if(document.getElementById('bill-type').value === 'pppoe_monthly' && opt.dataset.pppoe > 0){
+          document.getElementById('bill-amount').value = parseInt(opt.dataset.pppoe) * (window._pppoeFee||32.25);
+          document.getElementById('bill-desc').value = `PPPoE monthly fee — ${opt.dataset.pppoe} subscribers × KES ${(window._pppoeFee||32.25)}`;
+        }
+      }
+    };
+    document.getElementById('bill-type').onchange = function(){
+      const opt = sel.options[sel.selectedIndex];
+      if(!opt || !opt.dataset.pppoe) return;
+      if(this.value === 'pppoe_monthly' && opt.dataset.pppoe > 0){
+        document.getElementById('bill-amount').value = parseInt(opt.dataset.pppoe) * (window._pppoeFee||32.25);
+        document.getElementById('bill-desc').value = `PPPoE monthly fee — ${opt.dataset.pppoe} subscribers × KES ${(window._pppoeFee||32.25)}`;
+      }
+    };
+  } catch(e) { console.error(e); }
+}
+
+async function sendISPCharge() {
+  const ispId = document.getElementById('bill-isp-sel').value;
+  const amount = parseFloat(document.getElementById('bill-amount').value);
+  const phone = document.getElementById('bill-phone').value.trim();
+  const type = document.getElementById('bill-type').value;
+  const desc = document.getElementById('bill-desc').value.trim();
+  const msgEl = document.getElementById('bill-msg');
+
+  if(!ispId){ showMsg2(msgEl,'Select an ISP','error'); return; }
+  if(!amount || amount < 1){ showMsg2(msgEl,'Enter a valid amount','error'); return; }
+  if(!phone){ showMsg2(msgEl,'Enter a phone number','error'); return; }
+
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = '⏳ Sending STK Push…';
+
+  try {
+    const res = await apiFetch('/admin/billing/charge', { method:'POST',
+      body: JSON.stringify({ isp_id: ispId, amount, phone, charge_type: type, description: desc || `Platform charge — ${type}` })
+    });
+    showMsg2(msgEl, `✅ STK Push sent to ${phone}! Payment ID: ${res.payment_id||''}. ISP will receive M-Pesa prompt.`, 'success');
+    loadChargeHistory();
+  } catch(e) {
+    showMsg2(msgEl, '❌ ' + e.message, 'error');
+  }
+  btn.disabled = false; btn.textContent = '📱 Send M-Pesa STK Push to ISP';
+}
+
+async function autoBillPPPoE() {
+  const month = parseInt(document.getElementById('autobill-month').value);
+  const year = parseInt(document.getElementById('autobill-year').value);
+  const msgEl = document.getElementById('autobill-msg');
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = '⏳ Generating invoices…';
+  try {
+    const res = await apiFetch('/admin/billing/auto-bill-pppoe', { method:'POST',
+      body: JSON.stringify({ month, year })
+    });
+    showMsg2(msgEl, `✅ ${res.message || 'Invoices generated'} — ${res.count||0} ISPs billed.`, 'success');
+    loadChargeHistory();
+    loadOutstanding();
+  } catch(e) {
+    showMsg2(msgEl, '❌ ' + e.message, 'error');
+  }
+  btn.disabled = false; btn.textContent = '🧾 Generate & Send All PPPoE Invoices';
+}
+
+async function loadChargeHistory() {
+  try {
+    const d = await apiFetch('/admin/billing/charges?limit=30');
+    const tbody = document.getElementById('charge-history-tbody');
+    tbody.innerHTML = (d.charges||[]).map(ch => `
+      <tr>
+        <td class="name">${ch.company_name||'—'}</td>
+        <td style="color:var(--amber);font-weight:600">${kes(ch.amount)}</td>
+        <td style="color:var(--muted);font-size:.74rem">${(ch.charge_type||ch.description||'').replace(/_/g,' ')}</td>
+        <td><span class="badge ${ch.status==='paid'?'bg':ch.status==='pending'?'ba':'br'}">${ch.status}</span></td>
+        <td style="color:var(--muted)">${dt(ch.created_at)}</td>
+      </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No charges yet</td></tr>';
+  } catch(e) {}
+}
+
+async function loadOutstanding() {
+  try {
+    const d = await apiFetch('/admin/billing/outstanding');
+    const el = document.getElementById('outstanding-list');
+    if(!d.outstanding?.length){ el.innerHTML = '<p style="color:var(--muted)">No outstanding invoices 🎉</p>'; return; }
+    el.innerHTML = d.outstanding.map(o => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border)">
+        <div>
+          <div style="color:var(--white);font-size:.84rem">${o.company_name}</div>
+          <div style="color:var(--muted);font-size:.74rem">${o.plan_type} · ${o.overdue_days||0}d overdue</div>
+        </div>
+        <div style="text-align:right">
+          <div style="color:var(--amber);font-weight:600;font-size:.86rem">${kes(o.outstanding_amount)}</div>
+          <button onclick="quickCharge('${o.isp_id}','${o.phone}',${o.outstanding_amount})" 
+            style="font-size:.7rem;color:var(--teal);background:none;border:none;cursor:pointer;padding:0;font-family:inherit">Charge now →</button>
+        </div>
+      </div>`).join('');
+  } catch(e) {}
+}
+
+function quickCharge(ispId, phone, amount) {
+  document.getElementById('bill-isp-sel').value = ispId;
+  document.getElementById('bill-phone').value = phone;
+  document.getElementById('bill-amount').value = amount;
+  showPage('billing');
+}
+
+function showMsg2(el, msg, type) {
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.style.background = type==='success' ? 'rgba(0,212,170,.1)' : type==='error' ? 'rgba(231,76,60,.1)' : 'rgba(243,156,18,.1)';
+  el.style.color = type==='success' ? 'var(--teal)' : type==='error' ? 'var(--red)' : 'var(--amber)';
+  el.style.border = '1px solid ' + (type==='success' ? 'rgba(0,212,170,.25)' : type==='error' ? 'rgba(231,76,60,.25)' : 'rgba(243,156,18,.25)');
+}
+</script>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- Payment spinner widget -->
+<div id="rml-spinner-include"></div>
+<script>
+fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
+  document.getElementById('rml-spinner-include').innerHTML = html;
+  document.querySelectorAll('#rml-spinner-include script').forEach(s => {
+    var n = document.createElement('script');
+    n.textContent = s.textContent;
+    document.body.appendChild(n);
+  });
+});
+// Hook billing charge to show spinner
+(function(){
+  var origFetch = window.fetch;
+  window.fetch = function(url, opts) {
+    var prom = origFetch.apply(this, arguments);
+    if (typeof url === 'string' && url.indexOf('/billing/charge') > -1 && opts && opts.method === 'POST') {
+      prom.then(r => r.clone().json()).then(data => {
+        if (data && data.payment_id && typeof rumalinkShowPaymentSpinner === 'function') {
+          var body = {};
+          try { body = JSON.parse(opts.body || '{}'); } catch(e){}
+          rumalinkShowPaymentSpinner({
+            phone: body.phone,
+            amount: body.amount,
+            paymentId: data.payment_id,
+            statusUrl: '/api/payments/public-status/' + data.payment_id,
+            onSuccess: function() { if (typeof loadChargeHistory==='function') loadChargeHistory(); }
+          });
+        }
+      }).catch(()=>{});
+    }
+    return prom;
+  };
+})();
+</script>
+
+<script>
+/* RumaLink — Auto-dismiss STK push notifications */
+(function(){
+  // Patterns that identify ephemeral payment-initiation messages that should auto-clear
+  const dismissPatterns = [
+    /STK Push sent/i,
+    /MPesa prompt sent/i,
+    /M-Pesa prompt sent/i,
+    /Payment ID:/i,
+    /Enter PIN to complete/i,
+    /Payment Requested/i,
+    /SMS voucher incoming/i
+  ];
+
+  function shouldDismiss(text) {
+    return dismissPatterns.some(p => p.test(text));
+  }
+
+  // Observe DOM and auto-dismiss matching elements after 6 seconds
+  const observer = new MutationObserver(mutations => {
+    mutations.forEach(m => {
+      m.addedNodes.forEach(node => {
+        if (node.nodeType !== 1) return;
+        // Check node + descendants
+        const candidates = [node, ...node.querySelectorAll?.('*') || []];
+        candidates.forEach(el => {
+          if (!el.textContent) return;
+          if (shouldDismiss(el.textContent)) {
+            // If this is a small status banner (not the whole modal), schedule removal
+            const tag = el.tagName?.toLowerCase();
+            if (['div','p','span','section','article'].includes(tag) && el.textContent.length < 300) {
+              if (!el.dataset.rlDismissed) {
+                el.dataset.rlDismissed = '1';
+                setTimeout(() => {
+                  // Fade out smoothly
+                  el.style.transition = 'opacity .4s';
+                  el.style.opacity = '0';
+                  setTimeout(() => {
+                    // Only remove if still a banner (not the spinner itself)
+                    if (el.parentNode && !el.closest('.rml-spinner-overlay')) {
+                      el.style.display = 'none';
+                    }
+                  }, 400);
+                }, 6000);
+              }
+            }
+          }
+        });
+      });
+    });
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  // Also: when spinner shows success/failure, clear any sticky payment banner immediately
+  window.addEventListener('storage', () => {});  // touch to trigger
+  const origShow = window.rumalinkShowPaymentSpinner;
+  // Hook spinner success/fail to also nuke any sticky banners
+  document.addEventListener('click', function(e){
+    // When user clicks Continue or Try Again on spinner, also dismiss any banner
+    if (e.target?.classList?.contains('rml-spin-action')) {
+      document.querySelectorAll('[data-rl-dismissed]').forEach(el => el.style.display='none');
+    }
+  });
+
+  console.log('[RumaLink] Notification auto-dismiss active');
+})();
+</script>
+
+<script>
+// ===== SHOP (e-commerce) admin =====
+
+async function refreshShopBadge(){
+  try{
+    const d=await apiFetch('/shop/admin/unseen-count');
+    const b=document.getElementById('shop-order-badge');
+    if(!b) return;
+    const n=d.count||0;
+    if(n>0){ b.textContent=n>99?'99+':n; b.style.display='inline-flex'; }
+    else { b.style.display='none'; }
+  }catch(e){}
+}
+async function markShopSeen(){
+  try{ await apiFetch('/shop/admin/mark-seen',{method:'POST'}); }catch(e){}
+  const b=document.getElementById('shop-order-badge'); if(b) b.style.display='none';
+}
+// poll every 25s for new orders
+setInterval(refreshShopBadge, 25000);
+// initial check shortly after load
+setTimeout(refreshShopBadge, 2500);
+
+
+function showSupplier(s){
+  const html=`<div class="modal-overlay open" id="sup-modal" onclick="if(event.target===this)this.remove()"><div class="modal" style="max-width:400px">
+    <h2>🔒 Supplier Info</h2><div class="modal-sub">${s.name||''} — private notes</div>
+    <div style="font-size:.9rem;line-height:2">
+      <b>Supplier/Company:</b> ${s.n||'—'}<br>
+      <b>Phone:</b> ${s.ph?`<a href="tel:${s.ph}" style="color:var(--teal)">${s.ph}</a>`:'—'}<br>
+      <b>Their Price:</b> ${s.pr!=null?shopKes(s.pr):'—'}
+    </div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="document.getElementById('sup-modal').remove()">Close</button></div>
+  </div></div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+function magnifyImg(url){
+  const html=`<div class="modal-overlay open" id="img-lightbox" style="z-index:400;background:rgba(0,0,0,.9)" onclick="this.remove()">
+    <img src="${url}" style="max-width:92vw;max-height:92vh;border-radius:10px;box-shadow:0 10px 60px rgba(0,0,0,.6)">
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+
+async function uploadProductImage(){
+  const inp=document.getElementById('pm-image-file');
+  const st=document.getElementById('pm-upload-status');
+  if(!inp.files||!inp.files[0]) return;
+  const f=inp.files[0];
+  if(f.size>12*1024*1024){ st.textContent='Max 12MB'; st.style.color='var(--red)'; return; }
+  st.textContent='Uploading…'; st.style.color='var(--muted)';
+  try{
+    const fd=new FormData(); fd.append('image', f);
+    const res=await fetch(API+'/shop/admin/upload',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
+    const d=await res.json();
+    if(!res.ok) throw new Error(d.error||'Upload failed');
+    document.getElementById('pm-image').value=d.url;
+    pmPreview();
+    st.textContent='Uploaded ✓'; st.style.color='var(--green)';
+  }catch(e){ st.textContent=e.message; st.style.color='var(--red)'; }
+}
+function pmPreview(){
+  const url=document.getElementById('pm-image').value.trim();
+  const box=document.getElementById('pm-image-preview');
+  if(box) box.innerHTML = url ? `<img src="${url}" style="max-height:80px;border-radius:8px" onerror="this.style.display='none'">` : '';
+}
+
+function shopTab(t){
+  document.querySelectorAll('.shop-tab').forEach(b=>b.classList.toggle('active', b.dataset.stab===t));
+  document.querySelectorAll('.shop-stab').forEach(s=>s.style.display='none');
+  const el=document.getElementById('shop-stab-'+t); if(el) el.style.display='';
+  if(t==='products') loadShopProducts();
+  if(t==='orders') loadShopOrders();
+  if(t==='revenue') loadShopRevenue();
+  if(t==='settings') loadShopSettings();
+}
+let _shopCats=[];
+async function loadShopCats(){ try{ const d=await apiFetch('/shop/admin/categories'); _shopCats=d.categories||[]; }catch(e){ _shopCats=[]; } }
+function shopKes(n){ return 'KES '+Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+async function loadShopProducts(){
+  const body=document.getElementById('shop-products-body');
+  try{
+    const d=await apiFetch('/shop/admin/products');
+    if(!d.products||!d.products.length){ body.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted)">No products yet. Add your first product.</td></tr>'; return; }
+    body.innerHTML=d.products.map(p=>`<tr>
+      <td class="name">${p.image_url?`<img src="${p.image_url}" style="width:34px;height:34px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:8px">`:''}${p.name}${p.is_featured?' ⭐':''}</td>
+      <td>${p.category_name||'—'}</td>
+      <td>${shopKes(p.price)}</td>
+      <td>${p.track_stock?p.stock_qty:'∞'}</td>
+      <td>${p.is_active?'<span class="badge" style="background:rgba(46,204,113,.15);color:var(--green)">Active</span>':'<span class="badge" style="background:rgba(231,76,60,.15);color:var(--red)">Hidden</span>'}</td>
+      <td style="white-space:nowrap">${(p.supplier_name||p.supplier_phone||p.supplier_price!=null)?`<button class="btn btn-outline btn-sm" title="Supplier notes" onclick='showSupplier(${JSON.stringify({n:p.supplier_name,ph:p.supplier_phone,pr:p.supplier_price,name:p.name})})'>🔒</button> `:''}<button class="btn btn-outline btn-sm" onclick='editProduct(${JSON.stringify(p)})'>Edit</button> <button class="btn btn-red btn-sm" onclick="delProduct('${p.id}','${(p.name||'').replace(/'/g,"")}')">Del</button></td>
+    </tr>`).join('');
+  }catch(e){ body.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--red)">'+e.message+'</td></tr>'; }
+}
+function openProductModal(p){
+  if(!_shopCats.length) loadShopCats();
+  const isEdit=!!(p&&p.id);
+  const catOpts=['<option value="">— No category —</option>'].concat(_shopCats.map(c=>`<option value="${c.id}" ${p&&p.category_id===c.id?'selected':''}>${c.name}</option>`)).join('');
+  const html=`<div class="modal-overlay open" id="product-modal" onclick="if(event.target===this)this.remove()">
+    <div class="modal" style="max-width:560px">
+      <h2>${isEdit?'Edit':'Add'} Product</h2>
+      <div class="modal-sub">Fill product details. Price is in KES.</div>
+      <input type="hidden" id="pm-id" value="${isEdit?p.id:''}">
+      <div class="fg"><label>Name *</label><input type="text" id="pm-name" value="${isEdit?(p.name||'').replace(/"/g,'&quot;'):''}"></div>
+      <div class="fg"><label>Description</label><textarea id="pm-desc" rows="3">${isEdit?(p.description||''):''}</textarea></div>
+      <div style="display:flex;gap:10px"><div class="fg" style="flex:1"><label>Price (KES) *</label><input type="number" id="pm-price" value="${isEdit?p.price:''}"></div>
+      <div class="fg" style="flex:1"><label>Compare Price (was)</label><input type="number" id="pm-compare" value="${isEdit&&p.compare_price?p.compare_price:''}"></div></div>
+      <div style="display:flex;gap:10px"><div class="fg" style="flex:1"><label>Category</label><select id="pm-cat">${catOpts}</select></div>
+      <div class="fg" style="flex:1"><label>Stock Qty</label><input type="number" id="pm-stock" value="${isEdit?p.stock_qty:0}"></div></div>
+      <div class="fg"><label>Product Image</label>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+          <input type="file" id="pm-image-file" accept="image/*" style="flex:1;font-size:.8rem" onchange="uploadProductImage()">
+          <span id="pm-upload-status" style="font-size:.78rem;color:var(--muted)"></span>
+        </div>
+        <input type="text" id="pm-image" placeholder="or paste image URL https://..." value="${isEdit?(p.image_url||''):''}" oninput="pmPreview()">
+        <div id="pm-image-preview" style="margin-top:8px">${isEdit&&p.image_url?`<img src="${p.image_url}" style="max-height:80px;border-radius:8px">`:''}</div>
+      </div>
+      <div style="display:flex;gap:18px;margin:6px 0"><label style="display:flex;align-items:center;gap:7px;font-size:.85rem;color:var(--white)"><input type="checkbox" id="pm-active" style="width:auto" ${!isEdit||p.is_active?'checked':''}> Active</label>
+      <label style="display:flex;align-items:center;gap:7px;font-size:.85rem;color:var(--white)"><input type="checkbox" id="pm-featured" style="width:auto" ${isEdit&&p.is_featured?'checked':''}> Featured</label>
+      <label style="display:flex;align-items:center;gap:7px;font-size:.85rem;color:var(--white)"><input type="checkbox" id="pm-track" style="width:auto" ${!isEdit||p.track_stock?'checked':''}> Track stock</label></div>
+      <div style="margin:14px 0 4px;padding-top:14px;border-top:1px solid var(--border)"><div style="font-size:.8rem;font-weight:600;color:var(--amber);margin-bottom:2px">🔒 Supplier Info (private — never shown to customers)</div><div style="font-size:.72rem;color:var(--muted);margin-bottom:10px">For products you source from another seller.</div></div>
+      <div style="display:flex;gap:10px"><div class="fg" style="flex:1"><label>Supplier / Company</label><input type="text" id="pm-supname" value="${isEdit&&p.supplier_name?(p.supplier_name||'').replace(/"/g,'&quot;'):''}"></div>
+      <div class="fg" style="flex:1"><label>Supplier Phone</label><input type="text" id="pm-supphone" value="${isEdit&&p.supplier_phone?p.supplier_phone:''}"></div></div>
+      <div class="fg"><label>Supplier Price (what you pay, KES)</label><input type="number" id="pm-supprice" value="${isEdit&&p.supplier_price?p.supplier_price:''}"></div>
+      <div class="modal-actions"><button class="btn btn-outline" onclick="document.getElementById('product-modal').remove()">Cancel</button><button class="btn btn-amber" onclick="saveProduct()">Save Product</button></div>
+    </div></div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+function editProduct(p){ openProductModal(p); }
+async function saveProduct(){
+  const id=document.getElementById('pm-id').value;
+  const payload={
+    name:document.getElementById('pm-name').value.trim(),
+    description:document.getElementById('pm-desc').value.trim(),
+    price:parseFloat(document.getElementById('pm-price').value)||0,
+    compare_price:parseFloat(document.getElementById('pm-compare').value)||null,
+    category_id:document.getElementById('pm-cat').value||null,
+    stock_qty:parseInt(document.getElementById('pm-stock').value)||0,
+    image_url:document.getElementById('pm-image').value.trim()||null,
+    is_active:document.getElementById('pm-active').checked,
+    is_featured:document.getElementById('pm-featured').checked,
+    track_stock:document.getElementById('pm-track').checked,
+    supplier_name:document.getElementById('pm-supname')?document.getElementById('pm-supname').value.trim():'',
+    supplier_phone:document.getElementById('pm-supphone')?document.getElementById('pm-supphone').value.trim():'',
+    supplier_price:document.getElementById('pm-supprice')&&document.getElementById('pm-supprice').value!==''?parseFloat(document.getElementById('pm-supprice').value):null
+  };
+  if(!payload.name||!payload.price){ alert('Name and price are required'); return; }
+  try{
+    if(id) await apiFetch('/shop/admin/products/'+id,{method:'PUT',body:JSON.stringify(payload)});
+    else await apiFetch('/shop/admin/products',{method:'POST',body:JSON.stringify(payload)});
+    document.getElementById('product-modal').remove();
+    loadShopProducts();
+  }catch(e){ alert(e.message); }
+}
+async function delProduct(id,name){ if(!confirm('Delete "'+name+'"?')) return; try{ await apiFetch('/shop/admin/products/'+id,{method:'DELETE'}); loadShopProducts(); }catch(e){ alert(e.message); } }
+let _shopOrderPage=1, _shopSearchTimer=null;
+function shopOrdersReset(){ _shopOrderPage=1; loadShopOrders(); }
+function shopOrderSearch(){ clearTimeout(_shopSearchTimer); _shopSearchTimer=setTimeout(()=>{ _shopOrderPage=1; loadShopOrders(); },300); }
+function shopOrdersGoto(p){ _shopOrderPage=p; loadShopOrders(); }
+async function loadShopOrders(){
+  const body=document.getElementById('shop-orders-body');
+  const f=document.getElementById('shop-order-filter').value;
+  const q=(document.getElementById('shop-order-search')||{}).value||'';
+  const params=new URLSearchParams(); params.set('page',_shopOrderPage); params.set('limit',25);
+  if(f) params.set('status',f); if(q.trim()) params.set('q',q.trim());
+  try{
+    const d=await apiFetch('/shop/admin/orders?'+params.toString());
+    const pager=document.getElementById('shop-orders-pager');
+    if(!d.orders||!d.orders.length){ body.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted)">No orders found.</td></tr>'; if(pager)pager.innerHTML=''; return; }
+    body.innerHTML=d.orders.map(o=>`<tr>
+      <td class="name">${o.order_number}</td>
+      <td>${o.customer_name}<br><span style="font-size:.75rem;color:var(--muted)">${o.customer_phone}</span></td>
+      <td>${shopKes(o.total)}</td>
+      <td>${o.payment_status==='paid'?'<span class="badge" style="background:rgba(46,204,113,.15);color:var(--green)">Paid</span>':o.payment_status==='failed'?'<span class="badge" style="background:rgba(231,76,60,.15);color:var(--red)">Failed</span>':'<span class="badge" style="background:rgba(243,156,18,.15);color:var(--amber)">Pending</span>'}</td>
+      <td><select onchange="updateOrderStatus('${o.id}',this.value)" style="background:var(--mid);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--white);font-size:.78rem">
+        ${['pending_payment','paid','processing','delivered','cancelled'].map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s.replace('_',' ')}</option>`).join('')}
+      </select></td>
+      <td style="font-size:.78rem">${new Date(o.created_at).toLocaleDateString()}</td>
+      <td><button class="btn btn-outline btn-sm" onclick="viewOrder('${o.id}')">View</button></td>
+    </tr>`).join('');
+    if(pager){
+      const pages=d.pages||1, cur=d.page||1;
+      pager.innerHTML = pages>1 ? `
+        <button class="btn btn-outline btn-sm" ${cur<=1?'disabled':''} onclick="shopOrdersGoto(${cur-1})">← Prev</button>
+        <span style="color:var(--muted);font-size:.85rem">Page ${cur} of ${pages} · ${d.total} orders</span>
+        <button class="btn btn-outline btn-sm" ${cur>=pages?'disabled':''} onclick="shopOrdersGoto(${cur+1})">Next →</button>` 
+        : `<span style="color:var(--muted);font-size:.8rem">${d.total} order${d.total===1?'':'s'}</span>`;
+    }
+  }catch(e){ body.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--red)">'+e.message+'</td></tr>'; }
+}
+async function updateOrderStatus(id,status){ try{ await apiFetch('/shop/admin/orders/'+id+'/status',{method:'PUT',body:JSON.stringify({status})}); }catch(e){ alert(e.message); loadShopOrders(); } }
+async function viewOrder(id){
+  try{
+    const d=await apiFetch('/shop/admin/orders/'+id);
+    const o=d.order; const items=d.items||[];
+    const itemRows=items.map(i=>`<tr>
+      <td style="display:flex;align-items:center;gap:8px">${i.image_url?`<img src="${i.image_url}" onclick="magnifyImg('${i.image_url}')" style="width:38px;height:38px;object-fit:cover;border-radius:6px;cursor:zoom-in">`:'<span style="width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;background:var(--mid);border-radius:6px">📦</span>'}<span>${i.product_name}</span></td>
+      <td>${i.quantity}</td><td>${shopKes(i.unit_price)}</td><td>${shopKes(i.line_total)}</td></tr>`).join('');
+    const delLabel = o.delivery_type==='free' ? ('Free delivery — '+(o.delivery_location||'')) : o.delivery_type==='paid_pending' ? ('Delivery fee to be arranged — '+(o.delivery_location||o.delivery_address||'')) : 'Pickup / no delivery';
+    const gallery = items.filter(i=>i.image_url).map(i=>`<img src="${i.image_url}" title="${i.product_name} (click to enlarge)" onclick="magnifyImg('${i.image_url}')" style="width:100%;border-radius:10px;cursor:zoom-in;margin-bottom:10px;object-fit:cover">`).join('') || '<div style="color:var(--muted);font-size:.82rem;text-align:center;padding:20px">No product images</div>';
+    const html=`<div class="modal-overlay open" id="order-modal" onclick="if(event.target===this)this.remove()"><div class="modal" style="max-width:760px">
+      <h2>Order ${o.order_number}</h2><div class="modal-sub">${new Date(o.created_at).toLocaleString()}</div>
+      <div style="display:grid;grid-template-columns:1fr 240px;gap:20px;align-items:start">
+        <div>
+          <div style="font-size:.85rem;line-height:1.7;margin-bottom:14px">
+            <b>Customer:</b> ${o.customer_name} (${o.customer_phone})<br>
+            ${o.customer_email?'<b>Email:</b> '+o.customer_email+'<br>':''}
+            <b>Delivery:</b> ${delLabel}<br>
+            <b>Address:</b> ${o.delivery_address}<br>
+            ${o.map_location?`<b>Map Pin:</b> <a href="${o.map_location.indexOf('http')===0?o.map_location:('https://www.google.com/maps?q='+encodeURIComponent(o.map_location))}" target="_blank" style="color:var(--teal);font-weight:600">📍 View exact location</a><br>`:''}
+            ${o.delivery_notes?'<b>Notes:</b> '+o.delivery_notes+'<br>':''}
+            <b>Payment:</b> ${o.payment_status} ${o.mpesa_receipt?'('+o.mpesa_receipt+')':''}<br>
+            <b>Status:</b> ${o.status}
+          </div>
+          <table class="tbl"><thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead><tbody>${itemRows}</tbody></table>
+          <div style="text-align:right;margin-top:12px;font-size:.9rem">
+            Subtotal: ${shopKes(o.subtotal)}<br>Delivery: ${o.delivery_type==='paid_pending'?'To be arranged':shopKes(o.delivery_fee)}<br><b style="font-size:1.05rem">Total: ${shopKes(o.total)}</b>
+          </div>
+        </div>
+        <div style="position:sticky;top:0"><div style="font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Product Images</div>${gallery}</div>
+      </div>
+      <div class="modal-actions"><button class="btn btn-outline" onclick="document.getElementById('order-modal').remove()">Close</button></div>
+    </div></div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+  }catch(e){ alert(e.message); }
+}
+async function loadShopRevenue(){
+  try{
+    const d=await apiFetch('/shop/admin/revenue');
+    document.getElementById('shop-rev-today').textContent=shopKes(d.today_revenue);
+    document.getElementById('shop-rev-month').textContent=shopKes(d.month_revenue);
+    document.getElementById('shop-rev-total').textContent=shopKes(d.total_revenue);
+    document.getElementById('shop-rev-delivery').textContent=shopKes(d.total_delivery_fees);
+    document.getElementById('shop-rev-orders').textContent=d.paid_orders||0;
+    document.getElementById('shop-rev-pending').textContent=d.pending_orders||0;
+  }catch(e){}
+}
+async function loadShopSettings(){
+  try{
+    const s=await apiFetch('/shop/admin/settings');
+    document.getElementById('shop-delivery-fee').value=s.default_delivery_fee||0;
+    document.getElementById('shop-free-over').value=s.free_delivery_over||'';
+    document.getElementById('shop-order-prefix').value=s.order_prefix||'RL';
+    if(document.getElementById('shop-free-locations')) document.getElementById('shop-free-locations').value=s.free_delivery_locations||'';
+    document.getElementById('shop-enabled').checked=s.shop_enabled!==false;
+    document.getElementById('shop-wa-enabled').checked=!!s.whatsapp_enabled;
+    document.getElementById('shop-wa-phoneid').value=s.whatsapp_phone_id==='***SET***'?'':(s.whatsapp_phone_id||'');
+    document.getElementById('shop-wa-phoneid').placeholder=s.whatsapp_phone_id==='***SET***'?'•••• saved ••••':'From Meta WhatsApp';
+    document.getElementById('shop-wa-token').placeholder=s.whatsapp_token==='***SET***'?'•••• saved ••••':'From Meta WhatsApp';
+    document.getElementById('shop-wa-numbers').value=s.whatsapp_admin_numbers||'';
+  }catch(e){}
+}
+async function saveShopSettings(){
+  const st=document.getElementById('shop-settings-status');
+  const payload={
+    default_delivery_fee:parseFloat(document.getElementById('shop-delivery-fee').value)||0,
+    free_delivery_over:document.getElementById('shop-free-over').value!==''?parseFloat(document.getElementById('shop-free-over').value):null,
+    order_prefix:document.getElementById('shop-order-prefix').value.trim()||'RL',
+    free_delivery_locations:(document.getElementById('shop-free-locations')||{}).value||'',
+    shop_enabled:document.getElementById('shop-enabled').checked,
+    whatsapp_enabled:document.getElementById('shop-wa-enabled').checked,
+    whatsapp_admin_numbers:document.getElementById('shop-wa-numbers').value.trim()
+  };
+  const pid=document.getElementById('shop-wa-phoneid').value.trim();
+  const tok=document.getElementById('shop-wa-token').value.trim();
+  if(pid) payload.whatsapp_phone_id=pid;
+  if(tok) payload.whatsapp_token=tok;
+  try{ await apiFetch('/shop/admin/settings',{method:'PUT',body:JSON.stringify(payload)}); if(st){st.textContent='Saved!';st.style.color='var(--green)';setTimeout(()=>st.textContent='',2000);} }
+  catch(e){ if(st){st.textContent=e.message;st.style.color='var(--red)';} }
+}
+// preload categories when shop first opens
+document.querySelector('.nav-item[data-page="shop"]')?.addEventListener('click', ()=>{ loadShopCats(); });
+</script>
+
+<script>
+/* RL_INTASEND_ADMIN_PAGE logic */
+(function(){
+  function tk(){ return localStorage.getItem('rl_admin_token')||''; }
+  async function aapi(path, opts){
+    const r = await fetch((window.API||'/api')+path, Object.assign({ headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk()} }, opts||{}));
+    const d = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+    return d;
+  }
+  window.isAdminTab = function(tab, el){
+    ['keys','fees','withdrawals','collections'].forEach(function(t){ var c=document.getElementById('istab-'+t); if(c) c.style.display = (t===tab)?'':'none'; });
+    if(el){ el.parentNode.querySelectorAll('.stab').forEach(function(s){ s.classList.remove('active'); }); el.classList.add('active'); }
+    if(tab==='withdrawals') isLoadWithdrawals();
+    if(tab==='collections') isLoadCollections();
+  };
+  window.isLoadKeys = async function(){
+    try{
+      const d = await aapi('/admin/settings/intasend');
+      document.getElementById('is-apikey').placeholder = d.api_key_masked || 'ISPubKey_...';
+      document.getElementById('is-privkey').placeholder = d.private_key_masked || 'ISSecretKey_...';
+      document.getElementById('is-baseurl').value = d.base_url||'https://payment.intasend.com';
+      document.getElementById('is-sandbox').checked = !!d.is_sandbox;
+      document.getElementById('is-active').checked = !!d.is_active;
+      var b=document.getElementById('is-active-badge');
+      b.textContent = d.is_active?'● Active':'○ Inactive';
+      b.style.background = d.is_active?'rgba(46,204,113,.15)':'rgba(122,139,170,.15)';
+      b.style.color = d.is_active?'var(--green)':'var(--muted)';
+    }catch(e){ (window.toast||alert)(e.message,'error'); }
+  };
+  window.isSaveKeys = async function(){
+    try{
+      await aapi('/admin/settings/intasend', { method:'POST', body: JSON.stringify({
+        api_key: document.getElementById('is-apikey').value,
+        private_key: document.getElementById('is-privkey').value,
+        base_url: document.getElementById('is-baseurl').value,
+        is_sandbox: document.getElementById('is-sandbox').checked,
+        is_active: document.getElementById('is-active').checked,
+      })});
+      (window.toast||alert)('IntaSend config saved','success');
+      document.getElementById('is-apikey').value=''; document.getElementById('is-privkey').value='';
+      isLoadKeys();
+    }catch(e){ (window.toast||alert)(e.message,'error'); }
+  };
+  window.isLoadFees = async function(){
+    try{
+      const d = await aapi('/admin/settings/intasend-fees'); const f=d.fees||{};
+      const set=(id,k)=>{ var el=document.getElementById(id); if(el) el.value=(f[k]!=null)?f[k]:''; };
+      // collection
+      set('fee-col-mpesa','intasend_collection_mpesa_pct'); set('fee-col-mpesa-max','intasend_collection_mpesa_max');
+      set('fee-col-card','intasend_collection_card_pct'); set('fee-col-cardintl','intasend_collection_cardintl_pct');
+      // payout mpesa
+      set('fee-pay-mpesa-pct','intasend_payout_mpesa_pct'); set('fee-pay-mpesa-min','intasend_payout_mpesa_min'); set('fee-pay-mpesa-max','intasend_payout_mpesa_max');
+      // bank tiers
+      for(let i=1;i<=5;i++){ set('fee-bank-t'+i+'-max','intasend_payout_bank_t'+i+'_max'); set('fee-bank-t'+i+'-fee','intasend_payout_bank_t'+i+'_fee'); }
+      // paybill tiers
+      for(let i=1;i<=7;i++){ set('fee-pb-t'+i+'-max','intasend_payout_paybill_t'+i+'_max'); set('fee-pb-t'+i+'-fee','intasend_payout_paybill_t'+i+'_fee'); }
+      // till
+      set('fee-till-threshold','intasend_payout_till_threshold'); set('fee-till-low','intasend_payout_till_fee_low'); set('fee-till-high','intasend_payout_till_fee_high');
+      set('fee-ratio','intasend_max_fee_ratio');
+      var mm=document.getElementById('m-mpesa'); if(mm) mm.checked=(f.intasend_method_mpesa_enabled==1);
+      var mb=document.getElementById('m-bank'); if(mb) mb.checked=(f.intasend_method_bank_enabled==1);
+      var mp=document.getElementById('m-paybill'); if(mp) mp.checked=(f.intasend_method_paybill_enabled==1);
+      var mt=document.getElementById('m-till'); if(mt) mt.checked=(f.intasend_method_till_enabled==1);
+    }catch(e){ (window.toast||alert)(e.message,'error'); }
+  };
+  window.isSaveFees = async function(){
+    try{
+      const num=id=>{ var el=document.getElementById(id); return el?parseFloat(el.value||'0'):undefined; };
+      const body={
+        intasend_collection_mpesa_pct:num('fee-col-mpesa'), intasend_collection_mpesa_max:num('fee-col-mpesa-max'),
+        intasend_collection_card_pct:num('fee-col-card'), intasend_collection_cardintl_pct:num('fee-col-cardintl'),
+        intasend_payout_mpesa_pct:num('fee-pay-mpesa-pct'), intasend_payout_mpesa_min:num('fee-pay-mpesa-min'), intasend_payout_mpesa_max:num('fee-pay-mpesa-max'),
+        intasend_payout_till_threshold:num('fee-till-threshold'), intasend_payout_till_fee_low:num('fee-till-low'), intasend_payout_till_fee_high:num('fee-till-high'),
+        intasend_max_fee_ratio:num('fee-ratio'),
+        intasend_method_mpesa_enabled:document.getElementById('m-mpesa')&&document.getElementById('m-mpesa').checked?1:0,
+        intasend_method_bank_enabled:document.getElementById('m-bank')&&document.getElementById('m-bank').checked?1:0,
+        intasend_method_paybill_enabled:document.getElementById('m-paybill')&&document.getElementById('m-paybill').checked?1:0,
+        intasend_method_till_enabled:document.getElementById('m-till')&&document.getElementById('m-till').checked?1:0,
+      };
+      for(let i=1;i<=5;i++){ body['intasend_payout_bank_t'+i+'_max']=num('fee-bank-t'+i+'-max'); body['intasend_payout_bank_t'+i+'_fee']=num('fee-bank-t'+i+'-fee'); }
+      for(let i=1;i<=7;i++){ body['intasend_payout_paybill_t'+i+'_max']=num('fee-pb-t'+i+'-max'); body['intasend_payout_paybill_t'+i+'_fee']=num('fee-pb-t'+i+'-fee'); }
+      Object.keys(body).forEach(k=>{ if(body[k]===undefined) delete body[k]; });
+      await aapi('/admin/settings/intasend-fees', { method:'POST', body: JSON.stringify(body) });
+      (window.toast||alert)('Fees saved','success');
+    }catch(e){ (window.toast||alert)(e.message,'error'); }
+  };
+  window.isLoadWithdrawals = async function(){
+    var tb=document.getElementById('is-wd-tbody'); if(!tb)return;
+    try{
+      const d = await aapi('/admin/intasend/withdrawals'); const rows=d.withdrawals||[];
+      if(!rows.length){ tb.innerHTML='<tr><td colspan="8" style="color:var(--muted)">No withdrawals yet.</td></tr>'; return; }
+      tb.innerHTML = rows.map(function(r){
+        var color=r.status==='completed'?'var(--green)':(r.status==='failed'?'var(--red)':'var(--amber)');
+        return '<tr><td>'+new Date(r.created_at).toLocaleString()+'</td><td>'+(r.company_name||'—')+'</td><td>'+r.method+'</td><td>KES '+r.gross_amount+'</td><td>'+r.fee_amount+'</td><td style="color:var(--teal)">'+r.net_amount+'</td><td style="color:'+color+'">'+r.status+'</td><td style="font-size:.75rem;color:var(--muted)">'+(r.intasend_ref||'—')+'</td></tr>';
+      }).join('');
+    }catch(e){ tb.innerHTML='<tr><td colspan="8" style="color:var(--red)">'+e.message+'</td></tr>'; }
+  };
+  window.isLoadCollections = async function(){
+    var tb=document.getElementById('is-col-tbody'); if(!tb)return;
+    try{
+      const d = await aapi('/admin/intasend/collections'); const rows=d.collections||[];
+      if(!rows.length){ tb.innerHTML='<tr><td colspan="7" style="color:var(--muted)">No collections yet.</td></tr>'; return; }
+      tb.innerHTML = rows.map(function(r){
+        return '<tr><td>'+new Date(r.created_at).toLocaleString()+'</td><td>'+(r.company_name||'—')+'</td><td>KES '+r.amount+'</td><td>'+(r.commission_amount||0)+'</td><td style="color:var(--teal)">'+(r.net_amount||r.amount)+'</td><td>'+(r.payment_method||'—')+'</td><td>'+r.status+'</td></tr>';
+      }).join('');
+    }catch(e){ tb.innerHTML='<tr><td colspan="7" style="color:var(--red)">'+e.message+'</td></tr>'; }
+  };
+  window.loadIntasend = function(){ isLoadKeys(); isLoadFees(); };
+})();
+</script>
+
+
+<script>
+/* RL_SETTINGS_TABS + RL_INTASEND_TRACKING switchers */
+window.setTab = function(t){
+  ['platform','jenga','daraja','intasend'].forEach(function(x){
+    var c=document.getElementById('set-stab-'+x); if(c) c.style.display = (x===t)?'':'none';
+  });
+  document.querySelectorAll('#set-tabs .set-tab').forEach(function(b){ b.classList.toggle('active', b.dataset.stab===t); });
+  if(t==='intasend' && window.loadIntasend) loadIntasend();
+};
+window.istTab = function(t){
+  if(window.isLoadSummary) isLoadSummary();   /* RL_SUMMARY_FE_FIX */
+  ['withdrawals','collections'].forEach(function(x){
+    var c=document.getElementById('ist-stab-'+x); if(c) c.style.display = (x===t)?'':'none';
+  });
+  document.querySelectorAll('#ist-tabs .ist-tab').forEach(function(b){ b.classList.toggle('active', b.dataset.stab===t); });
+  if(t==='withdrawals' && window.isLoadWithdrawals) isLoadWithdrawals();
+  if(t==='collections' && window.isLoadCollections) isLoadCollections();
+};
+/* RL_SUMMARY_FE_FIX: stale loader removed — it never called isLoadSummary(), so the
+   stat cards stayed at 0 even though /admin/intasend/summary returns real totals. */
+</script>
+
+
+<script>
+/* RL_TRACKING_STYLED: summary stat cards */
+window.isLoadSummary = async function(){
+  try{
+    const r = await fetch((window.API||'/api')+'/admin/intasend/summary', { headers:{ 'Authorization':'Bearer '+(localStorage.getItem('rl_admin_token')||'') } });
+    const d = await r.json(); if(!r.ok) throw new Error(d.error||'failed');
+    const kes = n => 'KES ' + Number(n||0).toLocaleString(undefined,{maximumFractionDigits:0});
+    const c=d.collections||{}, w=d.withdrawals||{};
+    var e;
+    if(e=document.getElementById('ist-col-gross')) e.textContent = kes(c.gross);
+    if(e=document.getElementById('ist-col-n')) e.textContent = (c.n||0)+' payments';
+    if(e=document.getElementById('ist-wd-net')) e.textContent = kes(w.net);
+    if(e=document.getElementById('ist-wd-n')) e.textContent = (w.n||0)+' withdrawals';
+    if(e=document.getElementById('ist-fees')) e.textContent = kes(Number(c.fees||0)+Number(w.fees||0));
+    if(e=document.getElementById('ist-pending')) e.textContent = (w.pending||0)+' / '+(w.failed||0);
+  }catch(e){ /* silent */ }
+};
+window.loadIntasendTracking = function(){   /* RL_SUMMARY_FE_FIX */
+  if(window.isLoadSummary) isLoadSummary();
+  if(window.isLoadWithdrawals) isLoadWithdrawals();
+  if(window.isLoadCollections) isLoadCollections();
+};
+</script>
+
+
+<script>
+/* RL_TRACK_SEARCH: server-side search + pagination for IntaSend Tracking */
+(function(){
+  function tk(){ return localStorage.getItem('rl_admin_token')||''; }
+  async function aapi(path){
+    const r = await fetch((window.API||'/api')+path, { headers:{ 'Authorization':'Bearer '+tk() } });
+    const d = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+    return d;
+  }
+  function esc(v){ return String(v==null?'':v).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function debounce(fn, ms){ let t; return function(){ clearTimeout(t); t=setTimeout(fn, ms); }; }
+
+  /* ---- Collections ---- */
+  var colState = { page:1 };
+  window.coltSearch = debounce(function(){ coltGo(1); }, 300);
+  window.coltGo = function(p){ colState.page = p||1; isLoadCollections(); };
+  window.coltPrev = function(){ if(colState.page>1) coltGo(colState.page-1); };
+  window.coltNext = function(){ if(colState.page < (colState.pages||1)) coltGo(colState.page+1); };
+
+  window.isLoadCollections = async function(){
+    var tb=document.getElementById('is-col-tbody'); if(!tb)return;
+    var q=(document.getElementById('colt-q')||{}).value||'';
+    var lim=(document.getElementById('colt-limit')||{}).value||25;
+    try{
+      const d = await aapi('/admin/intasend/collections?q='+encodeURIComponent(q)+'&page='+colState.page+'&limit='+lim);
+      colState.pages = d.pages||1;
+      const rows=d.collections||[];
+      var cnt=document.getElementById('colt-count');
+      if(cnt) cnt.textContent = d.total ? (d.total+' payment'+(d.total===1?'':'s')) : 'No results';
+      var pg=document.getElementById('colt-page');
+      if(pg) pg.textContent = 'Page '+(d.page||1)+' of '+(d.pages||1);
+      if(!rows.length){ tb.innerHTML='<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:20px">'+(q?'No matches for "'+esc(q)+'"':'No collections yet.')+'</td></tr>'; return; }
+      tb.innerHTML = rows.map(function(r){
+        var color = r.status==='paid'?'var(--green)':(r.status==='failed'?'var(--red)':'var(--amber)');
+        return '<tr>'+
+          '<td>'+new Date(r.created_at).toLocaleString()+'</td>'+
+          '<td>'+esc(r.company_name||'—')+'</td>'+
+          '<td style="font-family:monospace;font-size:.8rem">'+esc(r.phone_number||'—')+'</td>'+
+          '<td style="font-family:monospace;font-size:.8rem">'+esc(r.transaction_id||'—')+
+            (r.gateway_reference?'<div style="color:var(--muted);font-size:.7rem">'+esc(r.gateway_reference)+'</div>':'')+'</td>'+
+          '<td>KES '+esc(r.amount)+'</td>'+
+          '<td>'+esc(r.commission_amount||0)+'</td>'+
+          '<td style="color:var(--teal)">'+esc(r.net_amount||r.amount)+'</td>'+
+          '<td style="color:'+color+'">'+esc(r.status)+'</td>'+
+        '</tr>';
+      }).join('');
+    }catch(e){ tb.innerHTML='<tr><td colspan="8" style="color:var(--red)">'+esc(e.message)+'</td></tr>'; }
+  };
+
+  /* ---- Withdrawals ---- */
+  var wdState = { page:1 };
+  window.wdtSearch = debounce(function(){ wdtGo(1); }, 300);
+  window.wdtGo = function(p){ wdState.page = p||1; isLoadWithdrawals(); };
+  window.wdtPrev = function(){ if(wdState.page>1) wdtGo(wdState.page-1); };
+  window.wdtNext = function(){ if(wdState.page < (wdState.pages||1)) wdtGo(wdState.page+1); };
+
+  function destText(d){
+    if(!d) return '—';
+    try { if(typeof d==='string') d=JSON.parse(d); } catch(_){ return String(d); }
+    return d.phone || d.account_number || d.account || d.paybill || d.till || '—';
+  }
+
+  window.isLoadWithdrawals = async function(){
+    var tb=document.getElementById('is-wd-tbody'); if(!tb)return;
+    var q=(document.getElementById('wdt-q')||{}).value||'';
+    var lim=(document.getElementById('wdt-limit')||{}).value||25;
+    try{
+      const d = await aapi('/admin/intasend/withdrawals?q='+encodeURIComponent(q)+'&page='+wdState.page+'&limit='+lim);
+      wdState.pages = d.pages||1;
+      const rows=d.withdrawals||[];
+      var cnt=document.getElementById('wdt-count');
+      if(cnt) cnt.textContent = d.total ? (d.total+' withdrawal'+(d.total===1?'':'s')) : 'No results';
+      var pg=document.getElementById('wdt-page');
+      if(pg) pg.textContent = 'Page '+(d.page||1)+' of '+(d.pages||1);
+      if(!rows.length){ tb.innerHTML='<tr><td colspan="9" style="color:var(--muted);text-align:center;padding:20px">'+(q?'No matches for "'+esc(q)+'"':'No withdrawals yet.')+'</td></tr>'; return; }
+      tb.innerHTML = rows.map(function(r){
+        var color=r.status==='completed'?'var(--green)':(r.status==='failed'?'var(--red)':'var(--amber)');
+        return '<tr>'+
+          '<td>'+new Date(r.created_at).toLocaleString()+'</td>'+
+          '<td>'+esc(r.company_name||'—')+'</td>'+
+          '<td style="font-family:monospace;font-size:.8rem">'+esc(destText(r.destination))+'</td>'+
+          '<td>'+esc(r.method)+'</td>'+
+          '<td>KES '+esc(r.gross_amount)+'</td>'+
+          '<td>'+esc(r.fee_amount)+'</td>'+
+          '<td style="color:var(--teal)">'+esc(r.net_amount)+'</td>'+
+          '<td style="color:'+color+'">'+esc(r.status)+(r.below_threshold?' <span title="below minimum" style="color:var(--amber)">⚠</span>':'')+'</td>'+
+          '<td style="font-size:.75rem;color:var(--muted)">'+esc(r.intasend_ref||'—')+'</td>'+
+        '</tr>';
+      }).join('');
+    }catch(e){ tb.innerHTML='<tr><td colspan="9" style="color:var(--red)">'+esc(e.message)+'</td></tr>'; }
+  };
+})();
+</script>
+
+<script>
+function rlResetPhraseCheck(){var v=(document.getElementById('rl-reset-phrase')||{}).value||'';var btn=document.getElementById('rl-reset-btn');if(!btn)return;var ok=(v==='RESET TO PRODUCTION');btn.disabled=!ok;btn.style.opacity=ok?'1':'.5';btn.style.cursor=ok?'pointer':'not-allowed';}
+async function rlTestBackup(){var el=document.getElementById('rl-backup-status');el.textContent='Backing up…';el.style.color='var(--muted)';try{var r=await fetch((window.API||'/api')+'/admin/system/backup',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem('rl_admin_token')||'')}});var d=await r.json();if(!r.ok)throw new Error(d.error||'failed');el.textContent='✓ Backup OK — '+d.human+' at '+d.file;el.style.color='#2ecc71';}catch(e){el.textContent='✗ '+e.message;el.style.color='#e74c3c';}}
+function rlRestorePhraseCheck(){var v=(document.getElementById('rl-restore-phrase')||{}).value||'';var b=document.getElementById('rl-restore-btn');if(!b)return;var ok=(v==='RESTORE DATABASE'&&document.getElementById('rl-restore-file').value);b.disabled=!ok;b.style.opacity=ok?'1':'.5';b.style.cursor=ok?'pointer':'not-allowed';}
+async function rlLoadBackups(){var sel=document.getElementById('rl-restore-file');if(!sel)return;try{var r=await fetch((window.API||'/api')+'/admin/system/backups',{headers:{'Authorization':'Bearer '+(localStorage.getItem('rl_admin_token')||'')}});var d=await r.json();var bs=d.backups||[];sel.innerHTML=bs.length?bs.map(function(b){return '<option value="'+b.name+'">'+b.name+' ('+b.human+')</option>';}).join(''):'<option value="">No backups found</option>';rlRestorePhraseCheck();}catch(e){sel.innerHTML='<option value="">Error loading</option>';}}
+async function rlDoRestore(){var file=document.getElementById('rl-restore-file').value;if(!file){alert('Select a backup');return;}if(!confirm('Restore '+file+'? This REPLACES the entire database. A snapshot of the current state is saved first.'))return;if(!confirm('Final confirmation: overwrite the current database with '+file+'?'))return;var st=document.getElementById('rl-restore-status');st.textContent='Snapshotting current state, then restoring… (do not close)';st.style.color='var(--muted)';var b=document.getElementById('rl-restore-btn');b.disabled=true;b.style.opacity='.5';try{var r=await fetch((window.API||'/api')+'/admin/system/restore',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem('rl_admin_token')||'')},body:JSON.stringify({confirm:'RESTORE DATABASE',file:file})});var d=await r.json();if(!r.ok)throw new Error(d.error||'failed');st.innerHTML='✓ '+(d.message||'Restored')+'<br>Snapshot of previous state: '+d.snapshot;st.style.color='#2ecc71';(window.toast||alert)('Restore complete','success');setTimeout(function(){location.reload();},4000);}catch(e){st.textContent='✗ '+e.message;st.style.color='#e74c3c';(window.toast||alert)(e.message,'error');}}
+async function rlDoReset(){if(!confirm('This will DELETE ALL TEST DATA. A backup is saved first. Cannot be undone except from that backup. Continue?'))return;if(!confirm('Final confirmation: wipe all ISPs, payments, vouchers and sessions now?'))return;var st=document.getElementById('rl-reset-status');st.textContent='Backing up, then wiping… (do not close this page)';st.style.color='var(--muted)';var btn=document.getElementById('rl-reset-btn');btn.disabled=true;btn.style.opacity='.5';try{var r=await fetch((window.API||'/api')+'/admin/system/reset',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem('rl_admin_token')||'')},body:JSON.stringify({confirm:'RESET TO PRODUCTION'})});var d=await r.json();if(!r.ok)throw new Error(d.error||'failed');st.innerHTML='✓ '+(d.message||'Reset complete')+'<br>Backup: '+d.backup+' ('+Math.round((d.backup_size||0)/1024)+' KB)';st.style.color='#2ecc71';(window.toast||alert)('System reset complete','success');document.getElementById('rl-reset-phrase').value='';rlResetPhraseCheck();setTimeout(function(){location.reload();},4000);}catch(e){st.textContent='✗ '+e.message;st.style.color='#e74c3c';(window.toast||alert)(e.message,'error');}}
+</script>
+<script>/* RL_RESTORE_AUTOLOAD */document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){if(typeof rlLoadBackups==='function')rlLoadBackups();},1200);});</script>
+</body>
+</html>

@@ -1,0 +1,1899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>ISP Dashboard — RumaLink Enterprise</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root{--ink:#0a0f1e;--navy:#0d1530;--mid:#132044;--teal:#00d4aa;--teal2:#00b894;--amber:#f39c12;--red:#e74c3c;--white:#f0f4ff;--muted:#8899bb;--card:#111d3a;--border:#1e2f52;--sidebar:224px;--font-head:'Syne',sans-serif;--font-body:'DM Sans',sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{background:var(--ink);color:var(--white);font-family:var(--font-body);display:flex}
+.sidebar{width:var(--sidebar);background:var(--navy);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;position:sticky;top:0;flex-shrink:0;overflow-y:auto}
+.sb-logo{padding:20px 18px 14px;border-bottom:1px solid var(--border)}
+.sb-logo-text{font-family:var(--font-head);font-size:1.1rem;font-weight:800;color:var(--teal)}
+.sb-logo-sub{font-size:.7rem;color:var(--muted);margin-top:2px}
+.sb-isp{padding:12px 18px;background:rgba(0,0,0,.2);border-bottom:1px solid var(--border)}
+.sb-isp-name{font-size:.85rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-isp-plan{font-size:.7rem;color:var(--teal);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.sb-nav{flex:1;padding:10px 0}
+.nav-group{font-size:.63rem;color:var(--border);text-transform:uppercase;letter-spacing:1.5px;padding:12px 18px 4px;font-weight:700}
+.nav-item{display:flex;align-items:center;gap:11px;padding:9px 18px;color:var(--muted);font-size:.86rem;cursor:pointer;transition:all .15s;border-left:3px solid transparent;user-select:none}
+.nav-item:hover{color:var(--white);background:rgba(255,255,255,.04)}
+.nav-item.active{color:var(--teal);background:rgba(0,212,170,.08);border-left-color:var(--teal);font-weight:500}
+.nav-item .icon{width:17px;text-align:center;font-size:.95rem;flex-shrink:0}
+/* Plan-based nav hiding */
+.nav-hotspot-only{display:flex}
+.nav-pppoe-only{display:flex}
+body.plan-hotspot .nav-pppoe-only{display:none}
+body.plan-pppoe .nav-hotspot-only{display:none}
+.sb-bottom{padding:14px 18px;border-top:1px solid var(--border)}
+.wallet-box{background:rgba(0,212,170,.07);border:1px solid rgba(0,212,170,.15);border-radius:10px;padding:12px;margin-bottom:12px}
+.wallet-label{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.wallet-amount{font-family:var(--font-head);font-size:1.2rem;font-weight:700;color:var(--teal);margin-top:2px}
+.btn-logout{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:.82rem;cursor:pointer;padding:3px 0;background:none;border:none;font-family:var(--font-body)}
+.btn-logout:hover{color:var(--red)}
+.main{flex:1;overflow-y:auto;height:100vh;display:flex;flex-direction:column}
+.topbar{padding:13px 26px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:rgba(10,15,30,.9);backdrop-filter:blur(12px);position:sticky;top:0;z-index:50}
+.topbar-title{font-family:var(--font-head);font-size:1.05rem;font-weight:700}
+.topbar-right{display:flex;align-items:center;gap:14px}
+.notif-btn{position:relative;background:none;border:none;color:var(--muted);font-size:1.15rem;cursor:pointer}
+.notif-dot{position:absolute;top:0;right:0;width:7px;height:7px;background:var(--red);border-radius:50%;display:none}
+.avatar{width:32px;height:32px;background:var(--teal);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:.8rem;font-weight:700;color:var(--ink)}
+.content{flex:1;padding:26px}
+.page{display:none!important}.page.active{display:block!important}
+/* Plan section hiding in pages */
+.section-hotspot-only,.section-pppoe-only{display:block}
+body.plan-hotspot .section-pppoe-only{display:none}
+body.plan-pppoe .section-hotspot-only{display:none}
+/* Stats */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;margin-bottom:22px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;transition:border-color .2s}
+.stat-card:hover{border-color:rgba(0,212,170,.2)}
+.sc-label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.sc-icon{font-size:1rem;opacity:.6}
+.sc-val{font-family:var(--font-head);font-size:1.9rem;font-weight:700;line-height:1}
+.sc-val.teal{color:var(--teal)}.sc-val.amber{color:var(--amber)}.sc-val.red{color:var(--red)}
+.sc-sub{font-size:.74rem;color:var(--muted);margin-top:6px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.panel-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.panel-head h3{font-family:var(--font-head);font-size:.9rem;font-weight:700}
+.panel-body{padding:18px}
+table{width:100%;border-collapse:collapse;font-size:.84rem}
+.tbl-wrap{overflow-x:auto}
+th{text-align:left;padding:9px 13px;font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);border-bottom:1px solid var(--border);font-weight:600;white-space:nowrap}
+td{padding:11px 13px;border-bottom:1px solid rgba(255,255,255,.03);color:var(--muted);vertical-align:middle}
+td.name{color:var(--white);font-weight:500}
+tr:last-child td{border:none}
+tr:hover td{background:rgba(255,255,255,.015)}
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:100px;font-size:.71rem;font-weight:600;white-space:nowrap}
+.bg{background:rgba(0,212,170,.12);color:var(--teal)}
+.ba{background:rgba(243,156,18,.12);color:var(--amber)}
+.br{background:rgba(231,76,60,.12);color:var(--red)}
+.bm{background:rgba(136,153,187,.1);color:var(--muted)}
+.btn{padding:8px 16px;border-radius:8px;font-family:var(--font-body);font-weight:600;font-size:.84rem;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:6px;transition:all .15s;text-decoration:none;white-space:nowrap}
+.btn-teal{background:var(--teal);color:var(--ink)}.btn-teal:hover{background:var(--teal2)}
+.btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--muted)}.btn-outline:hover{border-color:var(--teal);color:var(--teal)}
+.btn-red{background:rgba(231,76,60,.12);color:var(--red);border:1px solid rgba(231,76,60,.2)}.btn-red:hover{background:var(--red);color:#fff}
+.btn-amber{background:var(--amber);color:#fff}.btn-amber:hover{opacity:.9}
+.btn-sm{padding:5px 11px;font-size:.78rem}
+.btn-green{background:rgba(0,212,170,.12);color:var(--teal);border:1px solid rgba(0,212,170,.2)}
+.fg{margin-bottom:14px}
+.fg label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:5px;font-weight:500}
+.fg input,.fg select,.fg textarea{width:100%;background:var(--mid);border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--white);font-family:var(--font-body);font-size:.88rem;outline:none;transition:border-color .2s}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--teal)}
+.fg select option{background:var(--navy)}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(5px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--navy);border:1px solid var(--border);border-radius:16px;padding:30px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;animation:mup .2s ease}
+.modal-wide{max-width:820px}
+@keyframes mup{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal h2{font-family:var(--font-head);font-size:1.15rem;font-weight:700;margin-bottom:6px}
+.modal .sub{color:var(--muted);font-size:.85rem;margin-bottom:22px;font-weight:300}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.toast-container{position:fixed;bottom:22px;right:22px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;font-size:.86rem;display:flex;align-items:center;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,.5);animation:tslide .3s ease;min-width:250px}
+.toast.success{border-color:rgba(0,212,170,.3)}.toast.error{border-color:rgba(231,76,60,.3)}
+@keyframes tslide{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
+.loading{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--muted);gap:12px;font-size:.88rem}
+.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--teal);border-radius:50%;animation:spin 1s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* Settings tabs */
+.settings-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:24px}
+.stab{padding:10px 18px;font-size:.85rem;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap}
+.stab:hover{color:var(--white)}
+.stab.active{color:var(--teal);border-bottom-color:var(--teal)}
+.stab-content{display:none}.stab-content.active{display:block}
+/* Captive portal grid */
+.portal-templates{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:20px}
+.portal-card{border:2px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:all .2s;position:relative}
+.portal-card:hover{border-color:rgba(0,212,170,.4);transform:translateY(-2px)}
+.portal-card.selected{border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,212,170,.15)}
+.portal-card-preview{height:130px;display:flex;align-items:center;justify-content:center;font-size:2rem;position:relative;overflow:hidden}
+.portal-card-label{padding:10px 14px;background:var(--card);border-top:1px solid var(--border);font-size:.82rem;font-weight:500}
+.portal-selected-badge{position:absolute;top:8px;right:8px;background:var(--teal);color:var(--ink);font-size:.68rem;font-weight:700;padding:3px 8px;border-radius:100px}
+/* Preview iframe */
+.preview-frame{border:none;border-radius:10px;width:100%;height:500px;background:#fff}
+/* Payment method cards */
+.pm-card{background:var(--mid);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+.pm-card-left{display:flex;align-items:center;gap:12px}
+.pm-icon{width:38px;height:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+.pm-name{font-size:.88rem;font-weight:500}
+.pm-detail{font-size:.76rem;color:var(--muted);margin-top:2px}
+.pm-actions{display:flex;gap:8px;align-items:center}
+/* Status dot */
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.sd-green{background:var(--teal);box-shadow:0 0 6px var(--teal)}
+.sd-red{background:var(--red)}
+.sd-amber{background:var(--amber)}
+/* Device cards */
+.device-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.device-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;transition:border-color .2s}
+.device-card.online{border-color:rgba(0,212,170,.2)}
+.code-box{background:var(--ink);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:monospace;font-size:.75rem;color:var(--teal);word-break:break-all;position:relative;margin:10px 0}
+.copy-btn{position:absolute;top:7px;right:7px;background:var(--mid);border:1px solid var(--border);color:var(--muted);padding:3px 9px;border-radius:6px;font-size:.7rem;cursor:pointer;font-family:var(--font-body)}
+.copy-btn:hover{color:var(--teal);border-color:var(--teal)}
+/* Provisioning steps */
+.prov-steps{display:flex;gap:0;margin-bottom:24px}
+.prov-step{flex:1;text-align:center;position:relative}
+.prov-step::after{content:'';position:absolute;top:13px;left:50%;width:100%;height:2px;background:var(--border);z-index:0}
+.prov-step:last-child::after{display:none}
+.step-num{width:26px;height:26px;border-radius:50%;background:var(--mid);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;margin:0 auto 6px;position:relative;z-index:1;font-family:var(--font-head)}
+.step-num.done{background:var(--teal);border-color:var(--teal);color:var(--ink)}
+.step-num.active-step{border-color:var(--teal);color:var(--teal)}
+.prov-step-label{font-size:.7rem;color:var(--muted)}
+/* ─── MOBILE HAMBURGER ─── */
+.hamburger-btn{display:none;background:none;border:none;color:var(--white);font-size:1.3rem;cursor:pointer;padding:4px 8px;line-height:1}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:149}
+.sidebar-overlay.open{display:block}
+
+/* ─── COMPREHENSIVE RESPONSIVE ─── */
+@media(max-width:1100px){
+  :root{--sidebar:200px}
+  .content{padding:18px}
+}
+@media(max-width:900px){
+  :root{--sidebar:260px}
+  .sidebar{position:fixed;left:-280px;top:0;height:100vh;z-index:150;transition:left .28s cubic-bezier(.4,0,.2,1);box-shadow:4px 0 24px rgba(0,0,0,.4)}
+  .sidebar.open{left:0}
+  .hamburger-btn{display:block}
+  .main{width:100%}
+  .grid-2{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .topbar{padding:12px 16px}
+  .content{padding:16px}
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .modal{max-width:calc(100vw - 32px);margin:16px}
+  .fg2{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .topbar-title{font-size:.9rem}
+  .topbar-right{gap:8px}
+  .content{padding:12px}
+  .card{padding:14px}
+  .tbl th,.tbl td{padding:9px 10px;font-size:.78rem}
+  .btn-sm{padding:5px 10px;font-size:.75rem}
+  .filter-bar{flex-wrap:wrap;gap:8px}
+  .filter-bar select,.filter-bar input{font-size:.82rem}
+  .modal{margin:12px}
+  .modal h2{font-size:1rem}
+}
+@media(max-width:400px){
+  .stats-grid{grid-template-columns:1fr}
+  .content{padding:10px}
+  .topbar{padding:10px 12px}
+}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-text">RumaLink</div>
+    <div class="sb-logo-sub">Enterprise Platform</div>
+  </div>
+  <div class="sb-isp">
+    <div class="sb-isp-name" id="sb-isp-name">Loading…</div>
+    <div class="sb-isp-plan" id="sb-isp-plan">—</div>
+  </div>
+  <nav class="sb-nav">
+    <div class="nav-group">Overview</div>
+    <div class="nav-item active" data-page="dashboard"><span class="icon">📊</span> Dashboard</div>
+
+    <!-- Hotspot nav (hidden for pppoe-only) -->
+    <div class="nav-group nav-hotspot-only">Hotspot</div>
+    <div class="nav-item nav-hotspot-only" data-page="vouchers"><span class="icon">🎟️</span> Vouchers</div>
+    <div class="nav-item nav-hotspot-only" data-page="hs-packages"><span class="icon">📦</span> HS Packages</div>
+    <div class="nav-item nav-hotspot-only" data-page="hs-sessions"><span class="icon">📡</span> HS Sessions</div>
+
+    <!-- PPPoE nav (hidden for hotspot-only) -->
+    <div class="nav-group nav-pppoe-only">PPPoE</div>
+    <div class="nav-item nav-pppoe-only" data-page="subscribers"><span class="icon">👥</span> Subscribers</div>
+    <div class="nav-item nav-pppoe-only" data-page="pppoe-packages"><span class="icon">📦</span> PPPoE Packages</div>
+    <div class="nav-item nav-pppoe-only" data-page="pppoe-sessions"><span class="icon">🔌</span> PPPoE Sessions</div>
+
+    <div class="nav-group">Devices</div>
+    <div class="nav-item" data-page="devices"><span class="icon">🖥️</span> MikroTik / NAS</div>
+
+    <div class="nav-group">Billing</div>
+    <div class="nav-item" data-page="payments"><span class="icon">💳</span> Payments</div>
+    <div class="nav-item nav-pppoe-only" data-page="invoices"><span class="icon">🧾</span> Invoices</div>
+
+    <div class="nav-group">Tools</div>
+    <div class="nav-item" data-page="sms"><span class="icon">💬</span> Send SMS</div>
+    <div class="nav-item" data-page="notifications"><span class="icon">🔔</span> Notifications</div>
+    <div class="nav-item" data-page="support"><span class="icon">🎧</span> Support</div>
+
+    <div class="nav-group">Account</div>
+    <div class="nav-item" data-page="settings"><span class="icon">⚙️</span> Settings</div>
+  </nav>
+  <div class="sb-bottom">
+    <div class="wallet-box">
+      <div class="wallet-label">Wallet Balance</div>
+      <div class="wallet-amount" id="sb-wallet">KES —</div>
+    </div>
+    <button class="btn-logout" onclick="logout()">🚪 Sign Out</button>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Menu">☰</button>
+      <div class="topbar-title" id="page-title">Dashboard</div>
+    </div>
+    <div class="topbar-right">
+      <button class="notif-btn" onclick="showPage('notifications')">🔔<span class="notif-dot" id="notif-dot"></span></button>
+      <div class="avatar" id="avatar-initial">?</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ══ DASHBOARD ══ -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats-grid" id="dash-stats">
+        <div class="stat-card"><div class="sc-label">Today's Revenue <span class="sc-icon">💰</span></div><div class="sc-val teal" id="ds-today">KES —</div><div class="sc-sub">Kenyan Shillings</div></div>
+        <div class="stat-card"><div class="sc-label">This Month <span class="sc-icon">📅</span></div><div class="sc-val" id="ds-month">KES —</div><div class="sc-sub">Month to date</div></div>
+        <div class="stat-card nav-hotspot-only"><div class="sc-label">Active Sessions <span class="sc-icon">📡</span></div><div class="sc-val teal" id="ds-sessions">—</div><div class="sc-sub">Hotspot + PPPoE</div></div>
+        <div class="stat-card nav-pppoe-only"><div class="sc-label">PPPoE Subscribers <span class="sc-icon">👥</span></div><div class="sc-val" id="ds-subs">—</div><div class="sc-sub" id="ds-subs-sub">Active accounts</div></div>
+        <div class="stat-card nav-hotspot-only"><div class="sc-label">Available Vouchers <span class="sc-icon">🎟️</span></div><div class="sc-val amber" id="ds-vouchers">—</div><div class="sc-sub">Ready to sell</div></div>
+        <div class="stat-card"><div class="sc-label">Devices Online <span class="sc-icon">🖥️</span></div><div class="sc-val teal" id="ds-devices">—</div><div class="sc-sub">MikroTik routers</div></div>
+      </div>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><h3>Revenue (30 days)</h3></div>
+          <div class="panel-body"><canvas id="revenue-chart" height="180"></canvas></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>Recent Payments</h3><button class="btn btn-outline btn-sm" onclick="showPage('payments')">View All</button></div>
+          <div class="tbl-wrap"><table><thead><tr><th>From</th><th>Amount</th><th>Method</th><th>Time</th></tr></thead><tbody id="dash-payments"><tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">Loading…</td></tr></tbody></table></div>
+        </div>
+      </div>
+      <div class="grid-2 section-pppoe-only">
+        <div class="panel">
+          <div class="panel-head"><h3>Expiring Soon (PPPoE)</h3><span class="badge ba" id="exp-count">0</span></div>
+          <div class="tbl-wrap"><table><thead><tr><th>Subscriber</th><th>Package</th><th>Due</th></tr></thead><tbody id="dash-expiring"></tbody></table></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>PPPoE Online</h3><span class="badge bg" id="pppoe-sess-count">0</span></div>
+          <div class="tbl-wrap"><table><thead><tr><th>Username</th><th>IP</th><th>Duration</th></tr></thead><tbody id="dash-pppoe-sess"></tbody></table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ DEVICES ══ -->
+    <div class="page" style="display:none" id="page-devices">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px">
+        <div><h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700">MikroTik / NAS Devices</h2><p style="color:var(--muted);font-size:.82rem;margin-top:3px">Paste the provisioning command into your router to connect it automatically</p></div>
+        <button class="btn btn-teal" onclick="openAddDevice()">+ Add Device</button>
+      </div>
+      <div class="device-grid" id="device-grid"><div class="loading"><div class="spinner"></div>Loading devices…</div></div>
+    </div>
+
+    <!-- ══ VOUCHERS (hotspot only) ══ -->
+    <div class="page" style="display:none" id="page-vouchers">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700">Hotspot Vouchers</h2>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-outline" onclick="showPage('hs-packages')">📦 Packages</button>
+          <button class="btn btn-teal" onclick="openGenerateVouchers()">+ Generate</button>
+        </div>
+      </div>
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="stat-card"><div class="sc-label">Total</div><div class="sc-val" id="v-total">—</div></div>
+        <div class="stat-card"><div class="sc-label">Unused</div><div class="sc-val teal" id="v-unused">—</div></div>
+        <div class="stat-card"><div class="sc-label">Active</div><div class="sc-val amber" id="v-active">—</div></div>
+        <div class="stat-card"><div class="sc-label">Used</div><div class="sc-val" id="v-used">—</div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Voucher List</h3>
+          <select id="v-filter" onchange="loadVouchers()" style="background:var(--mid);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--white);font-size:.82rem">
+            <option value="">All</option><option value="unused">Unused</option><option value="active">Active</option><option value="used">Used</option><option value="expired">Expired</option>
+          </select>
+        </div>
+        <div class="tbl-wrap"><table><thead><tr><th>Code</th><th>Package</th><th>Status</th><th>Buyer Phone</th><th>Used At</th><th>Expires</th><th>Amount</th></tr></thead><tbody id="vouchers-tbody"></tbody></table></div>
+        <div style="padding:12px 18px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--border)">
+          <button class="btn btn-outline btn-sm" onclick="if(vPage>1){vPage--;loadVouchers()}">← Prev</button>
+          <button class="btn btn-outline btn-sm" onclick="vPage++;loadVouchers()">Next →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ HS PACKAGES ══ -->
+    <div class="page" style="display:none" id="page-hs-packages">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700">Hotspot Packages</h2>
+        <button class="btn btn-teal" onclick="openHSPackageModal()">+ New Package</button>
+      </div>
+      <div class="device-grid" id="hs-pkg-grid"></div>
+    </div>
+
+    <!-- ══ HS SESSIONS ══ -->
+    <div class="page" style="display:none" id="page-hs-sessions">
+      <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:20px">Hotspot Sessions</h2>
+      <div class="panel">
+        <div class="panel-head"><h3>Active Sessions</h3><button class="btn btn-outline btn-sm" onclick="loadHSSessions()">🔄 Refresh</button></div>
+        <div class="tbl-wrap"><table><thead><tr><th>MAC</th><th>IP</th><th>Voucher</th><th>Package</th><th>Device</th><th>Started</th></tr></thead><tbody id="hs-sess-tbody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ══ SUBSCRIBERS (pppoe only) ══ -->
+    <div class="page" style="display:none" id="page-subscribers">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700">PPPoE Subscribers</h2>
+        <button class="btn btn-teal" onclick="openAddSubscriber()">+ Add Subscriber</button>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <div style="display:flex;gap:10px">
+            <input type="text" id="sub-search" placeholder="Search name, username, phone…" style="background:var(--mid);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--white);font-size:.84rem;width:230px" oninput="loadSubscribers()"/>
+            <select id="sub-filter" onchange="loadSubscribers()" style="background:var(--mid);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--white);font-size:.82rem">
+              <option value="">All</option><option value="active">Active</option><option value="suspended">Suspended</option>
+            </select>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="loadSubscribers()">🔄</button>
+        </div>
+        <div class="tbl-wrap"><table><thead><tr><th>Name</th><th>Username</th><th>Phone</th><th>Package</th><th>Status</th><th>Next Bill</th><th>Balance</th><th>Actions</th></tr></thead><tbody id="subs-tbody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">Loading…</td></tr></tbody></table></div>
+        <div style="padding:12px 18px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--border)">
+          <button class="btn btn-outline btn-sm" onclick="if(subPage>1){subPage--;loadSubscribers()}">← Prev</button>
+          <button class="btn btn-outline btn-sm" onclick="subPage++;loadSubscribers()">Next →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PPPOE PACKAGES ══ -->
+    <div class="page" style="display:none" id="page-pppoe-packages">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700">PPPoE Packages</h2>
+        <button class="btn btn-teal" onclick="openPPPoEPackageModal()">+ New Package</button>
+      </div>
+      <div class="device-grid" id="pppoe-pkg-grid"></div>
+    </div>
+
+    <!-- ══ PPPOE SESSIONS ══ -->
+    <div class="page" style="display:none" id="page-pppoe-sessions">
+      <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:20px">PPPoE Sessions</h2>
+      <div class="panel">
+        <div class="panel-head"><h3>Active Sessions</h3><button class="btn btn-outline btn-sm" onclick="loadPPPoESessions()">🔄</button></div>
+        <div class="tbl-wrap"><table><thead><tr><th>Username</th><th>Name</th><th>IP</th><th>Download</th><th>Upload</th><th>Duration</th></tr></thead><tbody id="pppoe-sess-tbody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ══ PAYMENTS ══ -->
+    <div class="page" style="display:none" id="page-payments">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700">Payments</h2>
+        <button class="btn btn-teal" onclick="openManualPayment()">+ Record Payment</button>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Payment History</h3></div>
+        <div class="tbl-wrap"><table><thead><tr><th>From</th><th>Amount</th><th>Method</th><th>Status</th><th>Commission</th><th>Date</th></tr></thead><tbody id="payments-tbody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ══ INVOICES ══ -->
+    <div class="page" style="display:none" id="page-invoices">
+      <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:20px">Subscriber Invoices</h2>
+      <div class="panel"><div class="tbl-wrap"><table><thead><tr><th>Subscriber</th><th>Period</th><th>Amount</th><th>Due Date</th><th>Status</th></tr></thead><tbody id="invoices-tbody"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Invoices auto-generated monthly for PPPoE subscribers</td></tr></tbody></table></div></div>
+    </div>
+
+    <!-- ══ SMS ══ -->
+    <div class="page" style="display:none" id="page-sms">
+      <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:22px">Send SMS</h2>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><h3>Compose</h3></div>
+          <div class="panel-body">
+            <div class="fg"><label>Recipients (comma separated)</label><input type="text" id="sms-to" placeholder="0712345678, 0798765432"/></div>
+            <div class="fg"><label>Message</label><textarea id="sms-msg" rows="5" style="resize:vertical" placeholder="Type your message…"></textarea><div style="text-align:right;font-size:.74rem;color:var(--muted);margin-top:3px"><span id="sms-count">0</span>/160</div></div>
+            <button class="btn btn-teal" onclick="sendSMS()">📨 Send SMS</button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>SMS Log</h3></div>
+          <div class="tbl-wrap"><table><thead><tr><th>To</th><th>Status</th><th>Sent</th></tr></thead><tbody id="sms-log-tbody"></tbody></table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ NOTIFICATIONS ══ -->
+    <div class="page" style="display:none" id="page-notifications">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700">Notifications</h2>
+        <button class="btn btn-outline btn-sm" onclick="markAllRead()">✓ Mark All Read</button>
+      </div>
+      <div id="notif-list"></div>
+    </div>
+
+    <!-- ══ SUPPORT ══ -->
+    <div class="page" style="display:none" id="page-support">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700">Support Tickets</h2>
+        <button class="btn btn-teal" onclick="openNewTicket()">+ New Ticket</button>
+      </div>
+      <div class="panel"><div class="tbl-wrap"><table><thead><tr><th>Subject</th><th>Priority</th><th>Status</th><th>Created</th></tr></thead><tbody id="tickets-tbody"></tbody></table></div></div>
+    </div>
+
+    <!-- ══ SETTINGS ══ -->
+    <div class="page" style="display:none" id="page-settings">
+      <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:6px">Settings</h2>
+      <p style="color:var(--muted);font-size:.86rem;margin-bottom:22px">Manage your account, captive portal, SMS gateway, and payment methods</p>
+
+      <div class="settings-tabs">
+        <div class="stab active" onclick="switchSettingsTab('profile',this)">👤 Profile</div>
+        <div class="stab nav-hotspot-only" onclick="switchSettingsTab('portal',this)">📶 Captive Portal</div>
+        <div class="stab" onclick="switchSettingsTab('sms-gw',this)">💬 SMS Gateway</div>
+        <div class="stab" onclick="switchSettingsTab('payment-methods',this)">💳 Payment Methods</div>
+        <div class="stab" onclick="switchSettingsTab('api',this)">🔑 API Access</div>
+      </div>
+
+      <!-- PROFILE TAB -->
+      <div class="stab-content active" id="stab-profile">
+        <div class="fg2">
+          <div class="fg"><label>Company Name</label><input type="text" id="set-company"/></div>
+          <div class="fg"><label>Owner Name</label><input type="text" id="set-owner"/></div>
+        </div>
+        <div class="fg2">
+          <div class="fg"><label>Phone</label><input type="text" id="set-phone"/></div>
+          <div class="fg"><label>County</label><input type="text" id="set-county"/></div>
+        </div>
+        <div class="fg"><label>Town / Area</label><input type="text" id="set-town"/></div>
+        <div class="fg"><label>Address</label><input type="text" id="set-address"/></div>
+        <button class="btn btn-teal" onclick="saveProfile()">💾 Save Profile</button>
+        <div style="margin-top:22px;padding-top:22px;border-top:1px solid var(--border)">
+          <div class="fg"><label>New Password (leave blank to keep current)</label><input type="password" id="set-newpw" placeholder="Min 8 characters"/></div>
+          <button class="btn btn-outline btn-sm" onclick="changePassword()">Change Password</button>
+        </div>
+      </div>
+
+      <!-- CAPTIVE PORTAL TAB (hotspot only) -->
+      <div class="stab-content" id="stab-portal">
+        <div style="margin-bottom:20px">
+          <h3 style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:6px">Choose Your Captive Portal Template</h3>
+          <p style="color:var(--muted);font-size:.84rem;margin-bottom:16px">This is the page your WiFi customers will see when they connect. Click a template to select it, then click Preview to see how it looks.</p>
+          <div class="portal-templates" id="portal-templates-grid">
+            <!-- Rendered by JS -->
+          </div>
+          <div style="display:flex;gap:12px;margin-bottom:22px;flex-wrap:wrap">
+            <button class="btn btn-teal" onclick="savePortalTemplate()">💾 Save Template Choice</button>
+            <button class="btn btn-outline" onclick="previewPortal()">👁️ Preview Selected</button>
+            <button class="btn btn-outline" onclick="copyPortalLink()">🔗 Copy Portal Link</button>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:20px">
+          <h3 style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:16px">Portal Customization</h3>
+          <div class="fg2">
+            <div class="fg"><label>Welcome Title</label><input type="text" id="portal-title" placeholder="Welcome! Connect to WiFi"/></div>
+            <div class="fg"><label>Welcome Subtitle</label><input type="text" id="portal-sub" placeholder="Select a package to get started"/></div>
+          </div>
+          <div class="fg2">
+            <div class="fg"><label>Primary Color</label><input type="color" id="portal-color" value="#00d4aa" style="height:42px;padding:4px 8px;cursor:pointer"/></div>
+            <div class="fg"><label>Secondary Color</label><input type="color" id="portal-color2" value="#0d1530" style="height:42px;padding:4px 8px;cursor:pointer"/></div>
+          </div>
+          <div class="fg2">
+            <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="portal-show-logo" style="width:auto" checked/> Show Logo</label></div>
+            <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="portal-powered-by" style="width:auto" checked/> Show "Powered by RumaLink"</label></div>
+            <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="portal-tv-mode" style="width:auto" checked/> Show QR Code for Smart TV customers</label></div>
+            <div class="fg2">
+              <div class="fg"><label>Support Phone Number</label><input type="tel" id="portal-support-number" placeholder="e.g. 0700123456"/><div style="font-size:.72rem;color:var(--muted);margin-top:3px">Shown as a call button on the captive portal</div></div>
+              <div class="fg"><label>Support Label</label><input type="text" id="portal-support-label" placeholder="Need Help? Call Us"/></div>
+            </div>
+          </div>
+          <button class="btn btn-teal" onclick="savePortalSettings()">💾 Save Customization</button>
+        </div>
+        <!-- Preview area -->
+        <div id="portal-preview-area" style="display:none;margin-top:22px;border-top:1px solid var(--border);padding-top:20px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <h3 style="font-family:var(--font-head);font-size:1rem;font-weight:700">Preview — <span id="preview-template-name">Classic</span></h3>
+            <button class="btn btn-outline btn-sm" onclick="document.getElementById('portal-preview-area').style.display='none'">✕ Close</button>
+          </div>
+          <iframe id="portal-preview-frame" class="preview-frame" src="about:blank"></iframe>
+        </div>
+      </div>
+
+      <!-- SMS GATEWAY TAB -->
+      <div class="stab-content" id="stab-sms-gw">
+        <h3 style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:6px">SMS Gateway Configuration</h3>
+        <p style="color:var(--muted);font-size:.84rem;margin-bottom:18px">Select your preferred SMS provider. Used for hotspot alerts, PPPoE billing reminders, and payment confirmations.</p>
+        <div class="fg">
+          <label>Gateway Provider</label>
+          <select id="sms-gateway-select" onchange="updateSMSFields()">
+            <option value="">— Select Gateway —</option>
+            <option value="africastalking">Africa's Talking (Most Popular)</option>
+            <option value="bongasms">BongaSMS</option>
+            <option value="websms">WebSMS (Elitehost)</option>
+            <option value="advanta">Advanta SMS</option>
+            <option value="sendsms">SendSMS Kenya</option>
+            <option value="wigal">Wigal SMS</option>
+            <option value="bulksms">BulkSMS Kenya</option>
+            <option value="mobitech">Mobitech Kenya</option>
+            <option value="cellfonie">Cellfonie</option>
+            <option value="sparrowsms">Sparrow SMS</option>
+            <option value="textmagic">TextMagic</option>
+            <option value="talksasa">TalkSasa</option>
+            <option value="hubtel">Hubtel</option>
+          </select>
+        </div>
+        <div id="sms-gateway-fields" style="display:none">
+          <div class="fg"><label>API Key / Token</label><input type="password" id="sms-api-key" placeholder="Your gateway API key"/></div>
+          <div id="sms-username-field" class="fg" style="display:none"><label>Username / Account Name</label><input type="text" id="sms-username" placeholder="Your gateway username"/></div>
+          <div id="sms-partnerid-field" class="fg" style="display:none"><label>Partner ID</label><input type="text" id="sms-partner-id" placeholder="Partner ID (BongaSMS)"/></div>
+          <div class="fg"><label>Sender ID / From Name</label><input type="text" id="sms-sender-id" placeholder="e.g. YourISP (max 11 chars)" maxlength="11"/></div>
+          <div class="fg">
+            <label>Test Phone Number</label>
+            <div style="display:flex;gap:10px">
+              <input type="tel" id="sms-test-phone" placeholder="0712345678" style="flex:1"/>
+              <button class="btn btn-amber" onclick="testSMSGateway()">📨 Send Test SMS</button>
+            </div>
+          </div>
+          <div id="sms-test-result" style="display:none;padding:10px;border-radius:8px;font-size:.84rem;margin-bottom:12px"></div>
+        </div>
+        <button class="btn btn-teal" onclick="saveSMSGateway()">💾 Save SMS Gateway</button>
+      </div>
+
+      <!-- PAYMENT METHODS TAB -->
+      <div class="stab-content" id="stab-payment-methods">
+        <h3 style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:6px">Payment Methods</h3>
+        <p style="color:var(--muted);font-size:.84rem;margin-bottom:18px">Configure how your customers pay and how you receive money. If MPesa API keys are not set, the platform will collect on your behalf and forward to your preferred method.</p>
+        <div id="pm-list" style="margin-bottom:18px">
+          <div class="loading"><div class="spinner"></div>Loading…</div>
+        </div>
+        <button class="btn btn-teal" onclick="openAddPaymentMethod()">+ Add Payment Method</button>
+      </div>
+
+      <!-- API TAB -->
+      <div class="stab-content" id="stab-api">
+        <h3 style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:16px">API Access</h3>
+        <div class="fg"><label>Your API Key</label>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="set-apikey" readonly style="color:var(--muted);flex:1"/>
+            <button class="btn btn-outline btn-sm" onclick="copyText(document.getElementById('set-apikey').value)">📋</button>
+            <button class="btn btn-outline btn-sm" onclick="regenApiKey()">🔄 Regenerate</button>
+          </div>
+        </div>
+        <div class="fg"><label>Captive Portal URL (share with your router config)</label>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="portal-url" readonly style="color:var(--muted);flex:1"/>
+            <button class="btn btn-outline btn-sm" onclick="copyText(document.getElementById('portal-url').value)">📋</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- ══ MODALS ══ -->
+
+<!-- Add Device -->
+<div class="modal-overlay" id="modal-device">
+  <div class="modal" style="max-width:580px">
+    <h2>Add MikroTik Device</h2>
+    <div class="sub">Connect your router via automatic provisioning — RADIUS, hotspot, and anti-share configured automatically.</div>
+    <div class="prov-steps">
+      <div class="prov-step"><div class="step-num active-step" id="pstep-1">1</div><div class="prov-step-label">Configure</div></div>
+      <div class="prov-step"><div class="step-num" id="pstep-2">2</div><div class="prov-step-label">Copy Script</div></div>
+      <div class="prov-step"><div class="step-num" id="pstep-3">3</div><div class="prov-step-label">Done</div></div>
+    </div>
+
+    <!-- Step 1: Configure device -->
+    <div id="pstep-1-body">
+      <div class="fg"><label>Device / Location Name *</label><input type="text" id="dev-name" placeholder="e.g. Main Router – Westlands"/></div>
+      <div class="fg"><label>Description (optional)</label><input type="text" id="dev-desc" placeholder="e.g. Covers Westlands estate"/></div>
+
+      <div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:12px">
+        <div style="font-size:.82rem;font-weight:600;margin-bottom:10px;color:var(--text)">🌐 Network Configuration</div>
+        <div class="fg2">
+          <div class="fg"><label>WAN Interface</label><input type="text" id="dev-wan" placeholder="ether1" value="ether1"/></div>
+          <div class="fg"><label>Hotspot Interface</label><input type="text" id="dev-hotspot-iface" placeholder="bridge-local" value="bridge-local"/></div>
+        </div>
+        <div class="fg2">
+          <div class="fg"><label>Gateway IP</label><input type="text" id="dev-gateway" placeholder="192.168.88.1" value="192.168.88.1"/></div>
+          <div class="fg"><label>Network</label><input type="text" id="dev-network" placeholder="192.168.88.0/24" value="192.168.88.0/24"/></div>
+        </div>
+        <div class="fg2">
+          <div class="fg"><label>DHCP Pool Start</label><input type="text" id="dev-pool-start" placeholder="192.168.88.10" value="192.168.88.10"/></div>
+          <div class="fg"><label>DHCP Pool End</label><input type="text" id="dev-pool-end" placeholder="192.168.88.250" value="192.168.88.250"/></div>
+        </div>
+        <div class="fg"><label>Ports to Bridge (comma-separated)</label><input type="text" id="dev-ports" placeholder="ether2,ether3,ether4,wlan1" value="ether2,ether3,ether4,wlan1"/><div style="font-size:.72rem;color:var(--muted);margin-top:3px">These ports will be bridged together for the hotspot LAN</div></div>
+      </div>
+
+      <div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:10px">
+        <div style="font-size:.82rem;font-weight:600;margin-bottom:10px;color:var(--text)">🔒 Anti-Share Protection</div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px">
+          <input type="checkbox" id="dev-antishare" style="width:auto" onchange="toggleAntishare(this.checked)"/>
+          <span style="font-size:.88rem">Enable Anti-Share (prevent clients from tethering/sharing WiFi)</span>
+        </label>
+        <div id="antishare-opts" style="display:none">
+          <div class="fg"><label>Max Devices per Session</label><input type="number" id="dev-max-devices" value="1" min="1" max="5" style="width:100px"/><div style="font-size:.72rem;color:var(--muted);margin-top:3px">A client with more than this many simultaneous devices will be disconnected</div></div>
+        </div>
+        <div style="font-size:.76rem;color:var(--muted);margin-top:6px;line-height:1.5">Anti-share adds firewall rules to block client-to-client forwarding, disable AP bridging between connected devices, and limit simultaneous sessions per MAC address.</div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal('modal-device')">Cancel</button>
+        <button class="btn btn-teal" onclick="createDevice()">Generate Provisioning Script →</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Copy command -->
+    <div id="pstep-2-body" style="display:none">
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:10px">Copy this complete script and paste it into your MikroTik terminal (Winbox → New Terminal or SSH). It configures RADIUS, hotspot, DHCP, NAT, and anti-share automatically.</p>
+      <div class="code-box" id="prov-cmd" style="max-height:200px;overflow-y:auto;font-size:.68rem;line-height:1.5"><span>Generating…</span><button class="copy-btn" onclick="copyCode()">📋 Copy Full Script</button></div>
+      <div style="background:rgba(0,212,170,.06);border:1px solid rgba(0,212,170,.15);border-radius:8px;padding:12px;display:flex;align-items:center;gap:10px;margin-top:10px">
+        <div class="spinner" style="display:block"></div>
+        <div>
+          <div style="font-size:.86rem;font-weight:500">Waiting for router to connect…</div>
+          <div style="font-size:.76rem;color:var(--muted)">This page updates automatically once your MikroTik runs the script</div>
+        </div>
+      </div>
+      <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('modal-device');loadDevices()">Close (check Devices later)</button></div>
+    </div>
+
+    <!-- Step 3: Done -->
+    <div id="pstep-3-body" style="display:none;text-align:center;padding:20px 0">
+      <div style="font-size:3rem;margin-bottom:12px">✅</div>
+      <h3 style="font-family:var(--font-head);margin-bottom:8px">Router Connected!</h3>
+      <p style="color:var(--muted);font-size:.88rem;margin-bottom:12px">Your MikroTik is fully provisioned with RADIUS, MAC Auth, CoA, hotspot captive portal<span id="done-antishare-msg"></span>.</p>
+      <div class="modal-actions" style="justify-content:center;margin-top:16px">
+        <button class="btn btn-teal" onclick="closeModal('modal-device');loadDevices()">View Devices →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Generate Vouchers -->
+<div class="modal-overlay" id="modal-vouchers">
+  <div class="modal">
+    <h2>Generate Vouchers</h2>
+    <div class="sub">Create a batch of hotspot vouchers for your customers.</div>
+    <div class="fg"><label>Package</label><select id="v-pkg-sel"></select></div>
+    <div class="fg2">
+      <div class="fg"><label>Quantity (max 500)</label><input type="number" id="v-qty" value="10" min="1" max="500"/></div>
+      <div class="fg"><label>Code Prefix (optional)</label><input type="text" id="v-prefix" placeholder="e.g. WL" maxlength="5"/></div>
+    </div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('modal-vouchers')">Cancel</button><button class="btn btn-teal" onclick="generateVouchers()">🎟️ Generate</button></div>
+  </div>
+</div>
+
+<!-- Add Subscriber -->
+<div class="modal-overlay" id="modal-subscriber">
+  <div class="modal">
+    <h2>Add PPPoE Subscriber</h2>
+    <div class="sub">Credentials will be sent to the subscriber via SMS after creation.</div>
+    <div class="fg2">
+      <div class="fg"><label>Full Name *</label><input type="text" id="sub-name" placeholder="e.g. John Mwangi"/></div>
+      <div class="fg"><label>Phone *</label><input type="tel" id="sub-phone" placeholder="0712345678"/></div>
+    </div>
+    <div class="fg2">
+      <div class="fg"><label>Username *</label><input type="text" id="sub-username" placeholder="e.g. john.mwangi"/></div>
+      <div class="fg"><label>Password *</label><input type="text" id="sub-password"/></div>
+    </div>
+    <div class="fg2">
+      <div class="fg"><label>Email</label><input type="email" id="sub-email"/></div>
+      <div class="fg"><label>ID Number</label><input type="text" id="sub-idno"/></div>
+    </div>
+    <div class="fg"><label>Package *</label><select id="sub-pkg"></select></div>
+    <div class="fg2">
+      <div class="fg"><label>County</label><input type="text" id="sub-county"/></div>
+      <div class="fg"><label>Town</label><input type="text" id="sub-town"/></div>
+    </div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('modal-subscriber')">Cancel</button><button class="btn btn-teal" onclick="addSubscriber()">Create Subscriber</button></div>
+  </div>
+</div>
+
+<!-- Manual Payment -->
+<div class="modal-overlay" id="modal-payment">
+  <div class="modal">
+    <h2>Record Manual Payment</h2>
+    <div class="sub">Record a cash or bank transfer for a subscriber or voucher sale.</div>
+    <div class="fg"><label>Amount (KES) *</label><input type="number" id="pay-amount" placeholder="e.g. 1500"/></div>
+    <div class="fg"><label>Payment Method *</label>
+      <select id="pay-method"><option value="cash">Cash</option><option value="bank">Bank Transfer</option><option value="mpesa">MPesa (Manual)</option><option value="other">Other</option></select>
+    </div>
+    <div class="fg"><label>Reference / Receipt</label><input type="text" id="pay-ref" placeholder="e.g. QAB1234XYZ"/></div>
+    <div class="fg"><label>Description</label><input type="text" id="pay-desc" placeholder="e.g. Monthly subscription – John Mwangi"/></div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('modal-payment')">Cancel</button><button class="btn btn-teal" onclick="recordPayment()">✓ Record</button></div>
+  </div>
+</div>
+
+<!-- Add Payment Method -->
+<div class="modal-overlay" id="modal-pm">
+  <div class="modal">
+    <h2>Add Payment Method</h2>
+    <div class="sub">How do your customers pay, and how do you receive the money?</div>
+    <div class="fg"><label>Method Type *</label>
+      <select id="pm-type" onchange="updatePMFields()">
+        <option value="">— Select Type —</option>
+        <option value="mpesa_stk">MPesa STK Push (Daraja API)</option>
+        <option value="till">MPesa Till Number (Buy Goods)</option>
+        <option value="paybill">MPesa Paybill</option>
+        <option value="bank">Bank Transfer</option>
+        <option value="cash">Cash</option>
+      </select>
+    </div>
+    <div class="fg"><label>Display Label</label><input type="text" id="pm-label" placeholder="e.g. MPesa Paybill 522522"/></div>
+
+    <!-- MPesa STK fields -->
+    <div id="pm-fields-stk" style="display:none">
+      <div class="fg"><label style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="pm-use-admin" onchange="toggleAdminCreds()" style="width:auto"/> Use RumaLink platform credentials (no API keys needed)</label></div>
+      <div id="pm-own-creds">
+        <div class="fg"><label>Business Short Code</label><input type="text" id="pm-shortcode" placeholder="e.g. 174379"/></div>
+        <div class="fg"><label>Consumer Key</label><input type="text" id="pm-ck" placeholder="From Safaricom Developer Portal"/></div>
+        <div class="fg"><label>Consumer Secret</label><input type="password" id="pm-cs"/></div>
+        <div class="fg"><label>Passkey</label><input type="password" id="pm-passkey"/></div>
+        <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="pm-sandbox" style="width:auto"/> Sandbox / Test mode</label></div>
+      </div>
+      <div id="pm-forward-section" style="display:none">
+        <p style="color:var(--amber);font-size:.82rem;background:rgba(243,156,18,.08);border:1px solid rgba(243,156,18,.2);border-radius:8px;padding:10px;margin-bottom:14px">⚡ Platform will collect payments on your behalf and immediately forward to your preferred method below.</p>
+        <div class="fg"><label>Forward Payments To</label>
+          <select id="pm-fwd-type">
+            <option value="till">MPesa Till Number</option>
+            <option value="paybill">MPesa Paybill</option>
+            <option value="bank">Bank Account</option>
+          </select>
+        </div>
+        <div class="fg"><label>Account Number / Till / Paybill</label><input type="text" id="pm-fwd-number" placeholder="e.g. 5123456"/></div>
+        <div class="fg"><label>Account Name</label><input type="text" id="pm-fwd-name" placeholder="Your business name"/></div>
+      </div>
+    </div>
+
+    <!-- Till fields -->
+    <div id="pm-fields-till" style="display:none">
+      <div class="fg"><label>Till Number *</label><input type="text" id="pm-till" placeholder="e.g. 5123456"/></div>
+    </div>
+
+    <!-- Paybill fields -->
+    <div id="pm-fields-paybill" style="display:none">
+      <div class="fg"><label>Paybill Number *</label><input type="text" id="pm-paybill" placeholder="e.g. 522522"/></div>
+      <div class="fg"><label>Account Reference</label><input type="text" id="pm-acc-ref" placeholder="e.g. username or phone number"/></div>
+    </div>
+
+    <!-- Bank fields -->
+    <div id="pm-fields-bank" style="display:none">
+      <div class="fg"><label>Bank Name *</label><input type="text" id="pm-bank-name" placeholder="e.g. Equity Bank"/></div>
+      <div class="fg2">
+        <div class="fg"><label>Account Number</label><input type="text" id="pm-bank-acc"/></div>
+        <div class="fg"><label>Account Name</label><input type="text" id="pm-bank-accname"/></div>
+      </div>
+      <div class="fg"><label>Branch</label><input type="text" id="pm-bank-branch" placeholder="e.g. Nairobi CBD"/></div>
+    </div>
+
+    <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="pm-default" style="width:auto"/> Set as default payment method</label></div>
+
+    <!-- Test payment -->
+    <div style="background:rgba(0,212,170,.05);border:1px solid rgba(0,212,170,.1);border-radius:10px;padding:14px;margin:14px 0">
+      <div style="font-size:.84rem;font-weight:500;margin-bottom:8px">🧪 Test Payment Method</div>
+      <p style="color:var(--muted);font-size:.8rem;margin-bottom:10px">Simulate a KES 1 payment to verify your setup works before saving.</p>
+      <div style="display:flex;gap:10px">
+        <input type="tel" id="pm-test-phone" placeholder="Test phone: 0712345678" style="background:var(--mid);border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--white);font-family:var(--font-body);font-size:.86rem;outline:none;flex:1"/>
+        <button class="btn btn-amber btn-sm" onclick="testPaymentMethod()" id="pm-test-btn">💳 Test (KES 1)</button>
+      </div>
+      <div id="pm-test-result" style="display:none;padding:10px;border-radius:8px;font-size:.82rem;margin-top:10px"></div>
+    </div>
+
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('modal-pm')">Cancel</button><button class="btn btn-teal" id="pm-save-btn" onclick="savePaymentMethod()">💾 Save Method</button></div>
+  </div>
+</div>
+
+<!-- Portal Preview Modal -->
+<div class="modal-overlay modal-wide" id="modal-preview">
+  <div class="modal modal-wide">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h2 style="margin-bottom:0">Portal Preview — <span id="preview-name">Classic</span></h2>
+      <button class="btn btn-outline btn-sm" onclick="closeModal('modal-preview')">✕ Close</button>
+    </div>
+    <iframe id="preview-iframe" style="width:100%;height:540px;border:none;border-radius:10px;background:#fff" src="about:blank"></iframe>
+  </div>
+</div>
+
+<!-- Ticket Modal -->
+<div class="modal-overlay" id="modal-ticket">
+  <div class="modal">
+    <h2>Open Support Ticket</h2>
+    <div class="fg"><label>Subject</label><input type="text" id="ticket-subject"/></div>
+    <div class="fg"><label>Priority</label><select id="ticket-pri"><option value="low">Low</option><option value="normal" selected>Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
+    <div class="fg"><label>Message</label><textarea id="ticket-msg" rows="5" style="resize:vertical"></textarea></div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('modal-ticket')">Cancel</button><button class="btn btn-teal" onclick="submitTicket()">Submit</button></div>
+  </div>
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<script>
+const API = 'https://rumalinkenterprise.online/api';
+let token = localStorage.getItem('rl_token');
+let isp = JSON.parse(localStorage.getItem('rl_isp') || '{}');
+let planType = 'both'; // 'hotspot' | 'pppoe' | 'both'
+let revenueChart = null;
+let vPage = 1, subPage = 1;
+let selectedTemplate = 'classic';
+let pollInterval = null;
+let currentDeviceToken = null;
+
+if (!token) window.location.href = '/isp/login.html';
+
+// ── PORTAL TEMPLATES ──────────────────────────────────────────
+const PORTAL_TEMPLATES = [
+  { id: 'classic',  name: 'Classic',  icon: '🏛️',  bg: 'linear-gradient(135deg,#f0f4ff,#e8f0ff)', desc: 'Clean white card, professional' },
+  { id: 'modern',   name: 'Modern',   icon: '🌙',  bg: 'linear-gradient(135deg,#0a0f1e,#132044)', desc: 'Dark theme, sleek & modern' },
+  { id: 'minimal',  name: 'Minimal',  icon: '⬜',  bg: 'linear-gradient(135deg,#ffffff,#f3f4f6)', desc: 'Ultra-clean, distraction-free' },
+  { id: 'branded',  name: 'Branded',  icon: '🎨',  bg: 'linear-gradient(135deg,#00d4aa,#0d1530)', desc: 'Split layout, brand-forward' },
+];
+
+const KENYA_SMS_GATEWAYS = {
+  africastalking: { name: "Africa's Talking", needsUsername: true, needsPartnerId: false },
+  bongasms:       { name: 'BongaSMS',          needsUsername: false, needsPartnerId: true },
+  websms:         { name: 'WebSMS (Elitehost)', needsUsername: false, needsPartnerId: false },
+  advanta:        { name: 'Advanta SMS',        needsUsername: false, needsPartnerId: false },
+  sendsms:        { name: 'SendSMS Kenya',      needsUsername: false, needsPartnerId: false },
+  wigal:          { name: 'Wigal SMS',          needsUsername: false, needsPartnerId: false },
+  bulksms:        { name: 'BulkSMS Kenya',      needsUsername: false, needsPartnerId: false },
+  mobitech:       { name: 'Mobitech Kenya',     needsUsername: false, needsPartnerId: false },
+  cellfonie:      { name: 'Cellfonie',          needsUsername: false, needsPartnerId: false },
+  sparrowsms:     { name: 'Sparrow SMS',        needsUsername: false, needsPartnerId: false },
+  textmagic:      { name: 'TextMagic',          needsUsername: true,  needsPartnerId: false },
+  talksasa:       { name: 'TalkSasa',           needsUsername: false, needsPartnerId: false },
+  hubtel:         { name: 'Hubtel',             needsUsername: true,  needsPartnerId: false },
+};
+
+// ── INIT ──────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  applyPlanRestrictions();
+  setupSidebar();
+  setupNav();
+  loadDashboard();
+  document.getElementById('sms-msg').addEventListener('input', e => {
+    document.getElementById('sms-count').textContent = e.target.value.length;
+  });
+});
+
+function applyPlanRestrictions() {
+  planType = isp.plan_type || 'hotspot';
+  document.body.classList.remove('plan-hotspot','plan-pppoe','plan-both');
+  if (planType === 'hotspot') document.body.classList.add('plan-hotspot');
+  else if (planType === 'pppoe') document.body.classList.add('plan-pppoe');
+  // 'both' shows everything, no class needed
+}
+
+function setupSidebar() {
+  document.getElementById('sb-isp-name').textContent = isp.company_name || 'ISP';
+  const planLabels = { hotspot:'Hotspot Plan (3%)', pppoe:'PPPoE Plan (KES 32/user)', both:'Hotspot + PPPoE' };
+  document.getElementById('sb-isp-plan').textContent = planLabels[isp.plan_type] || isp.plan_type || '—';
+  document.getElementById('avatar-initial').textContent = (isp.company_name || 'I')[0].toUpperCase();
+  loadWallet();
+}
+
+function setupNav() {
+  document.querySelectorAll('.nav-item[data-page]').forEach(el => el.addEventListener('click', () => showPage(el.dataset.page)));
+}
+
+function showPage(id) {
+  // Hide ALL pages with inline style (nuclear approach - beats any CSS)
+  document.querySelectorAll('.page').forEach(p => {
+    p.style.display = 'none';
+    p.classList.remove('active');
+  });
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  // Show only the selected page
+  const target = document.getElementById('page-' + id);
+  if (target) {
+    target.style.display = 'block';
+    target.classList.add('active');
+  }
+  document.querySelector(`.nav-item[data-page="${id}"]`)?.classList.add('active');
+  const titles = {
+    dashboard:'Dashboard', devices:'MikroTik / NAS Devices',
+    vouchers:'Hotspot Vouchers', 'hs-packages':'Hotspot Packages', 'hs-sessions':'Hotspot Sessions',
+    subscribers:'PPPoE Subscribers', 'pppoe-packages':'PPPoE Packages', 'pppoe-sessions':'PPPoE Sessions',
+    payments:'Payments', invoices:'Invoices', sms:'Send SMS',
+    notifications:'Notifications', support:'Support', settings:'Settings'
+  };
+  document.getElementById('page-title').textContent = titles[id] || id;
+  const loaders = {
+    dashboard: loadDashboard, devices: loadDevices,
+    vouchers: () => { loadVouchers(); loadVoucherStats(); },
+    'hs-packages': loadHSPackages, 'hs-sessions': loadHSSessions,
+    subscribers: loadSubscribers, 'pppoe-packages': loadPPPoEPackages,
+    'pppoe-sessions': loadPPPoESessions, payments: loadPayments,
+    notifications: loadNotifications, support: loadTickets,
+    settings: loadSettings, sms: loadSMSLog
+  };
+  if (loaders[id]) loaders[id]();
+}
+
+// ── API ────────────────────────────────────────────────────────
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+token, ...(opts.headers||{}) }
+  });
+  if (res.status === 401) { logout(); return; }
+  const j = await res.json();
+  if (!res.ok) throw new Error(j.error || 'API error');
+  return j;
+}
+
+// ── FORMAT ─────────────────────────────────────────────────────
+const kes = v => `KES ${parseFloat(v||0).toLocaleString('en-KE',{minimumFractionDigits:2})}`;
+const dt  = v => v ? new Date(v).toLocaleDateString('en-KE') : '—';
+const dts = v => v ? new Date(v).toLocaleString('en-KE',{hour:'2-digit',minute:'2-digit',month:'short',day:'numeric'}) : '—';
+const byt = b => b>1073741824?(b/1073741824).toFixed(1)+' GB':b>1048576?(b/1048576).toFixed(1)+' MB':(b/1024).toFixed(0)+' KB';
+const dur = s => { if(!s)return'—';const h=Math.floor(s/3600),m=Math.floor((s%3600)/60);return h>0?`${h}h ${m}m`:`${m}m`; };
+
+// ── TOAST ──────────────────────────────────────────────────────
+function toast(msg, type='success') {
+  const t=document.createElement('div');t.className=`toast ${type}`;
+  t.innerHTML=`<span>${type==='success'?'✅':'❌'}</span><span>${msg}</span>`;
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(()=>t.remove(),4000);
+}
+
+// ── MODALS ─────────────────────────────────────────────────────
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+function openModal(id){document.getElementById(id).classList.add('open')}
+document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
+
+// ── LOGOUT ─────────────────────────────────────────────────────
+function logout(){localStorage.clear();window.location.href='/isp/login.html'}
+
+// ── WALLET ─────────────────────────────────────────────────────
+async function loadWallet(){
+  try{ const d=await api('/isp/profile'); document.getElementById('sb-wallet').textContent=kes(d.profile?.wallet_balance); }catch(e){}
+}
+
+// ── DASHBOARD ──────────────────────────────────────────────────
+async function loadDashboard(){
+  try{
+    const d=await api('/isp/stats');
+    document.getElementById('ds-today').textContent=kes(d.revenue?.today);
+    document.getElementById('ds-month').textContent=kes(d.revenue?.this_month);
+    document.getElementById('ds-sessions').textContent=(parseInt(d.sessions?.active_hotspot)||0)+(parseInt(d.sessions?.active_pppoe)||0);
+    document.getElementById('ds-subs').textContent=d.pppoe?.active||0;
+    document.getElementById('ds-vouchers').textContent=d.hotspot?.unused_vouchers||0;
+    document.getElementById('ds-devices').textContent=`${d.devices?.online||0}/${d.devices?.total||0}`;
+    document.getElementById('sb-wallet').textContent=kes(d.wallet_balance);
+  }catch(e){}
+  try{
+    const d=await api('/isp/revenue-chart?days=30');
+    renderChart(d.data||[]);
+  }catch(e){}
+  try{
+    const d=await api('/payments?limit=6');
+    document.getElementById('dash-payments').innerHTML=(d.payments||[]).map(p=>`
+      <tr><td class="name">${p.subscriber_name||p.voucher_code||'—'}</td>
+      <td style="color:var(--teal);font-weight:600">${kes(p.amount)}</td>
+      <td><span class="badge bg">${p.payment_method}</span></td>
+      <td>${dts(p.created_at)}</td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:16px">No payments yet</td></tr>';
+  }catch(e){}
+}
+
+function renderChart(data){
+  const ctx=document.getElementById('revenue-chart').getContext('2d');
+  if(revenueChart)revenueChart.destroy();
+  revenueChart=new Chart(ctx,{type:'line',data:{labels:data.map(d=>new Date(d.date).toLocaleDateString('en-KE',{month:'short',day:'numeric'})),datasets:[{label:'Revenue (KES)',data:data.map(d=>parseFloat(d.amount||0)),borderColor:'#00d4aa',backgroundColor:'rgba(0,212,170,.08)',tension:.4,fill:true,pointBackgroundColor:'#00d4aa',pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#8899bb',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#8899bb',font:{size:10},callback:v=>'KES '+v.toLocaleString()}}}}});
+}
+
+// ── DEVICES ────────────────────────────────────────────────────
+async function loadDevices(){
+  const grid=document.getElementById('device-grid');
+  grid.innerHTML='<div class="loading"><div class="spinner"></div>Loading…</div>';
+  try{
+    const d=await api('/nas/');
+    if(!d.devices?.length){grid.innerHTML='<div style="color:var(--muted);padding:24px;font-size:.88rem">No devices yet. Add your first MikroTik router.</div>';return;}
+    grid.innerHTML=d.devices.map(dev=>`
+      <div class="device-card ${dev.is_online?'online':''}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-family:var(--font-head);font-weight:700;font-size:.95rem">${dev.name}</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div class="status-dot ${dev.is_online?'sd-green':dev.is_provisioned?'sd-red':'sd-amber'}"></div>
+            <span style="font-size:.76rem;color:var(--muted)">${dev.is_online?'Online':dev.is_provisioned?'Offline':'Pending'}</span>
+          </div>
+        </div>
+        <div style="font-size:.8rem;color:var(--muted);line-height:1.9">
+          ${dev.mikrotik_identity?`📛 ${dev.mikrotik_identity}<br>`:''}
+          ${dev.wan_ip?`🌐 ${dev.wan_ip}<br>`:''}
+          ${dev.mikrotik_board?`🖥️ ${dev.mikrotik_board}<br>`:''}
+          ${dev.last_seen?`🕐 ${dts(dev.last_seen)}`:''}
+        </div>
+        ${!dev.is_provisioned?`
+          <div style="margin-top:12px;background:rgba(243,156,18,.06);border:1px solid rgba(243,156,18,.15);border-radius:8px;padding:10px">
+            <div style="font-size:.76rem;color:var(--amber);font-weight:600;margin-bottom:5px">⚠️ Not provisioned yet</div>
+            <div class="code-box" style="font-size:.71rem;padding:8px 10px;margin:6px 0">${dev.provision_url?`/tool fetch url="${dev.provision_url}" http-method=post http-data="identity=[/system identity get name]&version=[/system package get routeros version]&board=[/system resource get board-name]" output=user as-value`:'—'}<button class="copy-btn" onclick="copyText('${dev.provision_url||''}')">Copy URL</button></div>
+          </div>`:``}
+        <div style="display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+          <button class="btn btn-red btn-sm" onclick="deleteDevice('${dev.id}')">Remove</button>
+        </div>
+      </div>`).join('');
+  }catch(e){toast('Failed to load devices','error');}
+}
+
+function openAddDevice(){
+  ['pstep-1-body','pstep-2-body','pstep-3-body'].forEach((id,i)=>document.getElementById(id).style.display=i===0?'':'none');
+  document.getElementById('pstep-1').className='step-num active-step';
+  document.getElementById('pstep-2').className='step-num';
+  document.getElementById('pstep-3').className='step-num';
+  document.getElementById('dev-name').value='';
+  document.getElementById('dev-desc').value='';
+  openModal('modal-device');
+}
+
+function toggleAntishare(enabled){
+  document.getElementById('antishare-opts').style.display=enabled?'':'none';
+}
+
+async function createDevice(){
+  const name=document.getElementById('dev-name').value.trim();
+  if(!name){toast('Enter a device name','error');return;}
+  const antishare=document.getElementById('dev-antishare').checked;
+  const maxDevices=parseInt(document.getElementById('dev-max-devices').value)||1;
+  const bridgedPorts=document.getElementById('dev-ports').value.split(',').map(p=>p.trim()).filter(Boolean);
+  const body={
+    name,
+    description:document.getElementById('dev-desc').value,
+    antishare_enabled:antishare,
+    antishare_max_devices:maxDevices,
+    bridged_ports:bridgedPorts,
+    wan_interface:document.getElementById('dev-wan').value.trim()||'ether1',
+    hotspot_interface:document.getElementById('dev-hotspot-iface').value.trim()||'bridge-local',
+    hotspot_gateway:document.getElementById('dev-gateway').value.trim()||'192.168.88.1',
+    hotspot_network:document.getElementById('dev-network').value.trim()||'192.168.88.0/24',
+    hotspot_pool_start:document.getElementById('dev-pool-start').value.trim()||'192.168.88.10',
+    hotspot_pool_end:document.getElementById('dev-pool-end').value.trim()||'192.168.88.250',
+  };
+  try{
+    const d=await api('/nas/',{method:'POST',body:JSON.stringify(body)});
+    document.getElementById('pstep-1-body').style.display='none';
+    document.getElementById('pstep-2-body').style.display='';
+    document.getElementById('pstep-1').className='step-num done';
+    document.getElementById('pstep-2').className='step-num active-step';
+    const script=d.config?.mikrotik_full_script||`/tool fetch url="${d.provision_url}" http-method=post output=user as-value`;
+    document.getElementById('prov-cmd').innerHTML=`<code style="word-break:break-all;font-size:.68rem;white-space:pre-wrap">${escHtml(script)}</code><button class="copy-btn" onclick="copyCode()">Copy Full Script</button>`;
+    currentDeviceToken=d.device?.provision_token;
+    pollInterval=setInterval(checkProvisioned,4000);
+    document.getElementById('done-antishare-msg').textContent=antishare?`, and anti-share (max ${maxDevices} device/session)`:' ';
+  }catch(e){toast(e.message,'error');}
+}
+
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+async function checkProvisioned(){
+  try{
+    const d=await api('/nas/');
+    const dev=d.devices?.find(dv=>dv.provision_token===currentDeviceToken);
+    if(dev?.is_provisioned){
+      clearInterval(pollInterval);
+      document.getElementById('pstep-2-body').style.display='none';
+      document.getElementById('pstep-3-body').style.display='';
+      document.getElementById('pstep-2').className='step-num done';
+      document.getElementById('pstep-3').className='step-num done';
+    }
+  }catch(e){}
+}
+
+function copyCode(){
+  const code=document.getElementById('prov-cmd').querySelector('code')?.textContent||'';
+  navigator.clipboard.writeText(code).then(()=>toast('Copied to clipboard!'));
+}
+function copyText(t){navigator.clipboard.writeText(t).then(()=>toast('Copied!'));}
+async function deleteDevice(id){
+  if(!confirm('Remove this device?'))return;
+  try{await api(`/nas/${id}`,{method:'DELETE'});toast('Device removed');loadDevices();}catch(e){toast(e.message,'error');}
+}
+
+// ── VOUCHERS ───────────────────────────────────────────────────
+async function loadVoucherStats(){
+  try{const d=await api('/vouchers/stats/summary');document.getElementById('v-total').textContent=d.total||0;document.getElementById('v-unused').textContent=d.unused||0;document.getElementById('v-active').textContent=d.active||0;document.getElementById('v-used').textContent=d.used||0;}catch(e){}
+}
+
+async function loadVouchers(){
+  const status=document.getElementById('v-filter').value;
+  const tbody=document.getElementById('vouchers-tbody');
+  tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:16px">Loading…</td></tr>';
+  try{
+    const d=await api(`/vouchers?page=${vPage}&limit=50${status?'&status='+status:''}`);
+    tbody.innerHTML=(d.vouchers||[]).map(v=>`
+      <tr><td class="name" style="font-family:monospace;letter-spacing:1px">${v.code}</td>
+      <td>${v.package_name}</td>
+      <td><span class="badge ${v.status==='unused'?'bg':v.status==='active'?'ba':v.status==='used'?'bm':'br'}">${v.status}</span></td>
+      <td>${v.buyer_phone||'—'}</td>
+      <td>${dt(v.used_at)}</td>
+      <td>${dt(v.expires_at)}</td>
+      <td>${v.is_paid?kes(v.amount_paid):'<span style="color:var(--muted)">Unpaid</span>'}</td></tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">No vouchers found</td></tr>';
+  }catch(e){}
+}
+
+async function openGenerateVouchers(){
+  try{const d=await api('/hotspot/packages');document.getElementById('v-pkg-sel').innerHTML=(d.packages||[]).map(p=>`<option value="${p.id}">${p.name} — ${kes(p.price)}</option>`).join('');}catch(e){}
+  openModal('modal-vouchers');
+}
+
+async function generateVouchers(){
+  try{
+    const d=await api('/vouchers/generate',{method:'POST',body:JSON.stringify({package_id:document.getElementById('v-pkg-sel').value,quantity:parseInt(document.getElementById('v-qty').value),prefix:document.getElementById('v-prefix').value})});
+    toast(`${d.quantity} vouchers generated!`);closeModal('modal-vouchers');loadVouchers();loadVoucherStats();
+  }catch(e){toast(e.message,'error');}
+}
+
+// ── HS PACKAGES ────────────────────────────────────────────────
+async function loadHSPackages(){
+  try{
+    const d=await api('/hotspot/packages');
+    const grid=document.getElementById('hs-pkg-grid');
+    grid.innerHTML=d.packages?.length?d.packages.map(p=>`
+      <div class="device-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-family:var(--font-head);font-weight:700">${p.name}</div>
+          <span style="font-family:var(--font-head);font-weight:700;color:var(--teal)">${kes(p.price)}</span>
+        </div>
+        <div style="font-size:.8rem;color:var(--muted);line-height:1.9">
+          ⏱ ${p.duration_hours?p.duration_hours+' hours':'Unlimited'}<br>
+          🚀 ${p.bandwidth_down_mbps?p.bandwidth_down_mbps+'Mbps':'Unlimited speed'}<br>
+          💾 ${p.data_limit_mb?(p.data_limit_mb/1024).toFixed(1)+' GB':'No data cap'}<br>
+          🎟 ${p.voucher_count||0} vouchers
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+          <button class="btn btn-outline btn-sm" onclick="openGenerateVouchers()">+ Vouchers</button>
+          <button class="btn btn-red btn-sm" onclick="deleteHSPkg('${p.id}')">Delete</button>
+        </div>
+      </div>`).join(''):'<div style="color:var(--muted);padding:20px;font-size:.88rem">No packages. Create one to start selling vouchers.</div>';
+  }catch(e){}
+}
+
+function openHSPackageModal(){
+  const html=`<div class="modal">
+    <h2>New Hotspot Package</h2>
+    <div class="fg2"><div class="fg"><label>Name *</label><input id="hsp-name" placeholder="e.g. 1 Hour Premium"/></div><div class="fg"><label>Price (KES) *</label><input id="hsp-price" type="number" placeholder="50"/></div></div>
+    <div class="fg2"><div class="fg"><label>Duration (hours)</label><input id="hsp-hrs" type="number" placeholder="1 (blank=unlimited)"/></div><div class="fg"><label>Download Mbps</label><input id="hsp-down" type="number" placeholder="5 (blank=unlimited)"/></div></div>
+    <div class="fg2"><div class="fg"><label>Upload Mbps</label><input id="hsp-up" type="number"/></div><div class="fg"><label>Data Limit (MB)</label><input id="hsp-data" type="number" placeholder="blank=unlimited"/></div></div>
+    <div class="fg"><label>MikroTik Profile Name</label><input id="hsp-profile" placeholder="e.g. hotspot-1hr"/></div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button><button class="btn btn-teal" onclick="saveHSPkg()">Create</button></div>
+  </div>`;
+  const ov=document.createElement('div');ov.className='modal-overlay open';ov.innerHTML=html;
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});document.body.appendChild(ov);
+}
+
+async function saveHSPkg(){
+  try{
+    await api('/hotspot/packages',{method:'POST',body:JSON.stringify({name:document.getElementById('hsp-name').value,price:document.getElementById('hsp-price').value,duration_hours:document.getElementById('hsp-hrs').value||null,bandwidth_down_mbps:document.getElementById('hsp-down').value||null,bandwidth_up_mbps:document.getElementById('hsp-up').value||null,data_limit_mb:document.getElementById('hsp-data').value||null,mikrotik_profile:document.getElementById('hsp-profile').value})});
+    toast('Package created!');document.querySelectorAll('.modal-overlay').forEach(o=>o.remove());loadHSPackages();
+  }catch(e){toast(e.message,'error');}
+}
+
+async function deleteHSPkg(id){
+  if(!confirm('Delete this package?'))return;
+  try{await api(`/hotspot/packages/${id}`,{method:'DELETE'});toast('Deleted');loadHSPackages();}catch(e){toast(e.message,'error');}
+}
+
+// ── HS SESSIONS ────────────────────────────────────────────────
+async function loadHSSessions(){
+  try{
+    const d=await api('/hotspot/sessions');
+    document.getElementById('hs-sess-tbody').innerHTML=(d.sessions||[]).map(s=>`
+      <tr><td style="font-family:monospace;font-size:.8rem">${s.mac_address||'—'}</td><td>${s.ip_address||'—'}</td>
+      <td style="font-family:monospace">${s.voucher_code||'—'}</td><td>${s.package_name||'—'}</td>
+      <td>${s.device_name||'—'}</td><td>${dts(s.started_at)}</td></tr>`).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">No active sessions</td></tr>';
+  }catch(e){}
+}
+
+// ── PPPOE PACKAGES ─────────────────────────────────────────────
+async function loadPPPoEPackages(){
+  try{
+    const d=await api('/pppoe/packages');
+    const grid=document.getElementById('pppoe-pkg-grid');
+    grid.innerHTML=d.packages?.length?d.packages.map(p=>`
+      <div class="device-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-family:var(--font-head);font-weight:700">${p.name}</div>
+          <span style="font-family:var(--font-head);font-weight:700;color:var(--teal)">${kes(p.price)}/mo</span>
+        </div>
+        <div style="font-size:.8rem;color:var(--muted);line-height:1.9">
+          ⬇ ${p.bandwidth_down_mbps||'∞'}Mbps / ⬆ ${p.bandwidth_up_mbps||'∞'}Mbps<br>
+          💾 ${p.data_limit_gb?p.data_limit_gb+' GB/month':'Unlimited'}<br>
+          👥 ${p.subscriber_count||0} subscribers
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+          <button class="btn btn-red btn-sm" onclick="deletePPPoEPkg('${p.id}')">Delete</button>
+        </div>
+      </div>`).join(''):'<div style="color:var(--muted);padding:20px">No PPPoE packages yet.</div>';
+  }catch(e){}
+}
+
+function openPPPoEPackageModal(){
+  const html=`<div class="modal">
+    <h2>New PPPoE Package</h2>
+    <div class="fg2"><div class="fg"><label>Name *</label><input id="pp-name" placeholder="e.g. Home 10Mbps"/></div><div class="fg"><label>Price/Month (KES) *</label><input id="pp-price" type="number" placeholder="1500"/></div></div>
+    <div class="fg2"><div class="fg"><label>Download Mbps</label><input id="pp-down" type="number" placeholder="10"/></div><div class="fg"><label>Upload Mbps</label><input id="pp-up" type="number" placeholder="5"/></div></div>
+    <div class="fg2"><div class="fg"><label>Data Limit (GB)</label><input id="pp-data" type="number" placeholder="blank=unlimited"/></div><div class="fg"><label>MikroTik Profile</label><input id="pp-profile" placeholder="e.g. pppoe-10M"/></div></div>
+    <div class="fg"><label>IP Pool</label><input id="pp-pool" placeholder="e.g. pppoe-pool"/></div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button><button class="btn btn-teal" onclick="savePPPoEPkg()">Create</button></div>
+  </div>`;
+  const ov=document.createElement('div');ov.className='modal-overlay open';ov.innerHTML=html;
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});document.body.appendChild(ov);
+}
+
+async function savePPPoEPkg(){
+  try{
+    await api('/pppoe/packages',{method:'POST',body:JSON.stringify({name:document.getElementById('pp-name').value,price:document.getElementById('pp-price').value,bandwidth_down_mbps:document.getElementById('pp-down').value||null,bandwidth_up_mbps:document.getElementById('pp-up').value||null,data_limit_gb:document.getElementById('pp-data').value||null,mikrotik_profile:document.getElementById('pp-profile').value,address_pool:document.getElementById('pp-pool').value})});
+    toast('Package created!');document.querySelectorAll('.modal-overlay').forEach(o=>o.remove());loadPPPoEPackages();
+  }catch(e){toast(e.message,'error');}
+}
+
+async function deletePPPoEPkg(id){if(!confirm('Delete?'))return;try{await api(`/pppoe/packages/${id}`,{method:'DELETE'});toast('Deleted');loadPPPoEPackages();}catch(e){toast(e.message,'error');}}
+
+// ── SUBSCRIBERS ────────────────────────────────────────────────
+async function loadSubscribers(){
+  const search=document.getElementById('sub-search').value;
+  const status=document.getElementById('sub-filter').value;
+  const tbody=document.getElementById('subs-tbody');
+  tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:16px">Loading…</td></tr>';
+  try{
+    const d=await api(`/pppoe/subscribers?page=${subPage}&limit=20${search?'&search='+encodeURIComponent(search):''}${status?'&status='+status:''}`);
+    tbody.innerHTML=(d.subscribers||[]).map(s=>`
+      <tr>
+        <td class="name">${s.full_name}</td>
+        <td style="font-family:monospace;font-size:.82rem">${s.username}</td>
+        <td>${s.phone||'—'}</td>
+        <td>${s.package_name}</td>
+        <td><span class="badge ${s.status==='active'?'bg':s.status==='suspended'?'br':'ba'}">${s.status}</span>${parseInt(s.is_online)>0?'<span style="font-size:.7rem;color:var(--teal);margin-left:5px">● Online</span>':''}</td>
+        <td>${dt(s.next_billing_date)}</td>
+        <td style="color:${parseFloat(s.balance)<0?'var(--red)':'var(--teal)'}">${kes(s.balance)}</td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-outline btn-sm" onclick="sendPaymentDetails('${s.id}','${s.phone||''}')">💬 Pay Details</button>
+          <button class="btn btn-outline btn-sm" onclick="openPaymentFor('${s.id}')">Pay</button>
+          <button class="btn btn-sm ${s.status==='suspended'?'btn-teal':'btn-red'}" onclick="toggleSub('${s.id}','${s.status==='suspended'?'active':'suspended'}')">${s.status==='suspended'?'Activate':'Suspend'}</button>
+        </td>
+      </tr>`).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">No subscribers</td></tr>';
+  }catch(e){toast('Failed to load subscribers','error');}
+}
+
+async function openAddSubscriber(){
+  try{const d=await api('/pppoe/packages');document.getElementById('sub-pkg').innerHTML=(d.packages||[]).map(p=>`<option value="${p.id}">${p.name} — ${kes(p.price)}/mo</option>`).join('');}catch(e){}
+  document.getElementById('sub-password').value=Math.random().toString(36).slice(-8).toUpperCase();
+  openModal('modal-subscriber');
+}
+
+async function addSubscriber(){
+  try{
+    await api('/pppoe/subscribers',{method:'POST',body:JSON.stringify({full_name:document.getElementById('sub-name').value,phone:document.getElementById('sub-phone').value,username:document.getElementById('sub-username').value,password:document.getElementById('sub-password').value,email:document.getElementById('sub-email').value,id_number:document.getElementById('sub-idno').value,package_id:document.getElementById('sub-pkg').value,county:document.getElementById('sub-county').value,town:document.getElementById('sub-town').value})});
+    toast('Subscriber added! SMS sent if phone provided.');closeModal('modal-subscriber');loadSubscribers();
+  }catch(e){toast(e.message,'error');}
+}
+
+async function toggleSub(id,status){
+  try{await api(`/pppoe/subscribers/${id}/status`,{method:'PATCH',body:JSON.stringify({status})});toast(`Subscriber ${status}`);loadSubscribers();}catch(e){toast(e.message,'error');}
+}
+
+async function sendPaymentDetails(id,phone){
+  if(!phone){toast('Subscriber has no phone number','error');return;}
+  try{await api(`/pppoe/subscribers/${id}/send-payment-details`,{method:'POST'});toast(`Payment details sent to ${phone}`);}catch(e){toast(e.message,'error');}
+}
+
+function openPaymentFor(subId){
+  document.getElementById('modal-payment').dataset.subId=subId;
+  openModal('modal-payment');
+}
+
+// ── PPPOE SESSIONS ─────────────────────────────────────────────
+async function loadPPPoESessions(){
+  try{
+    const d=await api('/pppoe/sessions?status=active');
+    document.getElementById('pppoe-sess-tbody').innerHTML=(d.sessions||[]).map(s=>`
+      <tr><td class="name">${s.username}</td><td>${s.full_name}</td><td>${s.framed_ip||'—'}</td>
+      <td>${byt(s.bytes_downloaded)}</td><td>${byt(s.bytes_uploaded)}</td><td>${dur(s.session_time_seconds)}</td></tr>`).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">No active sessions</td></tr>';
+  }catch(e){}
+}
+
+// ── PAYMENTS ───────────────────────────────────────────────────
+async function loadPayments(){
+  try{
+    const d=await api('/payments?limit=50');
+    document.getElementById('payments-tbody').innerHTML=(d.payments||[]).map(p=>`
+      <tr><td class="name">${p.subscriber_name||p.voucher_code||'—'}</td>
+      <td style="color:var(--teal);font-weight:600">${kes(p.amount)}</td>
+      <td><span class="badge bg">${p.payment_method}</span></td>
+      <td><span class="badge ${p.status==='paid'?'bg':p.status==='pending'?'ba':'br'}">${p.status}</span></td>
+      <td style="color:var(--red)">-${kes(p.commission_amount)}</td>
+      <td>${dts(p.created_at)}</td></tr>`).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">No payments yet</td></tr>';
+  }catch(e){}
+}
+
+function openManualPayment(){document.getElementById('modal-payment').dataset.subId='';openModal('modal-payment');}
+
+async function recordPayment(){
+  const subId=document.getElementById('modal-payment').dataset.subId;
+  try{
+    await api('/payments/manual',{method:'POST',body:JSON.stringify({amount:document.getElementById('pay-amount').value,payment_method:document.getElementById('pay-method').value,subscriber_id:subId||undefined,description:document.getElementById('pay-desc').value,reference:document.getElementById('pay-ref').value})});
+    toast('Payment recorded!');closeModal('modal-payment');loadPayments();loadWallet();
+  }catch(e){toast(e.message,'error');}
+}
+
+// ── SMS ────────────────────────────────────────────────────────
+async function loadSMSLog(){
+  try{const d=await api('/sms/logs');document.getElementById('sms-log-tbody').innerHTML=(d.logs||[]).map(l=>`<tr><td>${l.recipient}</td><td><span class="badge ${l.status==='sent'?'bg':'br'}">${l.status}</span></td><td>${dts(l.sent_at)}</td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;color:var(--muted)">No SMS sent yet</td></tr>';}catch(e){}
+}
+
+async function sendSMS(){
+  const recipients=document.getElementById('sms-to').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const message=document.getElementById('sms-msg').value.trim();
+  if(!recipients.length||!message){toast('Enter recipients and message','error');return;}
+  try{const d=await api('/sms/send',{method:'POST',body:JSON.stringify({recipients,message})});toast(`Sent to ${d.results?.filter(r=>r.status==='sent').length} recipients`);document.getElementById('sms-msg').value='';loadSMSLog();}catch(e){toast(e.message,'error');}
+}
+
+// ── NOTIFICATIONS ──────────────────────────────────────────────
+async function loadNotifications(){
+  try{
+    const d=await api('/notifications/');
+    const list=document.getElementById('notif-list');
+    const unread=d.notifications?.some(n=>!n.is_read);
+    document.getElementById('notif-dot').style.display=unread?'block':'none';
+    list.innerHTML=(d.notifications||[]).map(n=>`
+      <div style="background:var(--card);border:1px solid ${n.is_read?'var(--border)':'rgba(0,212,170,.2)'};border-radius:10px;padding:14px 18px;margin-bottom:10px;display:flex;align-items:flex-start;gap:12px">
+        <span style="font-size:1.1rem">${n.type==='success'?'✅':n.type==='warning'?'⚠️':n.type==='error'?'❌':'ℹ️'}</span>
+        <div style="flex:1">
+          <div style="font-weight:500;font-size:.88rem${n.is_read?';color:var(--muted)':''}">${n.title}</div>
+          <div style="color:var(--muted);font-size:.82rem;margin-top:3px;font-weight:300">${n.message}</div>
+          <div style="font-size:.72rem;color:var(--border);margin-top:5px">${dts(n.created_at)}</div>
+        </div>
+        ${!n.is_read?`<button class="btn btn-outline btn-sm" onclick="markRead('${n.id}')">✓</button>`:''}
+      </div>`).join('')||'<div style="text-align:center;color:var(--muted);padding:40px">No notifications</div>';
+  }catch(e){}
+}
+
+async function markRead(id){try{await api(`/notifications/${id}/read`,{method:'PATCH'});loadNotifications();}catch(e){}}
+async function markAllRead(){try{await api('/notifications/read-all',{method:'PATCH'});loadNotifications();toast('All marked as read');}catch(e){}}
+
+// ── SUPPORT ────────────────────────────────────────────────────
+async function loadTickets(){
+  try{const d=await api('/support/');document.getElementById('tickets-tbody').innerHTML=(d.tickets||[]).map(t=>`<tr><td class="name">${t.subject}</td><td><span class="badge ${t.priority==='urgent'?'br':t.priority==='high'?'ba':'bm'}">${t.priority}</span></td><td><span class="badge ${t.status==='open'?'bg':'bm'}">${t.status}</span></td><td>${dts(t.created_at)}</td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">No tickets</td></tr>';}catch(e){}
+}
+
+function openNewTicket(){openModal('modal-ticket');}
+async function submitTicket(){
+  try{await api('/support/',{method:'POST',body:JSON.stringify({subject:document.getElementById('ticket-subject').value,message:document.getElementById('ticket-msg').value,priority:document.getElementById('ticket-pri').value})});toast('Ticket submitted!');closeModal('modal-ticket');loadTickets();}catch(e){toast(e.message,'error');}
+}
+
+// ── SETTINGS ───────────────────────────────────────────────────
+function switchSettingsTab(tab, el) {
+  document.querySelectorAll('.stab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.stab-content').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('stab-' + tab)?.classList.add('active');
+  if (tab === 'portal') renderPortalTemplates();
+  if (tab === 'payment-methods') loadPaymentMethods();
+  if (tab === 'sms-gw') loadSMSGatewaySettings();
+}
+
+async function loadSettings(){
+  try{
+    const d=await api('/isp/profile');
+    const p=d.profile;
+    document.getElementById('set-company').value=p.company_name||'';
+    document.getElementById('set-owner').value=p.owner_name||'';
+    document.getElementById('set-phone').value=p.phone||'';
+    document.getElementById('set-county').value=p.county||'';
+    document.getElementById('set-town').value=p.town||'';
+    document.getElementById('set-address').value=p.address||'';
+    document.getElementById('set-apikey').value=p.api_key||'';
+    document.getElementById('portal-url').value=`https://rumalinkenterprise.online/captive/${p.id}`;
+  }catch(e){}
+  try{
+    const d=await api('/portal-settings/');
+    const pt=d.portal;
+    if(pt){
+      selectedTemplate=pt.template||'classic';
+      document.getElementById('portal-title').value=pt.welcome_title||'';
+      document.getElementById('portal-sub').value=pt.welcome_subtitle||'';
+      document.getElementById('portal-color').value=pt.primary_color||'#00d4aa';
+      document.getElementById('portal-color2').value=pt.secondary_color||'#0d1530';
+      document.getElementById('portal-show-logo').checked=pt.show_logo!==false;
+      document.getElementById('portal-powered-by').checked=pt.show_powered_by!==false;
+      document.getElementById('portal-tv-mode').checked=pt.enable_tv_mode!==false;
+      document.getElementById('portal-support-number').value=pt.support_number||'';
+      document.getElementById('portal-support-label').value=pt.support_label||'Need Help? Call Us';
+    }
+  }catch(e){}
+}
+
+async function saveProfile(){
+  try{await api('/isp/profile',{method:'PUT',body:JSON.stringify({company_name:document.getElementById('set-company').value,owner_name:document.getElementById('set-owner').value,phone:document.getElementById('set-phone').value,county:document.getElementById('set-county').value,town:document.getElementById('set-town').value,address:document.getElementById('set-address').value})});toast('Profile saved!');}catch(e){toast(e.message,'error');}
+}
+
+async function changePassword(){
+  const pw=document.getElementById('set-newpw').value;
+  if(!pw||pw.length<8){toast('Password must be at least 8 characters','error');return;}
+  const current=prompt('Enter your current password:');
+  if(!current)return;
+  try{await api('/isp/change-password',{method:'POST',body:JSON.stringify({current_password:current,new_password:pw})});toast('Password changed!');document.getElementById('set-newpw').value='';}catch(e){toast(e.message,'error');}
+}
+
+async function regenApiKey(){
+  if(!confirm('Regenerate API key? The old key will stop working immediately.'))return;
+  try{const d=await api('/isp/regenerate-api-key',{method:'POST'});document.getElementById('set-apikey').value=d.api_key;toast('API key regenerated!');}catch(e){toast(e.message,'error');}
+}
+
+// ── CAPTIVE PORTAL SETTINGS ────────────────────────────────────
+function renderPortalTemplates(){
+  const grid=document.getElementById('portal-templates-grid');
+  grid.innerHTML=PORTAL_TEMPLATES.map(t=>`
+    <div class="portal-card ${selectedTemplate===t.id?'selected':''}" onclick="selectTemplate('${t.id}')">
+      <div class="portal-card-preview" style="background:${t.bg}">
+        <span style="font-size:2.5rem">${t.icon}</span>
+        ${selectedTemplate===t.id?'<div class="portal-selected-badge">✓ Selected</div>':''}
+      </div>
+      <div class="portal-card-label">
+        <div style="font-weight:600;font-size:.88rem">${t.name}</div>
+        <div style="font-size:.76rem;color:var(--muted);margin-top:2px">${t.desc}</div>
+      </div>
+    </div>`).join('');
+}
+
+function selectTemplate(id){
+  selectedTemplate=id;
+  renderPortalTemplates();
+}
+
+async function savePortalTemplate(){
+  try{await api('/portal-settings/',{method:'POST',body:JSON.stringify({template:selectedTemplate})});toast(`${selectedTemplate} template saved!`);}catch(e){toast(e.message,'error');}
+}
+
+async function savePortalSettings(){
+  try{
+    await api('/portal-settings/',{method:'POST',body:JSON.stringify({
+      template:selectedTemplate,
+      welcome_title:document.getElementById('portal-title').value,
+      welcome_subtitle:document.getElementById('portal-sub').value,
+      primary_color:document.getElementById('portal-color').value,
+      secondary_color:document.getElementById('portal-color2').value,
+      show_logo:document.getElementById('portal-show-logo').checked,
+      show_powered_by:document.getElementById('portal-powered-by').checked,
+      enable_tv_mode:document.getElementById('portal-tv-mode').checked,
+      support_number:document.getElementById('portal-support-number').value.trim()||null,
+      support_label:document.getElementById('portal-support-label').value.trim()||'Need Help? Call Us'
+    })});
+    toast('Portal settings saved!');
+  }catch(e){toast(e.message,'error');}
+}
+
+function previewPortal(){
+  const isp_id=document.getElementById('portal-url').value.split('/').pop();
+  const url=`/captive/${selectedTemplate}.html?isp=${isp_id}`;
+  document.getElementById('preview-name').textContent=PORTAL_TEMPLATES.find(t=>t.id===selectedTemplate)?.name||selectedTemplate;
+  document.getElementById('preview-iframe').src=url;
+  openModal('modal-preview');
+}
+
+function copyPortalLink(){
+  const url=document.getElementById('portal-url').value;
+  navigator.clipboard.writeText(url).then(()=>toast('Portal link copied!'));
+}
+
+// ── SMS GATEWAY SETTINGS ────────────────────────────────────────
+async function loadSMSGatewaySettings(){
+  try{
+    const d=await api('/isp/profile');
+    const gw=d.profile?.sms_gateway||'';
+    document.getElementById('sms-gateway-select').value=gw;
+    document.getElementById('sms-sender-id').value=d.profile?.sms_sender_id||'';
+    if(gw)updateSMSFields();
+  }catch(e){}
+}
+
+function updateSMSFields(){
+  const gw=document.getElementById('sms-gateway-select').value;
+  const show=!!gw;
+  document.getElementById('sms-gateway-fields').style.display=show?'':'none';
+  if(!gw)return;
+  const config=KENYA_SMS_GATEWAYS[gw];
+  document.getElementById('sms-username-field').style.display=config?.needsUsername?'':'none';
+  document.getElementById('sms-partnerid-field').style.display=config?.needsPartnerId?'':'none';
+}
+
+async function testSMSGateway(){
+  const phone=document.getElementById('sms-test-phone').value.trim();
+  const gw=document.getElementById('sms-gateway-select').value;
+  if(!phone||!gw){toast('Select a gateway and enter a test phone','error');return;}
+  const resultEl=document.getElementById('sms-test-result');
+  resultEl.style.display='block';
+  resultEl.style.background='rgba(243,156,18,.08)';
+  resultEl.style.border='1px solid rgba(243,156,18,.2)';
+  resultEl.style.color='var(--amber)';
+  resultEl.textContent='Sending test SMS…';
+  try{
+    await api('/sms/send',{method:'POST',body:JSON.stringify({recipients:[phone],message:`RumaLink test SMS from ${document.getElementById('sms-sender-id').value||'RumaLink'}. If you received this, your SMS gateway is working correctly!`})});
+    resultEl.style.background='rgba(0,212,170,.08)';
+    resultEl.style.border='1px solid rgba(0,212,170,.2)';
+    resultEl.style.color='var(--teal)';
+    resultEl.textContent='✅ Test SMS sent! Check your phone. If received, click Save.';
+  }catch(e){
+    resultEl.style.background='rgba(231,76,60,.08)';
+    resultEl.style.border='1px solid rgba(231,76,60,.2)';
+    resultEl.style.color='var(--red)';
+    resultEl.textContent='❌ SMS failed: '+e.message;
+  }
+}
+
+async function saveSMSGateway(){
+  try{
+    await api('/isp/profile',{method:'PUT',body:JSON.stringify({sms_gateway:document.getElementById('sms-gateway-select').value,sms_api_key:document.getElementById('sms-api-key').value,sms_sender_id:document.getElementById('sms-sender-id').value,sms_username:document.getElementById('sms-username').value,sms_partner_id:document.getElementById('sms-partner-id').value})});
+    toast('SMS gateway saved!');
+  }catch(e){toast(e.message,'error');}
+}
+
+// ── PAYMENT METHODS ────────────────────────────────────────────
+async function loadPaymentMethods(){
+  const list=document.getElementById('pm-list');
+  list.innerHTML='<div class="loading"><div class="spinner"></div>Loading…</div>';
+  try{
+    const d=await api('/payment-methods/');
+    if(!d.methods?.length){list.innerHTML='<p style="color:var(--muted);font-size:.88rem">No payment methods configured. Add one below.</p>';return;}
+    const icons={mpesa_stk:'📱',till:'📱',paybill:'📱',bank:'🏦',cash:'💵'};
+    const labels={mpesa_stk:'MPesa STK Push',till:'MPesa Till',paybill:'MPesa Paybill',bank:'Bank Transfer',cash:'Cash'};
+    list.innerHTML=d.methods.map(m=>`
+      <div class="pm-card">
+        <div class="pm-card-left">
+          <div class="pm-icon" style="background:rgba(0,212,170,.1)">${icons[m.method_type]||'💳'}</div>
+          <div>
+            <div class="pm-name">${m.label||labels[m.method_type]||m.method_type}</div>
+            <div class="pm-detail">
+              ${m.till_number?'Till: '+m.till_number:''}
+              ${m.paybill_number?'Paybill: '+m.paybill_number:''}
+              ${m.account_number?'Acc: '+m.account_number:''}
+              ${m.use_admin_credentials?'<span style="color:var(--teal)">Using platform credentials</span>':''}
+              ${m.is_default?'<span style="background:rgba(0,212,170,.15);color:var(--teal);padding:2px 8px;border-radius:100px;font-size:.7rem;margin-left:6px">Default</span>':''}
+            </div>
+          </div>
+        </div>
+        <div class="pm-actions">
+          <div class="status-dot ${m.is_verified?'sd-green':'sd-amber'}" title="${m.is_verified?'Verified':'Not tested yet'}"></div>
+          <button class="btn btn-red btn-sm" onclick="deletePaymentMethod('${m.id}')">Remove</button>
+        </div>
+      </div>`).join('');
+  }catch(e){list.innerHTML='<p style="color:var(--red);font-size:.88rem">Failed to load payment methods</p>';}
+}
+
+function openAddPaymentMethod(){
+  document.getElementById('pm-type').value='';
+  document.getElementById('pm-label').value='';
+  document.getElementById('pm-test-result').style.display='none';
+  ['stk','till','paybill','bank'].forEach(t=>document.getElementById(`pm-fields-${t}`).style.display='none');
+  openModal('modal-pm');
+}
+
+function updatePMFields(){
+  const type=document.getElementById('pm-type').value;
+  ['stk','till','paybill','bank'].forEach(t=>document.getElementById(`pm-fields-${t}`).style.display='none');
+  if(type==='mpesa_stk')document.getElementById('pm-fields-stk').style.display='';
+  else if(type==='till')document.getElementById('pm-fields-till').style.display='';
+  else if(type==='paybill')document.getElementById('pm-fields-paybill').style.display='';
+  else if(type==='bank')document.getElementById('pm-fields-bank').style.display='';
+}
+
+function toggleAdminCreds(){
+  const useAdmin=document.getElementById('pm-use-admin').checked;
+  document.getElementById('pm-own-creds').style.display=useAdmin?'none':'';
+  document.getElementById('pm-forward-section').style.display=useAdmin?'':'none';
+}
+
+async function testPaymentMethod(){
+  const type=document.getElementById('pm-type').value;
+  const phone=document.getElementById('pm-test-phone').value.trim();
+  const res=document.getElementById('pm-test-result');
+  if(!phone){toast('Enter a test phone number','error');return;}
+  if(!type){toast('Select a payment method type','error');return;}
+
+  res.style.display='block';
+  res.style.cssText='display:block;background:rgba(243,156,18,.08);border:1px solid rgba(243,156,18,.2);color:var(--amber);padding:10px;border-radius:8px;font-size:.82px;margin-bottom:12px;font-size:.82rem';
+  res.textContent='Sending KES 1 test payment…';
+
+  const btn=document.getElementById('pm-test-btn');
+  btn.disabled=true;
+
+  // For non-API methods, just verify the details are filled
+  if(type==='till'||type==='paybill'||type==='bank'||type==='cash'){
+    setTimeout(()=>{
+      res.style.cssText='display:block;background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.2);color:var(--teal);padding:10px;border-radius:8px;font-size:.82rem;margin-bottom:12px';
+      res.textContent='✅ Manual payment method verified. You can save it now.';
+      btn.disabled=false;
+    },800);
+    return;
+  }
+
+  // MPesa STK test
+  const useAdmin=document.getElementById('pm-use-admin').checked;
+  const payload={
+    method_type:type, test_phone:phone, use_admin_credentials:useAdmin,
+    shortcode:document.getElementById('pm-shortcode')?.value,
+    consumer_key:document.getElementById('pm-ck')?.value,
+    consumer_secret:document.getElementById('pm-cs')?.value,
+    passkey:document.getElementById('pm-passkey')?.value,
+    is_sandbox:document.getElementById('pm-sandbox')?.checked
+  };
+
+  try{
+    // Save temporarily to test
+    const saved=await api('/payment-methods/',{method:'POST',body:JSON.stringify({...payload,label:'Test'})});
+    const testRes=await api(`/payment-methods/${saved.method?.id}/test`,{method:'POST',body:JSON.stringify({test_phone:phone})});
+    res.style.cssText='display:block;background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.2);color:var(--teal);padding:10px;border-radius:8px;font-size:.82rem;margin-bottom:12px';
+    res.textContent=`✅ ${testRes.message} You can now save this payment method.`;
+    // Delete the temp one
+    if(saved.method?.id)await api(`/payment-methods/${saved.method.id}`,{method:'DELETE'});
+  }catch(e){
+    res.style.cssText='display:block;background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.2);color:var(--red);padding:10px;border-radius:8px;font-size:.82rem;margin-bottom:12px';
+    res.textContent='❌ Test failed: '+e.message;
+  }
+  btn.disabled=false;
+}
+
+async function savePaymentMethod(){
+  const type=document.getElementById('pm-type').value;
+  if(!type){toast('Select a payment method type','error');return;}
+  const useAdmin=document.getElementById('pm-use-admin')?.checked||false;
+  const payload={
+    method_type:type, label:document.getElementById('pm-label').value||type,
+    use_admin_credentials:useAdmin,
+    is_default:document.getElementById('pm-default').checked,
+    shortcode:document.getElementById('pm-shortcode')?.value||null,
+    consumer_key:document.getElementById('pm-ck')?.value||null,
+    consumer_secret:document.getElementById('pm-cs')?.value||null,
+    passkey:document.getElementById('pm-passkey')?.value||null,
+    is_sandbox:document.getElementById('pm-sandbox')?.checked||false,
+    till_number:document.getElementById('pm-till')?.value||null,
+    paybill_number:document.getElementById('pm-paybill')?.value||null,
+    account_reference:document.getElementById('pm-acc-ref')?.value||null,
+    bank_name:document.getElementById('pm-bank-name')?.value||null,
+    account_number:document.getElementById('pm-bank-acc')?.value||null,
+    account_name:document.getElementById('pm-bank-accname')?.value||null,
+    branch:document.getElementById('pm-bank-branch')?.value||null,
+    forward_to_type:document.getElementById('pm-fwd-type')?.value||null,
+    forward_to_number:document.getElementById('pm-fwd-number')?.value||null,
+    forward_to_name:document.getElementById('pm-fwd-name')?.value||null,
+  };
+  try{
+    await api('/payment-methods/',{method:'POST',body:JSON.stringify(payload)});
+    toast('Payment method saved!');closeModal('modal-pm');loadPaymentMethods();
+  }catch(e){toast(e.message,'error');}
+}
+
+async function deletePaymentMethod(id){
+  if(!confirm('Remove this payment method?'))return;
+  try{await api(`/payment-methods/${id}`,{method:'DELETE'});toast('Removed');loadPaymentMethods();}catch(e){toast(e.message,'error');}
+}
+
+function toggleSidebar(){
+  const sb = document.querySelector('.sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  const open = sb.classList.toggle('open');
+  ov.classList.toggle('open', open);
+  document.body.style.overflow = open ? 'hidden' : '';
+}
+// Close sidebar when nav item clicked on mobile
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    if(window.innerWidth <= 900){
+      document.querySelector('.sidebar').classList.remove('open');
+      document.getElementById('sidebar-overlay').classList.remove('open');
+      document.body.style.overflow = '';
+    }
+  });
+});
+</script>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- Payment spinner widget -->
+<div id="rml-spinner-include"></div>
+<script>
+fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
+  document.getElementById('rml-spinner-include').innerHTML = html;
+  document.querySelectorAll('#rml-spinner-include script').forEach(s => {
+    var n = document.createElement('script');
+    n.textContent = s.textContent;
+    document.body.appendChild(n);
+  });
+});
+// Hook payment endpoints to show spinner
+(function(){
+  var origFetch = window.fetch;
+  window.fetch = function(url, opts) {
+    var prom = origFetch.apply(this, arguments);
+    if (typeof url === 'string' && opts && opts.method === 'POST' && 
+        (url.indexOf('/payments/invoice-pay') > -1 || url.indexOf('/pay') > -1)) {
+      prom.then(r => r.clone().json()).then(data => {
+        if (data && data.payment_id && typeof rumalinkShowPaymentSpinner === 'function') {
+          var body = {};
+          try { body = JSON.parse(opts.body || '{}'); } catch(e){}
+          rumalinkShowPaymentSpinner({
+            phone: body.phone,
+            amount: body.amount || data.amount,
+            paymentId: data.payment_id,
+            statusUrl: '/api/payments/status/' + data.payment_id
+          });
+        }
+      }).catch(()=>{});
+    }
+    return prom;
+  };
+})();
+</script>
+<script>
+/* ============================================================
+   RumaLink Provisioning Override v2
+   - Clean 2-field modal (name + description) — network auto-generated
+   - Two-step bootstrap command (download .rsc + import)
+   - After router connects, discover ports and ask which to bridge (WAN excluded)
+   ============================================================ */
+(function(){
+  let provToken = null, provDeviceId = null, provPoll = null, ifacePoll = null;
+
+  // Replace the Add Device modal content with the clean version
+  function injectModal(){
+    const modal = document.getElementById('modal-device');
+    if (!modal) return;
+    const box = modal.querySelector('.modal');
+    if (!box) return;
+    box.innerHTML = `
+      <h2 style="font-family:var(--font-head,inherit);margin-bottom:4px">Add MikroTik Device</h2>
+      <p style="color:var(--muted,#888);font-size:.88rem;margin-bottom:16px">Network settings are generated automatically. Just name your device and paste one command.</p>
+
+      <div id="rl-pstep1">
+        <div class="form-group"><label>Device / Location Name *</label>
+          <input id="rl-dev-name" type="text" placeholder="e.g. Main Router - Westlands"/></div>
+        <div class="form-group"><label>Description (optional)</label>
+          <input id="rl-dev-desc" type="text" placeholder="e.g. Covers Westlands estate"/></div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" onclick="closeModal('modal-device')">Cancel</button>
+          <button class="btn btn-teal" onclick="rlCreateDevice()">Generate Link →</button>
+        </div>
+      </div>
+
+      <div id="rl-pstep2" style="display:none">
+        <p style="color:var(--muted,#888);font-size:.86rem;margin-bottom:10px">Paste this into your MikroTik terminal (Winbox → New Terminal):</p>
+        <div style="background:#0a0e1a;border:1px solid rgba(0,212,170,.2);border-radius:8px;padding:12px;font-family:monospace;font-size:.72rem;color:#00d4aa;word-break:break-all;position:relative;margin-bottom:12px">
+          <span id="rl-prov-cmd">Generating…</span>
+          <button class="btn btn-sm" style="position:absolute;top:8px;right:8px" onclick="rlCopyCmd()">Copy</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(243,156,18,.06);border-radius:8px">
+          <div class="spinner" style="width:20px;height:20px;border:3px solid rgba(243,156,18,.2);border-top-color:#f39c12;border-radius:50%;animation:rlspin 1s linear infinite"></div>
+          <div style="font-size:.84rem">Waiting for your router to connect…</div>
+        </div>
+        <div class="modal-actions"><button class="btn btn-outline" onclick="rlCloseProv()">Close (finish later)</button></div>
+      </div>
+
+      <div id="rl-pstep3" style="display:none">
+        <p style="color:#00d4aa;font-weight:600;margin-bottom:6px">✓ Router connected!</p>
+        <p style="color:var(--muted,#888);font-size:.86rem;margin-bottom:12px">Select which ports to use for the hotspot/PPPoE LAN. The WAN port (your internet source) is excluded automatically.</p>
+        <div id="rl-port-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" onclick="rlCloseProv()">Skip (use all)</button>
+          <button class="btn btn-teal" onclick="rlSaveBridgePorts()">Apply Ports →</button>
+        </div>
+      </div>
+
+      <div id="rl-pstep4" style="display:none">
+        <div style="text-align:center;padding:20px 0">
+          <div style="font-size:3rem">✅</div>
+          <h3 style="margin:8px 0">Device Ready!</h3>
+          <p style="color:var(--muted,#888);font-size:.88rem">Your MikroTik is provisioned and managed by RumaLink.</p>
+        </div>
+        <div class="modal-actions"><button class="btn btn-teal" onclick="rlCloseProv(); (window.loadDevices&&loadDevices())">View Devices</button></div>
+      </div>
+    `;
+    if (!document.getElementById('rl-spin-style')) {
+      const st = document.createElement('style'); st.id='rl-spin-style';
+      st.textContent='@keyframes rlspin{to{transform:rotate(360deg)}}';
+      document.head.appendChild(st);
+    }
+  }
+
+  window.rlCreateDevice = async function(){
+    const name = document.getElementById('rl-dev-name').value.trim();
+    if (!name) { (window.toast||alert)('Enter a device name','error'); return; }
+    try {
+      const d = await apiFetch('/nas/', { method:'POST', body: JSON.stringify({ name, description: document.getElementById('rl-dev-desc').value }) });
+      provToken = d.device?.provision_token || d.provision_token;
+      provDeviceId = d.device?.id || d.id;
+      const base = (d.provision_url || (location.origin + '/api/provision/' + provToken)).replace(/\/script$/,'');
+      const cmd = `/tool fetch url="${base}/script" mode=https dst-path=rumalink-setup.rsc; :delay 2s; /import file-name=rumalink-setup.rsc`;
+      document.getElementById('rl-prov-cmd').textContent = cmd;
+      document.getElementById('rl-pstep1').style.display='none';
+      document.getElementById('rl-pstep2').style.display='';
+      provPoll = setInterval(rlCheckConnected, 4000);
+    } catch(e){ (window.toast||alert)(e.message||'Failed','error'); }
+  };
+
+  window.rlCheckConnected = async function(){
+    try {
+      const d = await apiFetch('/nas/');
+      const dev = (d.devices||[]).find(x => x.provision_token === provToken);
+      if (dev && dev.is_provisioned) {
+        clearInterval(provPoll);
+        // Move to port selection — poll for discovered interfaces
+        document.getElementById('rl-pstep2').style.display='none';
+        document.getElementById('rl-pstep3').style.display='';
+        rlLoadPorts();
+      }
+    } catch(e){}
+  };
+
+  window.rlLoadPorts = async function(){
+    const listEl = document.getElementById('rl-port-list');
+    listEl.innerHTML = '<div style="color:#888;font-size:.84rem">Detecting router ports…</div>';
+    let tries = 0;
+    ifacePoll = setInterval(async () => {
+      tries++;
+      try {
+        const res = await fetch(`/api/provision/${provToken}/interfaces`, { cache:'no-store' });
+        const d = await res.json();
+        if (d.discovered && d.bridge_candidates && d.bridge_candidates.length) {
+          clearInterval(ifacePoll);
+          listEl.innerHTML = d.bridge_candidates.map(p =>
+            `<label style="display:flex;align-items:center;gap:8px;padding:8px;background:rgba(255,255,255,.03);border-radius:6px;cursor:pointer">
+              <input type="checkbox" class="rl-port" value="${p}" checked/> <span>${p}</span>
+            </label>`).join('') +
+            `<div style="font-size:.76rem;color:#888;margin-top:4px">WAN port <b>${d.wan}</b> excluded (your internet source)</div>`;
+        } else if (tries > 8) {
+          // Discovery didn't report (older router script) — let them proceed with auto
+          clearInterval(ifacePoll);
+          listEl.innerHTML = '<div style="color:#888;font-size:.84rem">Auto-detected: all LAN ports will be bridged (WAN excluded automatically).</div>';
+        }
+      } catch(e){ if (tries>8){ clearInterval(ifacePoll); listEl.innerHTML='<div style="color:#888;font-size:.84rem">Using automatic port selection.</div>'; } }
+    }, 3000);
+  };
+
+  window.rlSaveBridgePorts = async function(){
+    const ports = Array.from(document.querySelectorAll('.rl-port:checked')).map(c=>c.value);
+    try {
+      if (ports.length) {
+        await fetch(`/api/provision/${provToken}/set-bridge-ports`, {
+          method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ports: ports.join(',') })
+        });
+        (window.toast||alert)('Ports applied! Re-run the import command on your router to apply.','success');
+      }
+    } catch(e){}
+    document.getElementById('rl-pstep3').style.display='none';
+    document.getElementById('rl-pstep4').style.display='';
+  };
+
+  window.rlCopyCmd = function(){ navigator.clipboard.writeText(document.getElementById('rl-prov-cmd').textContent); (window.toast||alert)('Copied!','success'); };
+  window.rlCloseProv = function(){ if(provPoll)clearInterval(provPoll); if(ifacePoll)clearInterval(ifacePoll); closeModal('modal-device'); resetProv(); };
+  function resetProv(){ ['rl-pstep1'].forEach(i=>{const e=document.getElementById(i);if(e)e.style.display='';}); ['rl-pstep2','rl-pstep3','rl-pstep4'].forEach(i=>{const e=document.getElementById(i);if(e)e.style.display='none';}); }
+
+  // Override openAddDevice to use our modal
+  const origOpen = window.openAddDevice;
+  window.openAddDevice = function(){ injectModal(); resetProv(); if(window.openModal) openModal('modal-device'); };
+
+  // Inject on load
+  if (document.readyState !== 'loading') injectModal();
+  else document.addEventListener('DOMContentLoaded', injectModal);
+})();
+</script>
+
+</body>
+</html>

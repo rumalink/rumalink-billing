@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>WiFi Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--p:#00d4aa;--t:#111827;--m:#9ca3af;--b:#f3f4f6;--w:#fff;--r:#e5e7eb}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--b);font-family:'Inter',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px}
+.top-bar{width:100%;max-width:400px;text-align:center;margin-bottom:20px}
+.isp-name{font-size:1.1rem;font-weight:700;color:var(--t);letter-spacing:-.3px}
+.wifi-icon{font-size:2.5rem;margin-bottom:8px}
+.card{background:var(--w);border-radius:16px;width:100%;max-width:400px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08),0 8px 30px rgba(0,0,0,.06)}
+.card-head{padding:20px 22px;border-bottom:1px solid var(--r)}
+.card-head h2{font-size:1rem;font-weight:600;color:var(--t)}
+.card-head p{font-size:.8rem;color:var(--m);margin-top:2px}
+.pkg-list{padding:14px 22px;display:flex;flex-direction:column;gap:8px}
+.pkg{display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid var(--r);border-radius:10px;cursor:pointer;transition:all .15s}
+.pkg:hover,.pkg.sel{border-color:var(--p);background:#f0fdfb}
+.pkg-radio{width:18px;height:18px;border:2px solid var(--r);border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.pkg.sel .pkg-radio{border-color:var(--p);background:var(--p)}
+.pkg.sel .pkg-radio::after{content:'';width:6px;height:6px;background:#fff;border-radius:50%}
+.pkg-info{flex:1}
+.pkg-name{font-size:.88rem;font-weight:600;color:var(--t)}
+.pkg-meta{font-size:.74rem;color:var(--m);margin-top:1px}
+.pkg-price{font-size:.95rem;font-weight:700;color:var(--p);white-space:nowrap}
+.card-section{padding:14px 22px;border-top:1px solid var(--r)}
+.field{margin-bottom:10px}
+.field label{display:block;font-size:.75rem;font-weight:500;color:var(--m);margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px}
+.field input{width:100%;border:1.5px solid var(--r);border-radius:8px;padding:10px 12px;font-family:'Inter',sans-serif;font-size:.88rem;outline:none;color:var(--t);transition:border-color .15s}
+.field input:focus{border-color:var(--p)}
+.btn{width:100%;padding:12px;border-radius:8px;border:none;font-family:'Inter',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;transition:background .15s}
+.btn-p{background:var(--p);color:#0d1530}.btn-p:hover{opacity:.9}
+.btn-s{background:transparent;border:1.5px solid var(--r);color:var(--m);margin-top:8px}.btn-s:hover{border-color:var(--p);color:var(--p)}
+.msg{margin:10px 22px;padding:10px 12px;border-radius:8px;font-size:.82rem;display:none;white-space:pre-line}
+.msg.s{background:#d1fae5;color:#065f46;border:1px solid #a7f3d0}
+.msg.e{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
+.footer{padding:14px 22px;text-align:center;font-size:.7rem;color:var(--m);border-top:1px solid var(--r)}
+.footer a{color:var(--p);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <div class="wifi-icon">📶</div>
+  <div class="isp-name" id="isp-name">WiFi Network</div>
+</div>
+<div class="card">
+  <div class="card-head">
+    <h2 id="welcome-title">Select Your Package</h2>
+    <p id="welcome-sub">Pay with MPesa or enter a voucher</p>
+  </div>
+  <div class="pkg-list" id="pkg-list"></div>
+  <div class="card-section">
+    <div class="field"><label>MPesa Phone</label><input type="tel" id="phone" placeholder="0712 345 678"/></div>
+    <button class="btn btn-p" onclick="pay()">Pay & Connect</button>
+  </div>
+  <div class="card-section">
+    <div class="field"><label>Voucher Code</label><input type="text" id="vcode" placeholder="Enter code" style="text-transform:uppercase"/></div>
+    <div class="field"><label>Phone (SMS receipt)</label><input type="tel" id="vphone" placeholder="Optional"/></div>
+    <button class="btn btn-s" onclick="redeem()">Redeem Voucher</button>
+  </div>
+  <div class="msg" id="msg"></div>
+  <div class="footer" id="footer">Powered by <a href="https://rumalink.co.ke">RumaLink Enterprise</a></div>
+</div>
+<script>
+const API=window.RUMALINK_API||'https://rumalinkenterprise.online/api';
+const ISP_ID=window.PORTAL_ISP_ID||new URLSearchParams(location.search).get('isp');
+let sel=null;
+async function init(){
+  if(!ISP_ID)return;
+  const r=await fetch(`${API}/captive/${ISP_ID}`);
+  const {isp,portal,packages}=await r.json();
+  document.title=isp.company_name+' WiFi';
+  document.getElementById('isp-name').textContent=isp.company_name;
+  document.getElementById('welcome-title').textContent=portal.welcome_title||'Select Your Package';
+  document.getElementById('welcome-sub').textContent=portal.welcome_subtitle||'Pay with MPesa or enter a voucher';
+  document.documentElement.style.setProperty('--p',portal.primary_color||'#00d4aa');
+  if(!portal.show_powered_by)document.getElementById('footer').style.display='none';
+  const list=document.getElementById('pkg-list');
+  list.innerHTML=(packages||[]).map(p=>`
+    <div class="pkg" id="p-${p.id}" onclick="pick('${p.id}',${p.price})">
+      <div class="pkg-radio"></div>
+      <div class="pkg-info"><div class="pkg-name">${p.name}</div><div class="pkg-meta">${p.duration_hours?p.duration_hours+'h':''} ${p.bandwidth_down_mbps?'· '+p.bandwidth_down_mbps+'Mbps':''}</div></div>
+      <div class="pkg-price">KES ${parseFloat(p.price).toLocaleString()}</div>
+    </div>`).join('');
+}
+function pick(id,price){sel={id,price};document.querySelectorAll('.pkg').forEach(p=>p.classList.remove('sel'));document.getElementById('p-'+id)?.classList.add('sel');}
+async function pay(){
+  if(!sel)return msg('Select a package','e');
+  const ph=document.getElementById('phone').value.trim();
+  if(!ph)return msg('Enter phone number','e');
+  const r=await fetch(`${API}/captive/${ISP_ID}/pay`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:ph,package_id:sel.id,amount:sel.price})});
+  const j=await r.json();
+  msg(r.ok?`MPesa prompt sent to ${ph}.\nEnter PIN to complete. SMS voucher incoming.`:j.error||'Payment failed.',r.ok?'s':'e');
+}
+async function redeem(){
+  const code=document.getElementById('vcode').value.trim().toUpperCase();
+  const ph=document.getElementById('vphone').value.trim();
+  if(!code)return msg('Enter a voucher code','e');
+  const r=await fetch(`${API}/captive/${ISP_ID}/redeem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,phone:ph})});
+  const j=await r.json();
+  const ex=j.expires_at?`\nExpires: ${new Date(j.expires_at).toLocaleString('en-KE')}`:'';
+  msg(r.ok?`✅ Connected!\nCode: ${j.username}${ex}${ph?'\nSMS sent to '+ph:''}`:j.error||'Invalid code.',r.ok?'s':'e');
+}
+function msg(m,t){const e=document.getElementById('msg');e.textContent=m;e.className='msg '+t;e.style.display='block';}
+init();
+</script>
+
+<!-- Payment spinner widget -->
+<div id="rml-spinner-include"></div>
+<script>
+fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
+  document.getElementById('rml-spinner-include').innerHTML = html;
+  // Re-execute scripts (innerHTML doesn't run them)
+  document.querySelectorAll('#rml-spinner-include script').forEach(s => {
+    var n = document.createElement('script');
+    n.textContent = s.textContent;
+    document.body.appendChild(n);
+  });
+});
+</script>
+
+<script>
+// Hook into existing pay() flow — wrap fetch responses to show spinner
+(function(){
+  var origFetch = window.fetch;
+  window.fetch = function(url, opts) {
+    var prom = origFetch.apply(this, arguments);
+    if (typeof url === 'string' && url.indexOf('/pay') > -1 && opts && opts.method === 'POST') {
+      prom.then(r => r.clone().json()).then(data => {
+        if (data && data.payment_id && typeof rumalinkShowPaymentSpinner === 'function') {
+          var body = {};
+          try { body = JSON.parse(opts.body || '{}'); } catch(e){}
+          var ispId = (typeof ISP_ID !== 'undefined') ? ISP_ID : (location.search.match(/isp=([^&]+)/)||[])[1];
+          rumalinkShowPaymentSpinner({
+            phone: body.phone,
+            amount: data.amount,
+            paymentId: data.payment_id,
+            statusUrl: '/api/captive/' + ispId + '/payment-status/' + data.payment_id
+          });
+        }
+      }).catch(()=>{});
+    }
+    return prom;
+  };
+})();
+</script>
+</body>
+</html>

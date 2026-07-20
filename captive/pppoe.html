@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Pay Your Internet</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+  body{background:linear-gradient(160deg,#0a0e17,#0d1530);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px;color:#fff}
+  .card{background:#0d1530;border:1px solid rgba(0,212,170,.25);border-radius:18px;padding:26px 22px;max-width:400px;width:100%;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+  h1{font-size:1.25rem;margin-bottom:4px;text-align:center}
+  .sub{font-size:.82rem;color:#8aa;text-align:center;margin-bottom:20px}
+  label{font-size:.8rem;color:#9fb0cc;display:block;margin:12px 0 6px}
+  input{width:100%;padding:13px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);border-radius:10px;color:#fff;font-size:1rem}
+  input:focus{border-color:#00d4aa;outline:none}
+  button{width:100%;padding:13px;border:0;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:14px}
+  .btn-primary{background:#00d4aa;color:#06210b}
+  .btn-outline{background:transparent;border:1px solid rgba(255,255,255,.2);color:#fff}
+  .info{background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.2);border-radius:10px;padding:14px;margin:14px 0;font-size:.9rem}
+  .info .row{display:flex;justify-content:space-between;margin:5px 0}
+  .info .k{color:#8aa}.info .v{font-weight:600}
+  .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.75rem;font-weight:700}
+  .b-active{background:rgba(0,212,170,.2);color:#00d4aa}
+  .b-expired{background:rgba(231,76,60,.2);color:#e74c3c}
+  .paybox{background:rgba(255,255,255,.04);border:1px dashed rgba(0,212,170,.4);border-radius:10px;padding:14px;margin:12px 0}
+  .paybox .big{font-size:1.15rem;font-weight:800;color:#00d4aa;letter-spacing:1px}
+  .msg{padding:11px;border-radius:8px;font-size:.85rem;margin-top:12px;display:none}
+  .msg.ok{background:rgba(0,212,170,.15);color:#00d4aa;display:block}
+  .msg.err{background:rgba(231,76,60,.15);color:#e74c3c;display:block}
+  .msg.wait{background:rgba(243,156,18,.15);color:#f39c12;display:block}
+  .hide{display:none}
+  .spin{width:34px;height:34px;border:3px solid rgba(0,212,170,.2);border-top-color:#00d4aa;border-radius:50%;animation:s 1s linear infinite;margin:14px auto}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .small{font-size:.74rem;color:#7a8baa;text-align:center;margin-top:14px}
+  .tabs{display:flex;gap:8px;margin:14px 0 4px}
+  .tab{flex:1;text-align:center;padding:9px;border-radius:8px;font-size:.82rem;cursor:pointer;background:rgba(255,255,255,.05);color:#9fb0cc}
+  .tab.active{background:rgba(0,212,170,.15);color:#00d4aa;font-weight:600}
+  .plans{margin:14px 0}
+  .plans h4{font-size:.8rem;color:#9fb0cc;margin-bottom:8px;font-weight:600}
+  .plan{display:flex;justify-content:space-between;align-items:center;padding:11px 13px;border:1px solid rgba(255,255,255,.12);border-radius:10px;margin-bottom:8px;cursor:pointer;transition:all .15s}
+  .plan:hover{border-color:rgba(0,212,170,.4)}
+  .plan.sel{border-color:#00d4aa;background:rgba(0,212,170,.1)}
+  .plan .pn{font-weight:700;font-size:.95rem}
+  .plan .ps{font-size:.74rem;color:#8aa}
+  .plan .pp{font-weight:800;color:#00d4aa}
+  .plan .cur{font-size:.66rem;background:rgba(0,212,170,.2);color:#00d4aa;padding:2px 7px;border-radius:10px;margin-left:6px}
+  .pay-modal-overlay{position:fixed;inset:0;background:rgba(5,8,16,.82);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:99999;padding:20px}
+  .pay-modal-overlay.show{display:flex}
+  .pay-modal{background:#0d1530;border:1px solid rgba(0,212,170,.3);border-radius:18px;padding:30px 26px;max-width:340px;width:100%;text-align:center;box-shadow:0 30px 90px rgba(0,0,0,.6);animation:popin .25s ease}
+  @keyframes popin{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+  .pay-modal .pm-title{font-size:1.1rem;font-weight:800;margin:14px 0 6px}
+  .pay-modal .pm-text{font-size:.88rem;color:#9fb0cc;line-height:1.5}
+  .pay-modal .pm-check{width:64px;height:64px;border-radius:50%;background:rgba(0,212,170,.15);display:flex;align-items:center;justify-content:center;margin:0 auto 4px;font-size:2rem;color:#00d4aa}
+  .pay-modal .pm-x{width:64px;height:64px;border-radius:50%;background:rgba(231,76,60,.15);display:flex;align-items:center;justify-content:center;margin:0 auto 4px;font-size:2rem;color:#e74c3c}
+  .pay-modal button{width:100%;padding:12px;border:0;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;margin-top:18px;background:#00d4aa;color:#06210b}
+  .pay-modal .btn-sec{background:transparent;border:1px solid rgba(255,255,255,.2);color:#fff;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Pay Your Internet</h1>
+  <div class="sub" id="brand">Enter your username to continue</div>
+
+  <div id="lookup">
+    <label>Username (or phone number)</label>
+    <input id="uname" type="text" placeholder="e.g. benard" autocomplete="off"/>
+    <button class="btn-primary" id="go">Continue</button>
+    <div class="msg" id="lookup-msg"></div>
+  </div>
+
+  <div id="account" class="hide">
+    <div class="info">
+      <div class="row"><span class="k">Account</span><span class="v" id="a-name">—</span></div>
+      <div class="row"><span class="k">Package</span><span class="v" id="a-pkg">—</span></div>
+      <div class="row"><span class="k">Amount</span><span class="v" id="a-amt">—</span></div>
+      <div class="row"><span class="k">Status</span><span class="v" id="a-status">—</span></div>
+    </div>
+
+    <div class="plans" id="plans-section">
+      <h4>Choose your plan</h4>
+      <div id="plans-list"></div>
+    </div>
+    <div class="tabs">
+      <div class="tab active" id="tab-paybill" onclick="showTab('paybill')">Pay by Paybill</div>
+      <div class="tab" id="tab-stk" onclick="showTab('stk')">M-Pesa Prompt</div>
+    </div>
+
+    <div id="pane-paybill">
+      <div class="paybox">
+        <div style="font-size:.8rem;color:#9fb0cc;margin-bottom:6px">On your phone: M-Pesa &rarr; Lipa na M-Pesa &rarr; Pay Bill</div>
+        <div class="row" style="display:flex;justify-content:space-between;margin:6px 0"><span class="k">Business No.</span><span class="big" id="p-paybill">—</span></div>
+        <div class="row" style="display:flex;justify-content:space-between;margin:6px 0"><span class="k">Account No.</span><span class="big" id="p-account">—</span></div>
+        <div class="row" style="display:flex;justify-content:space-between;margin:6px 0"><span class="k">Amount</span><span class="big" id="p-amount">—</span></div>
+      </div>
+      <div class="small">After paying, your internet reconnects automatically within a minute. You can keep this page open.</div>
+      <button class="btn-outline" onclick="startPolling()">I've Paid — Check Status</button>
+    </div>
+
+    <div id="pane-stk" class="hide">
+      <label>M-Pesa Phone Number</label>
+      <input id="stk-phone" type="tel" placeholder="07XX XXX XXX"/>
+      <button class="btn-primary" id="stk-go" onclick="sendStk()">Send M-Pesa Prompt</button>
+    </div>
+
+    <div class="msg" id="pay-msg"></div>
+    <!-- payment confirmation modal -->
+    <div id="waiting" class="pay-modal-overlay">
+      <div class="pay-modal" id="pay-modal-card">
+        <div id="pm-state-wait">
+          <div class="spin"></div>
+          <div class="pm-title">Confirming Payment</div>
+          <div class="pm-text" id="pm-wait-text">Waiting for confirmation… Enter your M-Pesa PIN if prompted on your phone.</div>
+        </div>
+        <div id="pm-state-done" style="display:none">
+          <div class="pm-check">&#10003;</div>
+          <div class="pm-title" style="color:#00d4aa">Reconnected!</div>
+          <div class="pm-text">Your internet is back on. You can close this page and browse normally.</div>
+          <button onclick="closePayModal()">Done</button>
+        </div>
+        <div id="pm-state-fail" style="display:none">
+          <div class="pm-x">&times;</div>
+          <div class="pm-title" style="color:#e74c3c">Not Confirmed</div>
+          <div class="pm-text" id="pm-fail-text">Payment was not completed.</div>
+          <button onclick="closePayModal()">Try Again</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '/api/pppoe-portal';
+let SUB = null, pollTimer = null, currentPaymentId = null;
+
+function qs(id){ return document.getElementById(id); }
+function showPayModal(){ const w=qs('waiting'); w.classList.add('show'); qs('pm-state-wait').style.display=''; qs('pm-state-done').style.display='none'; qs('pm-state-fail').style.display='none'; }
+function closePayModal(){ qs('waiting').classList.remove('show'); }
+function payModalDone(){ qs('pm-state-wait').style.display='none'; qs('pm-state-fail').style.display='none'; qs('pm-state-done').style.display=''; qs('waiting').classList.add('show'); }
+function payModalFail(msg){ qs('pm-state-wait').style.display='none'; qs('pm-state-done').style.display='none'; qs('pm-state-fail').style.display=''; if(msg) qs('pm-fail-text').textContent=msg; qs('waiting').classList.add('show'); }
+function showMsg(el, text, kind){ const m=qs(el); m.textContent=text; m.className='msg '+kind; }
+
+async function lookup(){
+  const u = qs('uname').value.trim();
+  if(!u){ showMsg('lookup-msg','Enter your username','err'); return; }
+  qs('go').disabled = true; qs('go').textContent='Checking…';
+  try{
+    const r = await fetch(API+'/'+encodeURIComponent(u));
+    const d = await r.json();
+    if(!r.ok){ showMsg('lookup-msg', d.error||'Not found', 'err'); qs('go').disabled=false; qs('go').textContent='Continue'; return; }
+    SUB = d;
+    renderAccount(d);
+  }catch(e){ showMsg('lookup-msg','Network error. Try again.','err'); qs('go').disabled=false; qs('go').textContent='Continue'; }
+}
+
+function renderAccount(d){
+  qs('lookup').classList.add('hide');
+  qs('account').classList.remove('hide');
+  qs('brand').textContent = d.company_name || 'Your Internet';
+  qs('a-name').textContent = d.full_name || d.username;
+  qs('a-pkg').textContent = d.package || '—';
+  qs('a-amt').textContent = 'KES ' + Number(d.amount||d.price||0).toFixed(0);
+  qs('a-status').innerHTML = d.expired
+    ? '<span class="badge b-expired">RESTRICTED — pay to reconnect</span>'
+    : '<span class="badge b-active">Active</span>';
+  const pay = d.pay || {};
+  qs('p-paybill').textContent = pay.paybill || '—';
+  qs('p-account').textContent = pay.account || d.username;
+  qs('p-amount').textContent = 'KES ' + Number(d.amount||d.price||0).toFixed(0);
+  qs('stk-phone').value = '';
+  SELECTED_PKG = d.current_package_id || (SUB && SUB.package_id) || null;
+  loadPlans();
+}
+
+let SELECTED_PKG = null, PLANS = [];
+async function loadPlans(){
+  try{
+    const r = await fetch(API+'/'+encodeURIComponent(SUB.username)+'/plans');
+    const d = await r.json();
+    if(!r.ok || !d.plans){ qs('plans-section').classList.add('hide'); return; }
+    PLANS = d.plans;
+    if(!SELECTED_PKG) SELECTED_PKG = d.current_package_id;
+    renderPlans();
+  }catch(e){ qs('plans-section').classList.add('hide'); }
+}
+function renderPlans(){
+  const list = qs('plans-list');
+  list.innerHTML = PLANS.map(function(p){
+    const sel = (p.id === SELECTED_PKG) ? ' sel' : '';
+    const cur = p.current ? '<span class="cur">CURRENT</span>' : '';
+    return '<div class="plan'+sel+'" data-id="'+p.id+'" data-price="'+p.price+'" onclick="selectPlan(this)">'
+      + '<div><div class="pn">'+p.name+cur+'</div><div class="ps">'+(p.down||'?')+'Mbps down / '+(p.up||'?')+'Mbps up</div></div>'
+      + '<div class="pp">KES '+Number(p.price).toFixed(0)+'</div></div>';
+  }).join('');
+}
+function selectPlan(el){
+  SELECTED_PKG = el.getAttribute('data-id');
+  const price = Number(el.getAttribute('data-price'))||0;
+  renderPlans();
+  // Reflect chosen amount everywhere.
+  qs('a-amt').textContent = 'KES ' + price.toFixed(0);
+  qs('p-amount').textContent = 'KES ' + price.toFixed(0);
+}
+function showTab(which){
+  qs('tab-paybill').classList.toggle('active', which==='paybill');
+  qs('tab-stk').classList.toggle('active', which==='stk');
+  qs('pane-paybill').classList.toggle('hide', which!=='paybill');
+  qs('pane-stk').classList.toggle('hide', which!=='stk');
+}
+
+async function sendStk(){
+  const phone = qs('stk-phone').value.trim();
+  if(!phone){ showMsg('pay-msg','Enter your phone number','err'); return; }
+  qs('stk-go').disabled=true; qs('stk-go').textContent='Sending…';
+  try{
+    const r = await fetch(API+'/'+encodeURIComponent(SUB.username)+'/stk',{
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({phone, package_id: SELECTED_PKG || undefined})
+    });
+    const d = await r.json();
+    if(!r.ok || !d.success){ showMsg('pay-msg', d.error||'Could not send prompt', 'err'); qs('stk-go').disabled=false; qs('stk-go').textContent='Send M-Pesa Prompt'; return; }
+    showMsg('pay-msg','Prompt sent — enter your M-Pesa PIN on your phone.','ok');
+    currentPaymentId = d.payment_id;
+    startPollingPid(d.payment_id);
+  }catch(e){ showMsg('pay-msg','Network error','err'); qs('stk-go').disabled=false; qs('stk-go').textContent='Send M-Pesa Prompt'; }
+}
+
+function startPollingPid(pid){
+  showPayModal();
+  if(pollTimer) clearInterval(pollTimer);
+  let tries=0;
+  pollTimer = setInterval(async ()=>{
+    tries++;
+    try{
+      const r = await fetch(API+'/pay-status/'+pid);
+      const d = await r.json();
+      if(d.status==='paid'){ paid(); return; }
+      if(d.status==='failed'){ clearInterval(pollTimer); payModalFail(d.failure_reason||'Payment failed or cancelled.'); }
+    }catch(e){}
+    if(tries>=40){ clearInterval(pollTimer); qs('pm-wait-text').textContent='Still confirming… if you paid, your internet will reconnect shortly.'; }
+  }, 3000);
+}
+
+function startPolling(){
+  showPayModal();
+  showMsg('pay-msg','Waiting for your Paybill payment to reflect…','wait');
+  if(pollTimer) clearInterval(pollTimer);
+  let tries=0;
+  pollTimer = setInterval(async ()=>{
+    tries++;
+    try{
+      const r = await fetch(API+'/'+encodeURIComponent(SUB.username)+'/status');
+      const d = await r.json();
+      if(d.expired===false && d.status==='active'){ paid(); return; }
+    }catch(e){}
+    if(tries>=60){ clearInterval(pollTimer); qs('pm-wait-text').textContent='Not reflected yet. Paybill can take a moment — keep this page open.'; }
+  }, 4000);
+}
+
+function paid(){
+  if(pollTimer) clearInterval(pollTimer);
+  qs('pane-paybill').classList.add('hide');
+  qs('pane-stk').classList.add('hide');
+  document.querySelector('.tabs').classList.add('hide');
+  qs('a-status').innerHTML = '<span class="badge b-active">Active</span>';
+  payModalDone();
+}
+
+qs('go').addEventListener('click', lookup);
+qs('uname').addEventListener('keydown', e=>{ if(e.key==='Enter') lookup(); });
+
+const pre = new URLSearchParams(location.search).get('u');
+if(pre){ qs('uname').value = pre; lookup(); }
+</script>
+</body>
+</html>

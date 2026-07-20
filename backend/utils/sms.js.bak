@@ -1,0 +1,167 @@
+const axios = require('axios');
+const logger = require('./logger');
+
+// All Kenya SMS Gateways
+const KENYA_GATEWAYS = {
+  africastalking: {
+    name: "Africa's Talking",
+    send: async ({ to, message, apiKey, username, senderId }) => {
+      const res = await axios.post(
+        'https://api.africastalking.com/version1/messaging',
+        new URLSearchParams({ username: username || 'sandbox', to, message, from: senderId }),
+        { headers: { apiKey, 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' } }
+      );
+      return res.data;
+    }
+  },
+  bongasms: {
+    name: 'BongaSMS',
+    send: async ({ to, message, apiKey, partnerId, senderId }) => {
+      const res = await axios.post('https://www.bongasms.co.ke/api/send-sms', {
+        apikey: apiKey, partnerID: partnerId, message, shortcode: senderId, mobile: to
+      });
+      return res.data;
+    }
+  },
+  websms: {
+    name: 'WebSMS (Elitehost)',
+    send: async ({ to, message, apiKey, senderId }) => {
+      const res = await axios.get('https://websms.co.ke/api/send', {
+        params: { apiKey, phone: to, message, sender: senderId }
+      });
+      return res.data;
+    }
+  },
+  advanta: {
+    name: 'Advanta SMS',
+    send: async ({ to, message, apiKey, senderId }) => {
+      const res = await axios.post('https://quicksms.advantasms.com/api/services/sendsms/', {
+        apikey: apiKey, partnerID: '', message, shortcode: senderId, mobile: to
+      });
+      return res.data;
+    }
+  },
+  sendsms: {
+    name: 'SendSMS Kenya',
+    send: async ({ to, message, apiKey, senderId }) => {
+      const res = await axios.post('https://sendsms.co.ke/api/v1/send', {
+        api_key: apiKey, sender_id: senderId, message, phone: to
+      });
+      return res.data;
+    }
+  },
+  wigal: {
+    name: 'Wigal SMS',
+    send: async ({ to, message, apiKey, senderId }) => {
+      const res = await axios.post('https://frog.wigal.com.gh/sendmsg', {
+        api_key: apiKey, senderid: senderId, message, destinations: [{ destination: to }]
+      });
+      return res.data;
+    }
+  },
+  textmagic: {
+    name: 'TextMagic',
+    send: async ({ to, message, apiKey, username }) => {
+      const res = await axios.post('https://rest.textmagic.com/api/v2/messages', {
+        phones: to, text: message
+      }, { auth: { username, password: apiKey } });
+      return res.data;
+    }
+  },
+  bulksms: {
+    name: 'BulkSMS Kenya',
+    send: async ({ to, message, apiKey, senderId }) => {
+      const res = await axios.post('https://bulksms.co.ke/api/send', null, {
+        params: { apikey: apiKey, mobile: to, message, sender_id: senderId }
+      });
+      return res.data;
+    }
+  },
+  mobitech: {
+    name: 'Mobitech Kenya',
+    send: async ({ to, message, apiKey, senderId }) => {
+      const res = await axios.post('https://api.mobitech.co.ke/messaging', {
+        apiKey, clientId: '', phoneNumber: to, message, serviceCode: senderId
+      });
+      return res.data;
+    }
+  },
+  cellfonie: {
+    name: 'Cellfonie',
+    send: async ({ to, message, apiKey, senderId }) => {
+      const res = await axios.post('https://www.cellfonie.com/api/sms', {
+        api_key: apiKey, from: senderId, to, text: message
+      });
+      return res.data;
+    }
+  },
+  hubtel: {
+    name: 'Hubtel',
+    send: async ({ to, message, apiKey, apiSecret, senderId }) => {
+      const res = await axios.post('https://smsc.hubtel.com/v1/messages/send', {
+        From: senderId, To: to, Content: message
+      }, { auth: { username: apiKey, password: apiSecret } });
+      return res.data;
+    }
+  },
+  sparrowsms: {
+    name: 'Sparrow SMS',
+    send: async ({ to, message, apiKey, senderId }) => {
+      const res = await axios.post('https://api.sparrowsms.com/v2/sms/', {
+        token: apiKey, from: senderId, to, text: message
+      });
+      return res.data;
+    }
+  },
+  talksasa: {
+    name: 'TalkSasa',
+    send: async ({ to, message, apiKey, senderId }) => {
+      // TalkSasa uses Bearer token; api token is in apiKey field
+      const res = await axios.post('https://bulksms.talksasa.com/api/v3/sms/send', {
+        recipient: to,
+        sender_id: senderId || 'TalkSasa',
+        type: 'plain',
+        message: message
+      }, {
+        headers: {
+          'Authorization': 'Bearer ' + apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        timeout: 15000
+      });
+      return res.data;
+    }
+  },
+
+};
+
+const sendSMS = async ({ to, message, isp }) => {
+  const gateway = isp?.sms_gateway?.toLowerCase() || process.env.SMS_DEFAULT_GATEWAY || 'africastalking';
+  const phone = to.toString().replace(/^0/, '+254').replace(/^\+?254/, '+254').replace(/\s/g, '');
+
+  const gw = KENYA_GATEWAYS[gateway];
+  if (!gw) throw new Error(`Unknown SMS gateway: ${gateway}`);
+
+  try {
+    const result = await gw.send({
+      to: phone,
+      message,
+      apiKey: isp?.sms_api_key || process.env.AT_API_KEY,
+      username: isp?.sms_username || process.env.AT_USERNAME || 'sandbox',
+      senderId: isp?.sms_sender_id || process.env.AT_SENDER_ID || 'RumaLink',
+      partnerId: isp?.sms_partner_id,
+      apiSecret: isp?.sms_api_secret
+    });
+    logger.info(`SMS sent via ${gw.name} to ${phone}`);
+    return result;
+  } catch (err) {
+    logger.error(`SMS failed via ${gw.name}:`, err.response?.data || err.message);
+    throw err;
+  }
+};
+
+// Export list of gateways for frontend
+const GATEWAY_LIST = Object.entries(KENYA_GATEWAYS).map(([id, g]) => ({ id, name: g.name }));
+
+module.exports = { sendSMS, GATEWAY_LIST };

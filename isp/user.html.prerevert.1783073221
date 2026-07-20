@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- RUMALINK-USER-HTML-VERSION: v62.35 -->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Lifecycle • RumaLink</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;background:#0a0f1e;color:#f0f4ff;min-height:100vh}
+  .nav{background:#0d1530;padding:14px 24px;display:flex;align-items:center;gap:16px;border-bottom:1px solid #1e2f52;flex-wrap:wrap}
+  .nav h1{font-size:1.05rem;font-weight:700;color:#00d4aa}
+  .nav .right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .nav a, .nav button{color:#8899bb;text-decoration:none;font-size:.85rem;padding:7px 14px;border-radius:6px;border:1px solid #1e2f52;background:transparent;cursor:pointer;font-family:inherit}
+  .nav a:hover, .nav button:hover{background:rgba(0,212,170,.1);color:#00d4aa;border-color:#00d4aa}
+  .nav button.refresh{background:rgba(0,212,170,.1);color:#00d4aa;border-color:#00d4aa}
+  .nav button.kick{background:rgba(231,76,60,.1);color:#e74c3c;border-color:rgba(231,76,60,.5)}
+  .nav button.kick:hover{background:rgba(231,76,60,.2)}
+  .container{max-width:1280px;margin:0 auto;padding:24px}
+  .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+  .header h2{font-size:1.7rem;color:#fff;font-family:monospace;letter-spacing:1px}
+  .header .sub{color:#8899bb;font-size:.85rem;margin-top:4px}
+  .badge{display:inline-block;padding:4px 12px;border-radius:999px;font-size:.75rem;font-weight:600}
+  .badge.online{background:rgba(0,212,170,.15);color:#00d4aa;border:1px solid rgba(0,212,170,.3)}
+  .badge.offline{background:rgba(255,255,255,.05);color:#8899bb;border:1px solid #1e2f52}
+  .badge.recent{background:rgba(243,156,18,.15);color:#f39c12;border:1px solid rgba(243,156,18,.3)}
+  .badge.live{background:rgba(0,212,170,.2);color:#00d4aa;border:1px solid rgba(0,212,170,.4);animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+  .grid-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
+  .stat-card{background:#111d3a;padding:16px;border-radius:12px;border:1px solid #1e2f52}
+  .stat-card .label{color:#8899bb;font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+  .stat-card .value{font-size:1.4rem;font-weight:700;color:#fff}
+  .stat-card .sub{color:#8899bb;font-size:.75rem;margin-top:4px}
+  .live-banner{background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.3);border-radius:12px;padding:16px;margin-bottom:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .live-banner .pulse-dot{width:10px;height:10px;background:#00d4aa;border-radius:50%;animation:pulse 1.5s infinite;flex-shrink:0}
+  .live-banner .text{flex:1;min-width:200px}
+  .live-banner .text .top{color:#00d4aa;font-weight:600;margin-bottom:3px}
+  .live-banner .text .bot{color:#8899bb;font-size:.85rem;font-family:monospace}
+  .tabs{display:flex;gap:4px;border-bottom:2px solid #1e2f52;margin-bottom:16px;overflow-x:auto}
+  .tab{padding:10px 16px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:#8899bb;font-weight:500;white-space:nowrap}
+  .tab.active{color:#00d4aa;border-color:#00d4aa}
+  .panel{background:#111d3a;border-radius:12px;border:1px solid #1e2f52;overflow:hidden;margin-bottom:16px}
+  .panel-header{padding:14px 18px;background:rgba(0,0,0,.2);border-bottom:1px solid #1e2f52;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+  .panel-header h3{font-size:.95rem;font-weight:600;color:#fff}
+  .panel-body{padding:0;overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:.85rem}
+  th{background:rgba(0,0,0,.2);text-align:left;padding:10px 14px;font-weight:600;color:#8899bb;text-transform:uppercase;font-size:.7rem;letter-spacing:.3px}
+  td{padding:12px 14px;border-top:1px solid rgba(255,255,255,.03);vertical-align:middle;color:#f0f4ff}
+  tr:hover{background:rgba(255,255,255,.02)}
+  .empty{padding:32px;text-align:center;color:#8899bb}
+  .loading{padding:32px;text-align:center;color:#8899bb}
+  .error{padding:16px;background:rgba(231,76,60,.15);color:#e74c3c;border:1px solid rgba(231,76,60,.3);border-radius:8px;margin:16px 0}
+  .code-chip{display:inline-block;background:rgba(0,212,170,.1);color:#00d4aa;padding:2px 8px;border-radius:4px;font-family:monospace;font-size:.78rem;font-weight:600}
+  .price{font-weight:600;color:#00d4aa}
+  .ip-text{font-family:monospace;color:#00d4aa}
+  .mac{font-family:monospace;font-size:.72rem;color:#8899bb}
+  .status-pill{padding:2px 8px;border-radius:4px;font-size:.7rem;font-weight:600}
+  .status-paid,.status-success,.status-completed{background:rgba(0,212,170,.15);color:#00d4aa}
+  .status-pending{background:rgba(243,156,18,.15);color:#f39c12}
+  .status-failed{background:rgba(231,76,60,.15);color:#e74c3c}
+  .status-unused{background:rgba(52,152,219,.15);color:#3498db}
+  .status-expired{background:rgba(255,255,255,.05);color:#8899bb}
+  .status-used{background:rgba(0,212,170,.15);color:#00d4aa}
+  .btn-sm{padding:5px 10px;font-size:.75rem;border-radius:5px;cursor:pointer;border:none;font-family:inherit;font-weight:500}
+  .btn-edit{background:rgba(52,152,219,.15);color:#3498db;border:1px solid rgba(52,152,219,.3)}
+  .btn-edit:hover{background:rgba(52,152,219,.25)}
+  .btn-del{background:rgba(231,76,60,.15);color:#e74c3c;border:1px solid rgba(231,76,60,.3)}
+  .btn-del:hover{background:rgba(231,76,60,.25)}
+  .btn-kick{background:rgba(231,76,60,.15);color:#e74c3c;border:1px solid rgba(231,76,60,.3)}
+  .btn-save{background:#00d4aa;color:#0d1530;border:none;font-weight:600}
+  .btn-cancel{background:rgba(255,255,255,.05);color:#fff;border:1px solid rgba(255,255,255,.15)}
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(5px)}
+  .modal-bg.open{display:flex}
+  .modal{background:#0d1530;border:1px solid #1e2f52;border-radius:14px;padding:24px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto}
+  .modal h3{font-size:1.1rem;color:#fff;margin-bottom:8px}
+  .modal .sub{color:#8899bb;font-size:.85rem;margin-bottom:18px}
+  .modal label{display:block;margin-bottom:14px}
+  .modal label .lbl{font-size:.78rem;color:#aaa;margin-bottom:5px;display:block}
+  .modal input, .modal select{width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;font-family:inherit;font-size:.9rem}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+  .modal-actions button{padding:10px 18px;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:600;font-size:.85rem}
+  .toast{position:fixed;bottom:20px;right:20px;background:#0d1530;border:1px solid #00d4aa;border-radius:8px;padding:12px 18px;color:#00d4aa;z-index:2000;display:none;font-size:.88rem}
+  .toast.show{display:block}
+  .toast.err{border-color:#e74c3c;color:#e74c3c}
+  .auto-refresh-indicator{color:#8899bb;font-size:.78rem;margin-left:6px}
+</style>
+</head>
+<body>
+<!-- RUMALINK_EMBED_CLEAN: when shown inside the dashboard iframe, hide our own nav bar -->
+<script>
+(function(){
+  try{
+    var p = new URLSearchParams(window.location.search);
+    if (p.get('embedded') === '1') {
+      var st = document.createElement('style');
+      st.textContent = '.nav{display:none!important} body{padding-top:0!important} .container{padding-top:14px!important}';
+      document.head.appendChild(st);
+      document.documentElement.setAttribute('data-embedded','1');
+    }
+  }catch(e){}
+})();
+</script>
+<div class="nav">
+  <h1>👤 RumaLink — User Lifecycle</h1>
+  <div class="right">
+    <button class="refresh" onclick="loadUser()">🔄 Refresh<span class="auto-refresh-indicator" id="ar-ind"></span></button>
+    <a href="dashboard.html" id="backLink">← Back to Dashboard</a>
+  </div>
+</div>
+
+<div class="container">
+  <div id="content"><div class="loading">Loading user details…</div></div>
+</div>
+
+
+
+<!-- v62.27: PPPoE Change Expiry Modal -->
+<div class="modal-bg" id="changeExpiryModal">
+  <div class="modal">
+    <h3>Change Expiry Date</h3>
+    <div class="sub">Extend or shorten subscription</div>
+    <label>
+      <span class="lbl">New Expiry (Date + Time, Nairobi)</span>
+      <input id="newExpiryDate" type="datetime-local" step="60">
+    </label>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeChangeExpiryModal()">Cancel</button>
+      <button class="btn-save" id="saveExpiryBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- v62.27: PPPoE Delete Confirmation Modal -->
+<div class="modal-bg" id="deletePppoeModal">
+  <div class="modal">
+    <h3 style="color:#e74c3c">⚠️ Delete PPPoE Subscriber?</h3>
+    <div class="sub" id="deletePppoeMsg" style="font-weight:500;color:#fff;font-size:.95rem">This action cannot be undone.</div>
+    <div style="background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.3);border-radius:8px;padding:12px;margin:14px 0;font-size:.85rem;color:#fff">
+      <div style="margin-bottom:6px"><strong>This will:</strong></div>
+      <div>• Disconnect any active session</div>
+      <div>• Remove the subscriber from the database</div>
+      <div>• Delete their RADIUS credentials</div>
+      <div>• Cannot be recovered</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeDeletePppoeModal()">Cancel</button>
+      <button class="btn-del" id="confirmDeletePppoeBtn" style="padding:10px 18px">Delete Permanently</button>
+    </div>
+  </div>
+</div>
+
+<!-- v62.27: Password Edit Modal (PPPoE) -->
+<div class="modal-bg" id="passwordEditModal">
+  <div class="modal">
+    <h3>Change PPPoE Password</h3>
+    <div class="sub">User will need new password for next dial-in</div>
+    <label>
+      <span class="lbl">New Password</span>
+      <input id="newPppoePassword" type="text" placeholder="Enter new password">
+    </label>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closePasswordEditModal()">Cancel</button>
+      <button class="btn-save" id="savePasswordBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- v62.23: PPPoE Subscriber Edit Modal -->
+<div class="modal-bg" id="editPppoeModal">
+  <div class="modal">
+    <h3>Edit PPPoE Subscriber</h3>
+    <div class="sub" id="editPppoeSub">Update subscriber details</div>
+    <label>
+      <span class="lbl">Phone Number</span>
+      <input id="editPppoePhone" type="text" placeholder="e.g. 254700123456">
+    </label>
+    <label>
+      <span class="lbl">Full Name</span>
+      <input id="editPppoeName" type="text">
+    </label>
+    <label>
+      <span class="lbl">Email</span>
+      <input id="editPppoeEmail" type="email">
+    </label>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeEditPppoe()">Cancel</button>
+      <button class="btn-save" id="editPppoeSaveBtn">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-bg" id="editModal">
+  <div class="modal">
+    <h3 id="editTitle">Edit Voucher</h3>
+    <div class="sub" id="editSub">Update expiry or status</div>
+    <label>
+      <span class="lbl">Expires At (Africa/Nairobi)</span>
+      <input id="editExp" type="datetime-local">
+    </label>
+    <label>
+      <span class="lbl">Status</span>
+      <select id="editStatus">
+        <option value="unused">Unused (available)</option>
+        <option value="used">Used (in service)</option>
+        <option value="expired">Expired</option>
+      </select>
+    </label>
+    <div class="modal-actions">
+      <button class="btn-del" id="editDelBtn">🗑 Delete</button>
+      <button class="btn-cancel" onclick="closeEdit()">Cancel</button>
+      <button class="btn-save" id="editSaveBtn">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const identifier = params.get('phone') || params.get('code') || params.get('user') || params.get('identifier');
+const SOURCE = params.get('source') || 'auto';  // 'pppoe' | 'hotspot' | 'auto'
+console.log('user.html source:', SOURCE, 'identifier:', identifier);
+
+function getIspIdFromStorage() {
+  try {
+    var ispData = JSON.parse(localStorage.getItem('rl_isp') || '{}');
+    if (ispData.id) return ispData.id;
+  } catch(_) {}
+  return localStorage.getItem('rl_isp_id') || localStorage.getItem('isp_id') || localStorage.getItem('ispId') || '';
+}
+const ispId = params.get('ispId') || getIspIdFromStorage();
+if (ispId) document.getElementById('backLink').href = `dashboard.html?ispId=${ispId}`;
+
+function getAuthToken() {
+  return localStorage.getItem('rl_token')
+    || localStorage.getItem('token')
+    || localStorage.getItem('access_token')
+    || localStorage.getItem('jwt')
+    || localStorage.getItem('auth_token')
+    || sessionStorage.getItem('rl_token')
+    || sessionStorage.getItem('token')
+    || '';
+}
+
+function fmtBytes(n) {
+  n = Number(n || 0);
+  if (n === 0) return '0 B';
+  const k = 1024, sizes = ['B','KB','MB','GB','TB'];
+  const i = Math.floor(Math.log(n) / Math.log(k));
+  return (n / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i];
+}
+function fmtDuration(s) {
+  s = Number(s || 0);
+  if (s === 0) return '—';
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  return (h ? `${h}h ` : '') + (m ? `${m}m ` : '') + `${sec}s`;
+}
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'Africa/Nairobi' });
+}
+function fmtDateTimeLocal(d) {
+  if (!d) return '';
+  // Convert UTC date to Nairobi-time datetime-local
+  const dt = new Date(d);
+  // Adjust for Nairobi (UTC+3)
+  const nairobi = new Date(dt.getTime() + 3 * 3600 * 1000);
+  const pad = n => String(n).padStart(2, '0');
+  return `${nairobi.getUTCFullYear()}-${pad(nairobi.getUTCMonth()+1)}-${pad(nairobi.getUTCDate())}T${pad(nairobi.getUTCHours())}:${pad(nairobi.getUTCMinutes())}`;
+}
+function fromNairobiDatetimeLocal(s) {
+  // Convert datetime-local (interpreted as Nairobi time) to UTC ISO
+  if (!s) return null;
+  const [date, time] = s.split('T');
+  const [y, mo, d] = date.split('-').map(Number);
+  const [h, mi] = time.split(':').map(Number);
+  // Treat input as Nairobi (UTC+3), subtract 3 hours to get UTC
+  const utc = new Date(Date.UTC(y, mo-1, d, h-3, mi));
+  return utc.toISOString();
+}
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function toast(msg, err) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (err ? ' err' : '');
+  setTimeout(() => t.className = 'toast', 3500);
+}
+
+let CURRENT_DATA = null;
+let AUTO_REFRESH_TIMER = null;
+
+async function loadUser() {
+  if (!identifier) {
+    document.getElementById('content').innerHTML = '<div class="error">No identifier. Use ?phone=XXX or ?code=KX.</div>';
+    return;
+  }
+  if (!ispId) {
+    document.getElementById('content').innerHTML = '<div class="error">No ISP ID. Open from dashboard.</div>';
+    return;
+  }
+  
+  // Show loading only on first load
+  if (!CURRENT_DATA) {
+    document.getElementById('content').innerHTML = '<div class="loading">Loading…</div>';
+  }
+  
+  try {
+    const token = getAuthToken();
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    
+    const endpoint = SOURCE === 'pppoe' 
+      ? `/api/isp/${ispId}/pppoe-user/${encodeURIComponent(identifier)}`
+      : `/api/isp/${ispId}/user/${encodeURIComponent(identifier)}`;
+    const res = await fetch(endpoint, { headers, credentials: 'include' });
+    
+    if (res.status === 401) {
+      document.getElementById('content').innerHTML = '<div class="error">Not authenticated. <a href="login.html" style="color:#00d4aa">Sign in</a> first.</div>';
+      return;
+    }
+    
+    const data = await res.json();
+    if (!data.ok) {
+      document.getElementById('content').innerHTML = `<div class="error">Error: ${esc(data.error || 'unknown')}</div>`;
+      return;
+    }
+    if (!data.found) {
+      document.getElementById('content').innerHTML = `<div class="error">User not found: ${esc(identifier)}</div>`;
+      return;
+    }
+    
+    CURRENT_DATA = data;
+    render(data);
+    
+    // Auto-refresh every 15s if user is online
+    if (AUTO_REFRESH_TIMER) clearTimeout(AUTO_REFRESH_TIMER);
+    if (data.is_online) {
+      document.getElementById('ar-ind').textContent = ' (auto 15s)';
+      AUTO_REFRESH_TIMER = setTimeout(loadUser, 15000);
+    } else {
+      document.getElementById('ar-ind').textContent = '';
+    }
+  } catch (e) {
+    document.getElementById('content').innerHTML = `<div class="error">Network error: ${esc(e.message)}</div>`;
+  }
+}
+
+function render(d) {
+  const s = d.summary || {};
+  const dt = s.data_totals || {};
+  const vc = dt.voucher_cumulative || {};
+  const live = d.live_sessions || [];
+  const isOnline = !!d.is_online;
+  const username = (d.source === 'pppoe' && d.pppoe_subscriber && d.pppoe_subscriber.username)
+    || d.username 
+    || (d.vouchers && d.vouchers[0] && d.vouchers[0].code) 
+    || d.phone 
+    || d.identifier;
+  const isPppoe = d.source === 'pppoe';
+  const sub = d.pppoe_subscriber || null;
+  
+  const paidPayments = (d.payments || []).filter(p => {
+    const st = String(p.status || '').toLowerCase().trim();
+    return st === 'paid' || st === 'success' || st === 'completed';
+  });
+  const computedRevenue = paidPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const revenue = Math.max(Number(s.total_revenue_kes || 0), computedRevenue);
+  
+  const activeVouchers = (d.vouchers || []).filter(v => v.expires_at && new Date(v.expires_at) > new Date());
+  const mostRecentActive = activeVouchers.sort((a,b) => new Date(b.expires_at) - new Date(a.expires_at))[0];
+  
+  // Aggregate data from live sessions (real-time bytes from Mikrotik)
+  const liveBytesIn = live.reduce((s, x) => s + Number(x.bytes_in || 0), 0);
+  const liveBytesOut = live.reduce((s, x) => s + Number(x.bytes_out || 0), 0);
+  
+  // All-time data: voucher cumulative + radacct + live
+  // v62.23: avoid double-counting — radacct is persistent and includes interim accounting
+  const allTimeIn = Number(dt.total_input || 0) + liveBytesIn;
+  const allTimeOut = Number(dt.total_output || 0) + liveBytesOut;
+  
+  // Live banner
+  let liveBanner = '';
+  if (live.length > 0) {
+    const ls = live[0];
+    liveBanner = `
+      <div class="live-banner">
+        <div class="pulse-dot"></div>
+        <div class="text">
+          <div class="top">⚡ LIVE session — ${esc((ls.username||'').split('@')[0])}</div>
+          <div class="bot">${esc(ls.ip||'')} · ${esc(ls.mac||'')} · up ${esc(ls.uptime||'?')} · ↑${fmtBytes(ls.bytes_in)} ↓${fmtBytes(ls.bytes_out)}</div>
+        </div>
+        <button class="btn-kick btn-sm" onclick="kickLiveSession('${esc((ls.username||'').split('@')[0])}')">🔌 Disconnect</button>
+      </div>
+    `;
+  }
+  
+  let html = `
+    <div class="header">
+      <div>
+        <h2>${esc(username)}${isPppoe ? ' <span class="badge" style="background:rgba(52,152,219,.15);color:#3498db;border:1px solid rgba(52,152,219,.3);font-size:.7rem;padding:3px 9px;margin-left:8px">PPPoE</span>' : ''}${isOnline ? ' <span class="badge live">● LIVE</span>' : ''}</h2>
+        <div class="sub">${isPppoe && sub && sub.full_name ? esc(sub.full_name) + ' · ' : ''}Phone: ${esc(d.phone || '—')}${isPppoe && sub ? ' <button class="btn-sm btn-edit" style="margin-left:6px;padding:2px 8px;font-size:.7rem" onclick="event.stopPropagation();openEditPppoeSub(\'' + sub.id + '\', \'' + esc(sub.phone||'') + '\', \'' + esc(sub.full_name||'') + '\', \'' + esc(sub.email||'') + '\')">✏️ Edit</button>' : ''} · Identifier: ${esc(d.identifier)}</div>
+      </div>
+      <div>
+        ${isOnline 
+          ? `<span class="badge online">● Online · ${live.length} session${live.length === 1 ? '' : 's'}</span>`
+          : `<span class="badge offline">○ Offline</span>`
+        }
+        ${mostRecentActive ? `<span class="badge recent" style="margin-left:8px">📦 ${esc(mostRecentActive.code)} until ${fmtDate(mostRecentActive.expires_at)}</span>` : ''}
+      </div>
+    </div>
+    
+    ${isPppoe && sub ? `
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <button class="btn-sm btn-edit" style="padding:8px 14px;font-size:.85rem" onclick="openChangeExpiryModal('${sub.id}', '${sub.next_billing_date || ''}')">📅 Change Expiry</button>
+        <button class="btn-sm btn-edit" style="padding:8px 14px;font-size:.85rem;background:${sub.status === 'suspended' ? 'rgba(0,212,170,.15)' : 'rgba(243,156,18,.15)'};color:${sub.status === 'suspended' ? '#00d4aa' : '#f39c12'};border-color:${sub.status === 'suspended' ? 'rgba(0,212,170,.3)' : 'rgba(243,156,18,.3)'}" onclick="togglePauseSubscription('${sub.id}', '${sub.status}')">${sub.status === 'suspended' ? '▶️ Resume' : '⏸ Pause Subscription'}</button>
+        <button class="btn-sm btn-del" style="padding:8px 14px;font-size:.85rem" onclick="openDeletePppoeModal('${sub.id}', '${esc(sub.username)}')">🗑 Delete User</button>
+      </div>
+    ` : ''}
+    
+    ${liveBanner}
+    
+    <div class="grid-stats">
+      <div class="stat-card">
+        <div class="label">Total Revenue</div>
+        <div class="value">KSh ${revenue.toLocaleString('en-KE', {minimumFractionDigits:2})}</div>
+        <div class="sub">${paidPayments.length}/${s.total_payments || 0} paid</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Data This Month</div>
+        <div class="value">${fmtBytes((Number(dt.month_input) || 0) + (Number(dt.month_output) || 0) + (live.length ? liveBytesIn + liveBytesOut : 0))}</div>
+        <div class="sub">${dt.month_sessions || 0} sessions${live.length ? ' + ' + live.length + ' live' : ''}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Today (Nairobi)</div>
+        <div class="value">${fmtBytes((Number(dt.day_input) || 0) + (Number(dt.day_output) || 0)) /* RUMALINK_UD_FINAL */}</div>
+        <div class="sub">↓${fmtBytes(dt.day_input||0)} ↑${fmtBytes(dt.day_output||0)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Last 3 Months</div>
+        <div class="value">${fmtBytes(allTimeIn + allTimeOut)}</div>
+        <div class="sub">${fmtDuration((Number(dt.total_seconds) || 0) + (vc.seconds || 0))} online</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">K-Codes Issued</div>
+        <div class="value">${s.total_vouchers || 0}</div>
+        <div class="sub">${s.active_vouchers || 0} still active</div>
+      </div>
+    </div>
+    
+    <div class="tabs">
+      ${isPppoe ? '<div class="tab active" data-tab="details">Subscriber Details</div>' : '<div class="tab active" data-tab="vouchers">K-Codes (' + (d.vouchers||[]).length + ')</div>'}
+      <div class="tab${isPppoe ? '' : ''}" data-tab="live">Live Sessions (${live.length})</div>
+      <div class="tab" data-tab="payments">Payments (${(d.payments||[]).length})</div>
+      <div class="tab" data-tab="history">Session History (${(d.sessions||[]).length})</div>
+    </div>
+    
+    <div class="panel" id="panel-vouchers" style="display:${isPppoe ? 'none' : ''}">
+      <div class="panel-header"><h3>K-Codes (Vouchers) — Click ✏️ to edit, 🗑 to delete</h3></div>
+      <div class="panel-body">
+        ${(d.vouchers || []).length === 0 
+          ? '<div class="empty">No vouchers</div>'
+          : `<table>
+              <thead><tr>
+                <th>K-Code</th><th>Package</th><th>Price</th><th>Speed</th>
+                <th>Status</th><th>Expires</th><th>Used Bytes</th><th>Actions</th>
+              </tr></thead>
+              <tbody>
+                ${d.vouchers.map(v => {
+                  const now = new Date(), exp = v.expires_at ? new Date(v.expires_at) : null;
+                  const isActive = exp && exp > now;
+                  const speed = (v.bandwidth_down_mbps || v.bandwidth_up_mbps) 
+                    ? `${v.bandwidth_down_mbps||'?'}↓/${v.bandwidth_up_mbps||'?'}↑ Mbps` : '—';
+                  return `<tr>
+                    <td><span class="code-chip">${esc(v.code)}</span></td>
+                    <td>${esc(v.package_name || '—')} <span style="color:#888;font-size:.75rem">${v.duration_hours?(v.duration_hours+'h'):''}</span></td>
+                    <td class="price">KSh ${Number(v.package_price || v.amount_paid || 0).toLocaleString()}</td>
+                    <td style="font-size:.78rem">${speed}</td>
+                    <td><span class="status-pill status-${esc(v.status||'unused')}">${esc(v.status || '—')}</span></td>
+                    <td>${fmtDate(v.expires_at)}</td>
+                    <td>${fmtBytes(Number(v.bytes_downloaded || 0) + Number(v.bytes_uploaded || 0))}</td>
+                    <td>
+                      <button class="btn-sm btn-edit" onclick="event.stopPropagation();openEditVoucher('${v.id}')">✏️ Edit</button>
+                      <button class="btn-sm btn-del" onclick="event.stopPropagation();deleteVoucher('${v.id}', '${esc(v.code)}')">🗑</button>
+                    </td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>`
+        }
+      </div>
+    </div>
+    
+    <div class="panel" id="panel-live" style="display:none">
+      <div class="panel-header"><h3>Live Hotspot Sessions (real-time from Mikrotik)</h3></div>
+      <div class="panel-body">
+        ${live.length === 0
+          ? '<div class="empty">No active hotspot sessions for this user right now</div>'
+          : `<table>
+              <thead><tr>
+                <th>K-Code</th><th>IP</th><th>MAC</th><th>Uptime</th>
+                <th>Upload</th><th>Download</th><th>Idle</th><th>Time Left</th><th>Action</th>
+              </tr></thead>
+              <tbody>
+                ${live.map(x => `
+                  <tr>
+                    <td><span class="code-chip">${esc((x.username||'').split('@')[0])}</span></td>
+                    <td class="ip-text">${esc(x.ip || '—')}</td>
+                    <td class="mac">${esc(x.mac || '—')}</td>
+                    <td>${esc(x.uptime || '—')}</td>
+                    <td style="color:#00d4aa">↑ ${fmtBytes(x.bytes_in)}</td>
+                    <td style="color:#3498db">↓ ${fmtBytes(x.bytes_out)}</td>
+                    <td style="color:#888">${esc(x.idle_timeout || '—')}</td>
+                    <td>${esc(x.session_time_left || '—')}</td>
+                    <td>
+                      <button class="btn-sm btn-kick" onclick="event.stopPropagation();kickLiveSession('${esc((x.username||'').split('@')[0])}')">🔌 Disconnect</button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>`
+        }
+      </div>
+    </div>
+    
+    <div class="panel" id="panel-details" style="display:${isPppoe ? '' : 'none'}">
+      <div class="panel-header"><h3>Subscriber Details</h3></div>
+      <div class="panel-body" style="padding:18px">
+        ${isPppoe && sub ? `
+          <table>
+            <tr><td style="font-weight:600;width:160px">Username</td><td><span class="code-chip">${esc(sub.username)}</span></td></tr>
+            <tr><td style="font-weight:600">Password</td><td><span class="code-chip" style="font-family:monospace">${esc(sub.password || '—')}</span> <button class="btn-sm btn-edit" style="margin-left:8px;padding:2px 8px;font-size:.7rem" onclick="togglePasswordEdit()">✏️</button></td></tr>
+            <tr><td style="font-weight:600">Full Name</td><td>${esc(sub.full_name||'—')}</td></tr>
+            <tr><td style="font-weight:600">Phone</td><td>${esc(sub.phone||'—')}</td></tr>
+            <tr><td style="font-weight:600">Email</td><td>${esc(sub.email||'—')}</td></tr>
+            <tr><td style="font-weight:600">Status</td><td><span class="status-pill status-${esc(sub.status||'unknown')}">${esc(sub.status||'—')}</span></td></tr>
+            <tr><td style="font-weight:600">Package</td><td>${esc(sub.package_name||'—')} <span style="color:#888">(KSh ${Number(sub.package_price||0).toLocaleString()}/${esc(sub.billing_cycle||'month')})</span></td></tr>
+            <tr><td style="font-weight:600">Bandwidth</td><td>${sub.bandwidth_down_mbps||'—'} ↓ / ${sub.bandwidth_up_mbps||'—'} ↑ Mbps</td></tr>
+            <tr><td style="font-weight:600">Static IP</td><td class="ip-text">${esc(sub.static_ip||'—')}</td></tr>
+            <tr><td style="font-weight:600">MAC</td><td class="mac">${esc(sub.mac_address||'—')}</td></tr>
+            <tr><td style="font-weight:600">Location</td><td>${esc(sub.town||'—')}, ${esc(sub.county||'—')}</td></tr>
+            <tr><td style="font-weight:600">Address</td><td>${esc(sub.physical_address||'—')}</td></tr>
+            <tr><td style="font-weight:600">Balance</td><td>KSh ${Number(sub.balance||0).toLocaleString()}</td></tr>
+            <tr><td style="font-weight:600">Next Billing</td><td>${fmtDate(sub.next_billing_date)}</td></tr>
+            <tr><td style="font-weight:600">Last Payment</td><td>${fmtDate(sub.last_payment_date)}</td></tr>
+            <tr><td style="font-weight:600">Subscriber Since</td><td>${fmtDate(sub.created_at)}</td></tr>
+          </table>
+        ` : '<div class="empty">No subscriber details</div>'}
+      </div>
+    </div>
+    
+    <div class="panel" id="panel-payments" style="display:none">
+      <div class="panel-header"><h3>Payments (M-Pesa transactions)</h3></div>
+      <div class="panel-body">
+        ${(d.payments || []).length === 0 
+          ? '<div class="empty">No payments</div>'
+          : `<table>
+              <thead><tr>
+                <th>Date</th><th>Amount</th><th>Method</th>
+                <th>M-Pesa Receipt</th><th>Description</th><th>Status</th>
+              </tr></thead>
+              <tbody>
+                ${d.payments.map(p => `
+                  <tr>
+                    <td>${fmtDate(p.created_at)}</td>
+                    <td class="price">KSh ${Number(p.amount || 0).toLocaleString()}</td>
+                    <td>${esc(p.payment_method || '—')}</td>
+                    <td>${esc(p.transaction_id || p.gateway_reference || '—')}</td>
+                    <td style="font-size:.78rem">${esc(p.description || '')}</td>
+                    <td><span class="status-pill status-${esc(p.status || 'pending')}">${esc(p.status || '—')}</span></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>`
+        }
+      </div>
+    </div>
+    
+    <div class="panel" id="panel-history" style="display:none">
+      <div class="panel-header"><h3>Session History (RADIUS accounting from radacct)</h3></div>
+      <div class="panel-body">
+        ${(d.sessions || []).length === 0 
+          ? '<div class="empty">No RADIUS sessions recorded yet</div>'
+          : `<table>
+              <thead><tr>
+                <th>K-Code</th><th>IP</th><th>MAC</th><th>Started</th><th>Duration</th>
+                <th>Upload</th><th>Download</th><th>Ended</th>
+              </tr></thead>
+              <tbody>
+                ${d.sessions.map(x => `
+                  <tr>
+                    <td><span class="code-chip">${esc((x.username||'').split('@')[0])}</span>${x.currently_active ? ' <span class="badge live" style="font-size:.6rem;padding:1px 5px;margin-left:3px">LIVE</span>' : ''}</td>
+                    <td class="ip-text">${esc(x.ip || '—')}</td>
+                    <td class="mac">${esc(x.mac || '—')}</td>
+                    <td>${fmtDate(x.acctstarttime)}</td>
+                    <td>${fmtDuration(x.acctsessiontime)}</td>
+                    <td style="color:#00d4aa">↑ ${fmtBytes(x.acctinputoctets)}</td>
+                    <td style="color:#3498db">↓ ${fmtBytes(x.acctoutputoctets)}</td>
+                    <td>${x.currently_active ? '—' : fmtDate(x.acctstoptime)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>`
+        }
+      </div>
+    </div>
+  `;
+  
+  document.getElementById('content').innerHTML = html;
+  
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      document.querySelectorAll('[id^=panel-]').forEach(p => p.style.display = 'none');
+      document.getElementById('panel-' + t.dataset.tab).style.display = '';
+    });
+  });
+}
+
+// Edit voucher
+let EDIT_ID = null;
+function openEditVoucher(voucherId) {
+  const v = (CURRENT_DATA?.vouchers || []).find(x => x.id === voucherId);
+  if (!v) return;
+  EDIT_ID = voucherId;
+  document.getElementById('editTitle').textContent = `Edit ${v.code}`;
+  document.getElementById('editSub').textContent = `Phone: ${v.buyer_phone} · Package: ${v.package_name || '—'}`;
+  document.getElementById('editExp').value = fmtDateTimeLocal(v.expires_at);
+  document.getElementById('editStatus').value = v.status || 'unused';
+  document.getElementById('editModal').classList.add('open');
+}
+function closeEdit() {
+  document.getElementById('editModal').classList.remove('open');
+  EDIT_ID = null;
+}
+document.getElementById('editModal').addEventListener('click', e => {
+  if (e.target.id === 'editModal') closeEdit();
+});
+
+document.getElementById('editSaveBtn').addEventListener('click', async () => {
+  if (!EDIT_ID) return;
+  const expDate = document.getElementById('editExp').value;
+  const status = document.getElementById('editStatus').value;
+  try {
+    const token = getAuthToken();
+    const res = await fetch(`/api/isp/${ispId}/voucher/${EDIT_ID}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ expires_at: fromNairobiDatetimeLocal(expDate), status })
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      toast('Voucher updated');
+      closeEdit();
+      loadUser();
+    } else {
+      toast(j.error || 'Update failed', true);
+    }
+  } catch (e) { toast('Network error: '+e.message, true); }
+});
+
+document.getElementById('editDelBtn').addEventListener('click', async () => {
+  if (!EDIT_ID) return;
+  if (!confirm('Delete this voucher? Will disconnect any active session.')) return;
+  try {
+    const token = getAuthToken();
+    const res = await fetch(`/api/isp/${ispId}/voucher/${EDIT_ID}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      toast('Voucher deleted');
+      closeEdit();
+      loadUser();
+    } else {
+      toast(j.error || 'Delete failed', true);
+    }
+  } catch (e) { toast('Network error: '+e.message, true); }
+});
+
+async function deleteVoucher(voucherId, code) {
+  if (!confirm(`Delete voucher ${code}? Will disconnect any active session.`)) return;
+  try {
+    const token = getAuthToken();
+    const res = await fetch(`/api/isp/${ispId}/voucher/${voucherId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      toast(`Deleted ${code}`);
+      loadUser();
+    } else {
+      toast(j.error || 'Delete failed', true);
+    }
+  } catch (e) { toast('Network error: '+e.message, true); }
+}
+
+// v62.23: PPPoE subscriber edit
+let EDIT_SUB_ID = null;
+function openEditPppoeSub(subId, phone, name, email) {
+  EDIT_SUB_ID = subId;
+  document.getElementById('editPppoeSub').textContent = 'Update phone, name or email';
+  document.getElementById('editPppoePhone').value = phone || '';
+  document.getElementById('editPppoeName').value = name || '';
+  document.getElementById('editPppoeEmail').value = email || '';
+  document.getElementById('editPppoeModal').classList.add('open');
+}
+function closeEditPppoe() {
+  document.getElementById('editPppoeModal').classList.remove('open');
+  EDIT_SUB_ID = null;
+}
+document.getElementById('editPppoeModal').addEventListener('click', e => {
+  if (e.target.id === 'editPppoeModal') closeEditPppoe();
+});
+document.getElementById('editPppoeSaveBtn').addEventListener('click', async () => {
+  if (!EDIT_SUB_ID) return;
+  const phone = document.getElementById('editPppoePhone').value.trim();
+  const name = document.getElementById('editPppoeName').value.trim();
+  const email = document.getElementById('editPppoeEmail').value.trim();
+  try {
+    const token = getAuthToken();
+    const res = await fetch(`/api/isp/${ispId}/pppoe-subscriber/${EDIT_SUB_ID}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ phone, full_name: name, email })
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      toast('Subscriber updated');
+      closeEditPppoe();
+      // If phone changed, redirect to new URL
+      if (phone && phone !== identifier) {
+        location.href = `user.html?phone=${encodeURIComponent(phone)}&source=pppoe&ispId=${ispId}`;
+      } else {
+        loadUser();
+      }
+    } else {
+      toast(j.error || 'Update failed', true);
+    }
+  } catch (e) { toast('Network error: '+e.message, true); }
+});
+
+// v62.27: Change expiry modal
+let CHANGE_EXP_SUB_ID = null;
+function openChangeExpiryModal(subId, currentDate) {
+  CHANGE_EXP_SUB_ID = subId;
+  const input = document.getElementById('newExpiryDate');
+  // v62.28: support both date-only and datetime — convert to Nairobi-time datetime-local
+  if (currentDate) {
+    try {
+      const d = new Date(currentDate);
+      // Add 3 hours (UTC+3) to display Nairobi time
+      const nairobi = new Date(d.getTime() + 3 * 3600 * 1000);
+      const pad = n => String(n).padStart(2, '0');
+      input.value = `${nairobi.getUTCFullYear()}-${pad(nairobi.getUTCMonth()+1)}-${pad(nairobi.getUTCDate())}T${pad(nairobi.getUTCHours())}:${pad(nairobi.getUTCMinutes())}`;
+    } catch(_) { input.value = ''; }
+  } else {
+    input.value = '';
+  }
+  document.getElementById('changeExpiryModal').classList.add('open');
+}
+function closeChangeExpiryModal() {
+  document.getElementById('changeExpiryModal').classList.remove('open');
+  CHANGE_EXP_SUB_ID = null;
+}
+document.getElementById('changeExpiryModal').addEventListener('click', e => {
+  if (e.target.id === 'changeExpiryModal') closeChangeExpiryModal();
+});
+document.getElementById('saveExpiryBtn').addEventListener('click', async () => {
+  if (!CHANGE_EXP_SUB_ID) return;
+  const newDate = document.getElementById('newExpiryDate').value;
+  if (!newDate) { toast('Pick date + time', true); return; }
+  // v62.28: convert datetime-local (Nairobi) → UTC ISO for backend
+  let isoUtc;
+  try {
+    const [date, time] = newDate.split('T');
+    const [y, mo, d] = date.split('-').map(Number);
+    const [h, mi] = time.split(':').map(Number);
+    // Nairobi is UTC+3; subtract 3 hours to get UTC
+    isoUtc = new Date(Date.UTC(y, mo-1, d, h-3, mi)).toISOString();
+  } catch(e) { toast('Bad date format', true); return; }
+  try {
+    const token = getAuthToken();
+    const res = await fetch(`/api/isp/${ispId}/pppoe-subscriber/${CHANGE_EXP_SUB_ID}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ next_billing_date: isoUtc })
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      toast('Expiry updated');
+      closeChangeExpiryModal();
+      loadUser();
+    } else {
+      toast(j.error || 'Update failed', true);
+    }
+  } catch (e) { toast('Network error: '+e.message, true); }
+});
+
+// v62.27: Pause/Resume subscription
+async function togglePauseSubscription(subId, currentStatus) {
+  const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';
+  const verb = newStatus === 'suspended' ? 'Pause' : 'Resume';
+  if (!confirm(`${verb} this subscriber?`)) return;
+  try {
+    const token = getAuthToken();
+    const res = await fetch(`/api/isp/${ispId}/pppoe-subscriber/${subId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ status: newStatus })
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      toast(`Subscription ${newStatus === 'suspended' ? 'paused' : 'resumed'}`);
+      loadUser();
+    } else {
+      toast(j.error || 'Update failed', true);
+    }
+  } catch (e) { toast('Network error: '+e.message, true); }
+}
+
+// v62.27: Delete PPPoE subscriber with confirmation
+let DELETE_PPPOE_SUB_ID = null;
+function openDeletePppoeModal(subId, username) {
+  DELETE_PPPOE_SUB_ID = subId;
+  document.getElementById('deletePppoeMsg').textContent = `Subscriber: ${username}. This action cannot be undone.`;
+  document.getElementById('deletePppoeModal').classList.add('open');
+}
+function closeDeletePppoeModal() {
+  document.getElementById('deletePppoeModal').classList.remove('open');
+  DELETE_PPPOE_SUB_ID = null;
+}
+document.getElementById('deletePppoeModal').addEventListener('click', e => {
+  if (e.target.id === 'deletePppoeModal') closeDeletePppoeModal();
+});
+document.getElementById('confirmDeletePppoeBtn').addEventListener('click', async () => {
+  if (!DELETE_PPPOE_SUB_ID) return;
+  try {
+    const token = getAuthToken();
+    const res = await fetch(`/api/isp/${ispId}/pppoe-subscriber/${DELETE_PPPOE_SUB_ID}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      toast('Subscriber deleted');
+      closeDeletePppoeModal();
+      // Redirect back to dashboard
+      setTimeout(() => { location.href = `dashboard.html?ispId=${ispId}`; }, 800);
+    } else {
+      toast(j.error || 'Delete failed', true);
+    }
+  } catch (e) { toast('Network error: '+e.message, true); }
+});
+
+// v62.27: Password edit
+function togglePasswordEdit() {
+  if (!CURRENT_DATA || !CURRENT_DATA.pppoe_subscriber) return;
+  document.getElementById('newPppoePassword').value = CURRENT_DATA.pppoe_subscriber.password || '';
+  document.getElementById('passwordEditModal').classList.add('open');
+}
+function closePasswordEditModal() {
+  document.getElementById('passwordEditModal').classList.remove('open');
+}
+document.getElementById('passwordEditModal').addEventListener('click', e => {
+  if (e.target.id === 'passwordEditModal') closePasswordEditModal();
+});
+document.getElementById('savePasswordBtn').addEventListener('click', async () => {
+  const subId = CURRENT_DATA && CURRENT_DATA.pppoe_subscriber && CURRENT_DATA.pppoe_subscriber.id;
+  if (!subId) return;
+  const newPw = document.getElementById('newPppoePassword').value.trim();
+  if (!newPw) { toast('Password cannot be empty', true); return; }
+  try {
+    const token = getAuthToken();
+    const res = await fetch(`/api/isp/${ispId}/pppoe-subscriber/${subId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ password: newPw })
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      toast('Password updated');
+      closePasswordEditModal();
+      loadUser();
+    } else {
+      toast(j.error || 'Update failed', true);
+    }
+  } catch (e) { toast('Network error: '+e.message, true); }
+});
+
+async function kickLiveSession(code) {
+  if (!confirm(`Disconnect active session for ${code}?`)) return;
+  try {
+    const token = getAuthToken();
+    const res = await fetch(`/api/isp/${ispId}/disconnect/${encodeURIComponent(code)}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      toast(`${code} disconnected`);
+      setTimeout(loadUser, 1000);
+    } else {
+      toast(j.error || 'Disconnect failed', true);
+    }
+  } catch (e) { toast('Network error: '+e.message, true); }
+}
+
+loadUser();
+</script>
+</body>
+</html>

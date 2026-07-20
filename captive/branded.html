@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>WiFi Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--primary:#00d4aa;--accent:#f39c12}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Poppins',sans-serif;min-height:100vh;display:flex;background:#1a1a2e;background-size:cover;background-position:center}
+.left{flex:1;background:linear-gradient(135deg,rgba(0,212,170,.9),rgba(13,21,48,.95));display:flex;flex-direction:column;justify-content:center;padding:48px;position:relative;overflow:hidden;min-height:100vh}
+.left::before{content:'';position:absolute;inset:0;background:url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="40" fill="rgba(255,255,255,.03)"/><circle cx="80" cy="80" r="50" fill="rgba(255,255,255,.02)"/></svg>') no-repeat center;background-size:cover}
+.left-content{position:relative;z-index:1}
+.left h1{font-size:clamp(1.8rem,4vw,2.8rem);font-weight:700;color:#fff;line-height:1.2;margin-bottom:16px}
+.left p{font-size:1rem;color:rgba(255,255,255,.75);font-weight:300;line-height:1.7;max-width:340px}
+.left-logo{margin-bottom:32px}
+.left-logo img{max-height:56px;border-radius:10px}
+.left-logo .name{font-size:1.4rem;font-weight:700;color:#fff;margin-top:8px}
+.features{margin-top:36px;display:flex;flex-direction:column;gap:14px}
+.feat{display:flex;align-items:center;gap:12px;color:rgba(255,255,255,.85);font-size:.88rem}
+.feat-icon{width:34px;height:34px;background:rgba(255,255,255,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.95rem;flex-shrink:0}
+.right{width:420px;min-height:100vh;background:#fff;overflow-y:auto;padding:36px 32px;display:flex;flex-direction:column;justify-content:center;flex-shrink:0}
+.right h2{font-size:1.2rem;font-weight:700;color:#1a1a2e;margin-bottom:4px}
+.right .sub{font-size:.83rem;color:#6b7280;margin-bottom:24px;font-weight:300}
+.pkgs{display:flex;flex-direction:column;gap:8px;margin-bottom:20px}
+.pkg{border:1.5px solid #e5e7eb;border-radius:10px;padding:12px 14px;cursor:pointer;transition:all .15s;display:flex;justify-content:space-between;align-items:center}
+.pkg:hover,.pkg.sel{border-color:var(--primary);background:#f0fdfb}
+.pkg-n{font-size:.88rem;font-weight:600;color:#1a1a2e}
+.pkg-d{font-size:.73rem;color:#9ca3af;margin-top:2px}
+.pkg-p{font-weight:700;font-size:.95rem;color:var(--primary);white-space:nowrap}
+.sep{display:flex;align-items:center;gap:8px;margin:14px 0;font-size:.76rem;color:#9ca3af}
+.sep::before,.sep::after{content:'';flex:1;height:1px;background:#e5e7eb}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:.76rem;font-weight:500;color:#6b7280;margin-bottom:4px}
+.field input{width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:10px 12px;font-family:'Poppins',sans-serif;font-size:.88rem;outline:none;transition:border-color .15s}
+.field input:focus{border-color:var(--primary)}
+.btn{width:100%;padding:12px;border-radius:9px;border:none;font-family:'Poppins',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;transition:all .15s;letter-spacing:.2px}
+.btn-p{background:var(--primary);color:#0d1530}.btn-p:hover{opacity:.9}
+.btn-o{background:transparent;border:1.5px solid #e5e7eb;color:#6b7280;margin-top:8px}.btn-o:hover{border-color:var(--primary);color:var(--primary)}
+.msg{padding:10px 12px;border-radius:8px;font-size:.82rem;margin-top:10px;display:none;white-space:pre-line}
+.msg.s{background:#d1fae5;color:#065f46}.msg.e{background:#fee2e2;color:#991b1b}
+.footer{margin-top:24px;text-align:center;font-size:.7rem;color:#d1d5db}
+.footer a{color:var(--primary);text-decoration:none}
+@media(max-width:700px){.left{display:none}.right{width:100%;padding:28px 20px}}
+</style>
+<style id="rl-notif-css">/* RL_NOTIF_BANNER styling */
+.rl-notif-banner{
+  display:none; margin:0 0 18px; padding:13px 18px; border-radius:14px;
+  text-align:center; font-size:.94rem; line-height:1.45; color:#fff; font-weight:500;
+  position:relative; border:1.5px solid rgba(255,255,255,.35);
+  background:#2563eb; /* default info; overridden by severity */
+  animation: rlNotifIn .45s ease-out both, rlNotifGlow 2.2s ease-in-out infinite;
+  box-shadow:0 0 0 rgba(37,99,235,.0);
+}
+.rl-notif-banner strong{font-weight:800; letter-spacing:.2px}
+.rl-notif-banner.sev-info{ background:linear-gradient(135deg,#2563eb,#3b82f6); --nb:59,130,246; }
+.rl-notif-banner.sev-warning{ background:linear-gradient(135deg,#d97706,#f59e0b); --nb:245,158,11; }
+.rl-notif-banner.sev-maintenance{ background:linear-gradient(135deg,#dc2626,#ef4444); --nb:239,68,68; }
+@keyframes rlNotifGlow{
+  0%,100%{ box-shadow:0 0 6px 1px rgba(var(--nb,59,130,246),.45), 0 0 0 0 rgba(var(--nb,59,130,246),.0); border-color:rgba(255,255,255,.30); }
+  50%{ box-shadow:0 0 20px 4px rgba(var(--nb,59,130,246),.85), 0 0 34px 8px rgba(var(--nb,59,130,246),.35); border-color:rgba(255,255,255,.65); }
+}
+@keyframes rlNotifIn{ from{ opacity:0; transform:translateY(-8px) scale(.98) } to{ opacity:1; transform:none } }
+@media (prefers-reduced-motion: reduce){ .rl-notif-banner{ animation:rlNotifIn .3s ease-out both } }
+</style>
+<style id="rl-media-css">/* RL_MEDIA_BANNER styling */
+.rl-media-banner{ display:none; margin:0 0 18px; border-radius:14px; overflow:hidden;
+  position:relative; box-shadow:0 4px 18px rgba(0,0,0,.18); background:#0b0b0b; }
+/* the slide/frame that holds one media item */
+.rl-media-frame{ position:relative; width:100%; height:190px; overflow:hidden; }
+/* blurred backdrop fills the letterbox seamlessly (contain mode) */
+.rl-media-frame .rl-bg{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+  filter:blur(18px) brightness(.75); transform:scale(1.15); z-index:0; }
+/* sharp foreground */
+.rl-media-frame .rl-fg{ position:relative; z-index:1; width:100%; height:100%; display:block; margin:0 auto; }
+.rl-media-banner.fit-contain .rl-fg{ object-fit:contain; }
+.rl-media-banner.fit-cover .rl-fg{ object-fit:cover; }
+.rl-media-banner.fit-cover .rl-bg{ display:none; }  /* cover fills already — no backdrop needed */
+.rl-media-track{ display:flex; transition:transform .5s ease; }
+.rl-media-track .rl-media-frame{ flex:0 0 100%; }
+@media(max-width:480px){ .rl-media-frame{ height:160px } }
+</style>
+</head>
+<body>
+<div class="left">
+  <div class="left-content">
+    <div class="left-logo"><div class="name" id="isp-name-left">WiFi Network</div></div>
+  <div id="rl-notif-banner" class="rl-notif-banner"></div>
+  <div id="rl-media-banner" class="rl-media-banner"></div>
+    <h1 id="tagline">Fast, Reliable Internet Access</h1>
+    <p id="left-sub">Connect in seconds. Pay with MPesa. Enjoy unlimited browsing.</p>
+    <div class="features">
+      <div class="feat"><div class="feat-icon">⚡</div>Fast Speeds</div>
+      <div class="feat"><div class="feat-icon">📱</div>Pay via MPesa</div>
+      <div class="feat"><div class="feat-icon">🔒</div>Secure Connection</div>
+    </div>
+  </div>
+</div>
+<div class="right">
+  <h2 id="welcome-title">Get Connected</h2>
+  <div class="sub" id="welcome-sub">Select a package and pay with MPesa</div>
+  <div class="pkgs" id="pkg-list"></div>
+  <div class="field"><label>MPesa Phone Number</label><input type="tel" id="phone" placeholder="0712 345 678"/></div>
+  <button class="btn btn-p" onclick="pay()">Pay & Connect Now</button>
+  <div class="sep">or use a voucher</div>
+  <div class="field"><label>Voucher Code</label><input type="text" id="vcode" placeholder="Enter voucher code" style="text-transform:uppercase"/></div>
+  <div class="field"><label>Phone for SMS receipt (optional)</label><input type="tel" id="vph" placeholder="0712 345 678"/></div>
+  <button class="btn btn-o" onclick="redeem()">🎟️ Redeem Voucher</button>
+  <div class="msg" id="msg"></div>
+  <div class="footer" id="footer">Powered by <a href="https://rumalink.co.ke">RumaLink Enterprise</a></div>
+</div>
+<script>
+const API=window.RUMALINK_API||'https://rumalinkenterprise.online/api';
+const ISP_ID=window.PORTAL_ISP_ID||new URLSearchParams(location.search).get('isp');
+let sel=null;
+async function init(){
+  if(!ISP_ID)return;
+  const r=await fetch(`${API}/captive/${ISP_ID}`);
+  const resp = await r.json(); const {isp,portal,packages} = resp; /* RL_NOTIF_BANNER */
+      /* RL_NOTIF_BANNER render (styled) */
+      try {
+        var _n = (resp && resp.active_notification) || null;
+        var _b = document.getElementById('rl-notif-banner');
+        if (_n && _b) {
+          _b.className = 'rl-notif-banner sev-' + (_n.severity || 'info');
+          var _t = _n.title ? '<strong>' + _n.title + '</strong>' : '';
+          var _m = _n.message ? (_n.title ? '<br>' : '') + _n.message : '';
+          _b.innerHTML = _t + _m;
+          _b.style.display = 'block';
+        }
+      } catch(_e) {}
+  
+      /* RL_VIDEO_EMBEDS: build the right player for a video URL */
+      function rlBuildVideoHtml(url, fit){
+        url = url || '';
+        var frameOpen = '<div class="rl-media-frame">';
+        var frameClose = '</div>';
+        // direct video file
+        if (/\.(mp4|webm|ogg)(\?|$)/i.test(url)) {
+          return { social:false, html: frameOpen +
+            '<video class="rl-bg" autoplay muted loop playsinline src="'+url+'"></video>' +
+            '<video class="rl-fg" autoplay muted loop playsinline src="'+url+'"></video>' + frameClose };
+        }
+        // YouTube (watch, youtu.be, shorts, embed)
+        var yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+        if (yt) {
+          var id = yt[1];
+          var src = 'https://www.youtube.com/embed/'+id+'?autoplay=1&mute=1&loop=1&playlist='+id+'&controls=0&modestbranding=1&rel=0&playsinline=1';
+          return { social:false, html: '<div class="rl-embed-wrap"><iframe class="rl-embed" src="'+src+'" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>' };
+        }
+        // Vimeo
+        var vm = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+        if (vm) {
+          var vsrc = 'https://player.vimeo.com/video/'+vm[1]+'?autoplay=1&muted=1&loop=1&background=1';
+          return { social:false, html: '<div class="rl-embed-wrap"><iframe class="rl-embed" src="'+vsrc+'" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>' };
+        }
+        // TikTok
+        var tt = url.match(/tiktok\.com\/(?:@[^\/]+\/video\/(\d+)|.*[?&]item_id=(\d+))/);
+        if (tt || /tiktok\.com/.test(url)) {
+          var vid = tt ? (tt[1]||tt[2]) : '';
+          var bq = '<blockquote class="tiktok-embed" cite="'+url+'"'+(vid?(' data-video-id="'+vid+'"'):'')+' style="max-width:100%;min-width:100%;margin:0"><section></section></blockquote>';
+          return { social:true, html: bq, after: function(){ rlLoadScript('https://www.tiktok.com/embed.js', 'tiktok-embed-js'); } };
+        }
+        // Instagram (reel/post/tv)
+        if (/instagram\.com\/(reel|p|tv)\//.test(url)) {
+          var clean = url.split('?')[0];
+          var ig = '<blockquote class="instagram-media" data-instgrm-permalink="'+clean+'" data-instgrm-version="14" style="margin:0;width:100%;min-width:100%"></blockquote>';
+          return { social:true, html: ig, after: function(){ rlLoadScript('https://www.instagram.com/embed.js','instagram-embed-js', function(){ try{ window.instgrm && window.instgrm.Embeds.process(); }catch(e){} }); } };
+        }
+        // Facebook (video / watch / fb.watch)
+        if (/(facebook\.com\/.+\/videos\/|facebook\.com\/watch|fb\.watch\/)/.test(url)) {
+          var fsrc = 'https://www.facebook.com/plugins/video.php?href='+encodeURIComponent(url)+'&show_text=false&autoplay=true&mute=true';
+          return { social:true, html: '<div class="rl-embed-wrap"><iframe class="rl-embed" src="'+fsrc+'" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen scrolling="no"></iframe></div>' };
+        }
+        // Fallback: try as a direct file in a <video> (may or may not play)
+        return { social:false, html: frameOpen +
+          '<video class="rl-bg" autoplay muted loop playsinline src="'+url+'"></video>' +
+          '<video class="rl-fg" autoplay muted loop playsinline src="'+url+'"></video>' + frameClose };
+      }
+      function rlLoadScript(src, id, cb){
+        if (document.getElementById(id)) { if (cb) setTimeout(cb, 300); return; }
+        var sc=document.createElement('script'); sc.id=id; sc.async=true; sc.src=src; if(cb) sc.onload=cb;
+        document.body.appendChild(sc);
+      }
+      /* RL_MEDIA_BANNER render */
+      try {
+        var _p = (resp && resp.portal) || {};
+        var _mb = document.getElementById('rl-media-banner');
+        var _base = (typeof API!=='undefined') ? API.replace('/api','') : '';
+        function _abs(u){ return (u && u.indexOf('http')===0) ? u : (_base + u); }
+        if (_mb && _p.media_enabled) {
+          if (_p.media_type === 'video' && _p.media_video_url) {
+            /* RL_VIDEO_EMBEDS: play direct files OR youtube/vimeo/tiktok/instagram/facebook */
+            var _vu = _abs(_p.media_video_url);
+            var _emb = rlBuildVideoHtml(_vu, _p.media_fit);
+            _mb.className = 'rl-media-banner fit-' + ((_p.media_fit==='cover')?'cover':'contain') + (_emb.social?' is-social':'');
+            _mb.innerHTML = _emb.html;
+            if (_emb.after) _emb.after();
+            _mb.style.display = 'block';
+          } else if (_p.media_type === 'carousel') {
+            var _imgs = Array.isArray(_p.media_images) ? _p.media_images : [];
+            if (_imgs.length) {
+              _mb.className = 'rl-media-banner fit-' + ((_p.media_fit==='cover')?'cover':'contain');
+              var _html = '<div class="rl-media-track" id="rl-media-track">';
+              _imgs.forEach(function(u){ var _au=_abs(u); _html += '<div class="rl-media-frame"><img class="rl-bg" src="'+_au+'"/><img class="rl-fg" src="'+_au+'"/></div>'; });
+              _html += '</div>';
+              _mb.innerHTML = _html;
+              _mb.style.display = 'block';
+              if (_imgs.length > 1) {
+                var _i = 0, _track = document.getElementById('rl-media-track');
+                var _iv = Math.max(2, parseInt(_p.media_interval) || 4) * 1000;
+                setInterval(function(){ _i = (_i + 1) % _imgs.length; _track.style.transform = 'translateX(-' + (_i*100) + '%)'; }, _iv);
+                // swipe
+                var _x0 = null;
+                _mb.addEventListener('touchstart', function(e){ _x0 = e.touches[0].clientX; }, {passive:true});
+                _mb.addEventListener('touchend', function(e){
+                  if (_x0===null) return; var dx = e.changedTouches[0].clientX - _x0;
+                  if (Math.abs(dx) > 40){ _i = (dx<0) ? (_i+1)%_imgs.length : (_i-1+_imgs.length)%_imgs.length; _track.style.transform='translateX(-'+(_i*100)+'%)'; }
+                  _x0 = null;
+                }, {passive:true});
+              }
+            }
+          }
+        }
+      } catch(_e) {}
+document.title=isp.company_name+' WiFi';
+  ['isp-name-left'].forEach(id=>document.getElementById(id)&&(document.getElementById(id).textContent=isp.company_name));
+  document.getElementById('welcome-title').textContent=portal.welcome_title||'Get Connected';
+  document.getElementById('welcome-sub').textContent=portal.welcome_subtitle||'Select a package';
+  document.documentElement.style.setProperty('--primary',portal.primary_color||'#00d4aa');
+  if(portal.bg_image_url)document.querySelector('.left').style.backgroundImage=`url(${portal.bg_image_url})`;
+  if(!portal.show_powered_by)document.getElementById('footer').style.display='none';
+  if(isp.logo_url)document.querySelector('.left-logo').innerHTML=`<img src="${API.replace('/api','')}${isp.logo_url}"/><div class="name">${isp.company_name}</div>`;
+  const list=document.getElementById('pkg-list');
+  list.innerHTML=(packages||[]).map(p=>`
+    <div class="pkg" id="p-${p.id}" onclick="pick('${p.id}',${p.price})">
+      <div><div class="pkg-n">${p.name}</div><div class="pkg-d">${p.duration_hours?p.duration_hours+'h':''} ${p.bandwidth_down_mbps?'· '+p.bandwidth_down_mbps+'Mbps':''}</div></div>
+      <div class="pkg-p">KES ${parseFloat(p.price).toLocaleString()}</div>
+    </div>`).join('');
+}
+function pick(id,price){sel={id,price};document.querySelectorAll('.pkg').forEach(p=>p.classList.remove('sel'));document.getElementById('p-'+id)?.classList.add('sel');}
+async function pay(){
+  if(!sel)return msg('Select a package first.','e');
+  const ph=document.getElementById('phone').value.trim();
+  if(!ph)return msg('Enter MPesa number.','e');
+  const r=await fetch(`${API}/captive/${ISP_ID}/pay`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:ph,package_id:sel.id,amount:sel.price})});
+  const j=await r.json();
+  msg(r.ok?`📱 MPesa prompt sent to ${ph}.\nEnter PIN to complete. SMS voucher incoming.`:j.error||'Failed.',r.ok?'s':'e');
+}
+async function redeem(){
+  const code=document.getElementById('vcode').value.trim().toUpperCase();
+  const ph=document.getElementById('vph').value.trim();
+  if(!code)return msg('Enter a voucher code.','e');
+  const r=await fetch(`${API}/captive/${ISP_ID}/redeem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,phone:ph})});
+  const j=await r.json();
+  const ex=j.expires_at?`\nExpires: ${new Date(j.expires_at).toLocaleString('en-KE')}`:'';
+  msg(r.ok?`✅ Connected! Code: ${j.username}${ex}${ph?'\nSMS sent to '+ph:''}`:j.error||'Invalid code.',r.ok?'s':'e');
+}
+function msg(m,t){const e=document.getElementById('msg');e.textContent=m;e.className='msg '+t;e.style.display='block';}
+init();
+</script>
+
+<!-- Payment spinner widget -->
+<div id="rml-spinner-include"></div>
+<script>
+fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
+  document.getElementById('rml-spinner-include').innerHTML = html;
+  // Re-execute scripts (innerHTML doesn't run them)
+  document.querySelectorAll('#rml-spinner-include script').forEach(s => {
+    var n = document.createElement('script');
+    n.textContent = s.textContent;
+    document.body.appendChild(n);
+  });
+});
+</script>
+
+<script>
+// Friendly notice when the operator's platform license has lapsed.
+function rumalinkShowHotspotUnavailable(){
+  var _pm=document.getElementById('rl-pm'); if(_pm) _pm.classList.remove('open');
+  var _lp=document.getElementById('rl-lp'); if(_lp) _lp.classList.remove('open');
+  var ex=document.getElementById('rml-license-blocked');
+  if(ex){ ex.style.display='flex'; return; }
+  var d=document.createElement('div');
+  d.id='rml-license-blocked';
+  d.style.cssText='position:fixed;inset:0;z-index:2147483647;background:rgba(15,18,28,.97);display:flex;align-items:center;justify-content:center;padding:24px;font-family:inherit';
+  d.innerHTML='<div style="max-width:380px;text-align:center;color:#fff">'
+    +'<div style="font-size:3rem;margin-bottom:8px">&#x1F6A7;</div>'
+    +'<h2 style="margin:0 0 10px;font-size:1.3rem;color:#fff">Temporarily Unavailable</h2>'
+    +'<p style="color:#b9c4d6;line-height:1.5;margin:0 0 16px">This hotspot is not accepting new purchases right now. Please check back a little later.</p>'
+    +'<button type="button" id="rml-lb-ok" style="background:#00d4aa;color:#06210b;border:0;border-radius:8px;padding:10px 22px;font-weight:700;cursor:pointer">OK</button>'
+    +'</div>';
+  document.body.appendChild(d);
+  var b=document.getElementById('rml-lb-ok'); if(b) b.onclick=function(){ d.style.display='none'; var p=document.getElementById('rl-pm'); if(p) p.classList.remove('open'); var l=document.getElementById('rl-lp'); if(l) l.classList.remove('open'); };
+}
+// Hook into existing pay() flow — wrap fetch responses to show spinner
+(function(){
+  var origFetch = window.fetch;
+  window.fetch = function(url, opts) {
+    var prom = origFetch.apply(this, arguments);
+    if (typeof url === 'string' && url.indexOf('/pay') > -1 && opts && opts.method === 'POST') {
+      prom.then(function(r){ var rc=r.clone(); return rc.json().then(function(data){ return { status: rc.status, data: data }; }); }).then(function(wrap){
+        var data = wrap.data || {};
+        if (wrap.status === 402 || data.code === 'LICENSE_EXPIRED' || data.error === 'LICENSE_EXPIRED') {
+          rumalinkShowHotspotUnavailable();
+          return;
+        }
+        if (data && data.payment_id && typeof rumalinkShowPaymentSpinner === 'function') {
+          var body = {};
+          try { body = JSON.parse(opts.body || '{}'); } catch(e){}
+          var ispId = (typeof ISP_ID !== 'undefined') ? ISP_ID : (location.search.match(/isp=([^&]+)/)||[])[1];
+          rumalinkShowPaymentSpinner({
+            phone: body.phone,
+            amount: data.amount,
+            paymentId: data.payment_id,
+            statusUrl: '/api/captive/' + ispId + '/payment-status/' + data.payment_id
+          });
+        }
+      }).catch(function(){});
+    }
+    return prom;
+  };
+})();
+</script>
+
+
+
+
+
+
+
+
+
+<script>
+/* === RumaLink Captive v11 — RADIUS-first via navigation (no form POST mixed content) === */
+(function(){
+  if (window.__rlCaptiveV11) return;
+  window.__rlCaptiveV11 = true;
+  window.__rlCaptiveV10 = true; window.__rlCaptiveV9 = true; window.__rlCaptiveV8 = true;
+  console.log('[RL-Captive-v11] loaded');
+
+  function qs(k) { return new URLSearchParams(location.search).get(k); }
+  var ispId = qs('isp') || (location.pathname.match(/\/([0-9a-f-]{36})/i) || [])[1] || window.ISP_ID;
+  var mac = qs('mac') || '';
+  var ip = qs('ip') || '';
+  var loginUrl = qs('loginurl') || '';
+  var linkOrig = qs('linkorig') || '';
+
+  console.log('[RL-Captive-v11] params: isp=' + ispId + ' mac=' + mac + ' ip=' + ip + ' loginurl=' + (loginUrl ? 'present' : 'MISSING'));
+
+  // NEW PRIMARY: Navigate browser to MikroTik /login with credentials in query string
+  // Browser allows HTTPS->HTTP top-level navigation. MikroTik /login servlet accepts
+  // GET with username/password params, asks RADIUS, applies attributes.
+  function navigateToHotspotLogin(username, password) {
+    if (!loginUrl) {
+      console.warn('[RL-Captive-v11] loginUrl missing; cannot navigate');
+      return false;
+    }
+    // Decode and build URL with credentials
+    var url = decodeURIComponent(loginUrl);
+    // Use & or ? based on whether URL already has params
+    var sep = url.indexOf('?') >= 0 ? '&' : '?';
+    var fullUrl = url + sep + 'username=' + encodeURIComponent(username) + 
+                  '&password=' + encodeURIComponent(password) +
+                  '&dst=' + encodeURIComponent(decodeURIComponent(linkOrig || 'http://www.google.com/generate_204'));
+    console.log('[RL-Captive-v11] navigating to:', fullUrl);
+    window.location.href = fullUrl;
+    return true;
+  }
+
+  // Pre-flight: validate voucher via backend (clean UX for bad codes)
+  async function validateVoucher(code) {
+    try {
+      var r = await fetch('/api/captive/' + ispId + '/validate-voucher', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code })
+      });
+      return await r.json();
+    } catch (e) { return { ok: false, error: e.message }; }
+  }
+
+  // Fallback: backend manual-login (no RADIUS, but always works)
+  async function backendManualLogin(code) {
+    try {
+      var r = await fetch('/api/captive/' + ispId + '/manual-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code, mac: mac, ip: ip })
+      });
+      return await r.json();
+    } catch (e) { return { ok: false, error: e.message }; }
+  }
+
+  // Styles
+  if (!document.getElementById('rl-style-v11')) {
+    var st = document.createElement('style');
+    st.id = 'rl-style-v11';
+    st.textContent = ''
+      + '#rl-pm,#rl-lp{position:fixed !important;inset:0;background:rgba(0,0,0,.85);z-index:2147483647;display:none;align-items:center;justify-content:center;padding:20px;font-family:inherit;backdrop-filter:blur(6px)}'
+      + '#rl-pm.open,#rl-lp.open{display:flex !important}'
+      + '#rl-pm .b,#rl-lp .b{background:#0d1530;border:1px solid rgba(0,212,170,.3);border-radius:18px;padding:28px 24px;max-width:380px;width:100%;color:#fff;position:relative;box-shadow:0 30px 80px rgba(0,0,0,.6)}'
+      + '#rl-pm h2,#rl-lp h2{margin:0 0 14px;font-size:1.18rem;color:#fff}'
+      + '#rl-pm .pkg-box{background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.25);border-radius:10px;padding:14px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center}'
+      + '#rl-pm .pn{font-weight:600;font-size:1rem;color:#fff}'
+      + '#rl-pm .pm{font-size:.78rem;color:rgba(255,255,255,.65);margin-top:2px}'
+      + '#rl-pm .pp{font-size:1.3rem;font-weight:700;color:#00d4aa}'
+      + '#rl-pm input,#rl-lp input{width:100%;padding:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:10px;color:#fff;font-size:1rem;box-sizing:border-box;margin-bottom:10px}'
+      + '#rl-pm input:focus,#rl-lp input:focus{border-color:#00d4aa;outline:none}'
+      + '#rl-pm .hint,#rl-lp .hint{color:rgba(255,255,255,.55);font-size:.78rem;margin-bottom:14px}'
+      + '#rl-pm .msg,#rl-lp .msg{display:none;padding:10px 12px;border-radius:8px;font-size:.84rem;margin-bottom:12px}'
+      + '#rl-pm .row,#rl-lp .row{display:flex;gap:8px}'
+      + '#rl-pm .pay,#rl-lp .submit{flex:1;background:#00d4aa;color:#0d1530;border:none;border-radius:10px;padding:14px;font-weight:700;font-size:1rem;cursor:pointer}'
+      + '#rl-pm .pay:disabled,#rl-lp .submit:disabled{opacity:.55;cursor:wait}'
+      + '#rl-pm .cancel,#rl-lp .cancel{background:transparent;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.8);border-radius:10px;padding:14px 22px;cursor:pointer}'
+      + '#rl-pm .x,#rl-lp .x{position:absolute;top:14px;right:14px;background:transparent;border:none;color:rgba(255,255,255,.5);font-size:1.5rem;cursor:pointer;line-height:1}'
+      + '#rl-already-paid-btn{position:fixed;top:14px;right:14px;background:rgba(0,212,170,.15);border:1px solid rgba(0,212,170,.4);color:#00d4aa;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:.85rem;z-index:9998;backdrop-filter:blur(6px);font-family:sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.3)}';
+    document.head.appendChild(st);
+  }
+
+  if (!document.getElementById('rl-pm')) {
+    var modal = document.createElement('div');
+    modal.id = 'rl-pm';
+    modal.innerHTML = '<div class="b"><button class="x" type="button" id="rl-pm-x">×</button><h2>📱 Enter Your M-Pesa Number</h2><div class="pkg-box"><div><div class="pn" id="rl-pm-name">Package</div><div class="pm" id="rl-pm-detail"></div></div><div class="pp" id="rl-pm-price">KES 0</div></div><input id="rl-pm-phone" type="tel" inputmode="numeric" placeholder="07XX XXX XXX or 2547XX XXX XXX"/><div class="hint">You\'ll receive an M-Pesa STK push. After payment you\'ll be auto-connected.</div><div id="rl-pm-msg" class="msg"></div><div class="row"><button class="pay" id="rl-pm-go" type="button">Purchase Package</button><button class="cancel" id="rl-pm-cancel" type="button">Cancel</button></div></div>';
+    document.body.appendChild(modal);
+    function closepm(){ modal.classList.remove('open'); if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+    document.getElementById('rl-pm-x').addEventListener('click', closepm);
+    document.getElementById('rl-pm-cancel').addEventListener('click', closepm);
+    modal.addEventListener('click', function(e){ if (e.target === modal) closepm(); });
+  }
+
+  if (!document.getElementById('rl-lp')) {
+    var lpModal = document.createElement('div');
+    lpModal.id = 'rl-lp';
+    lpModal.innerHTML = '<div class="b"><button class="x" type="button" id="rl-lp-x">×</button><h2>🔑 Already Paid? Login</h2><div class="hint">Enter your voucher code (K1, K2...) to reconnect to WiFi via RADIUS.</div><input id="rl-lp-code" type="text" inputmode="text" placeholder="Voucher code" autocapitalize="characters" autocomplete="off" style="font-family:monospace;letter-spacing:2px;text-transform:uppercase"/><div id="rl-lp-msg" class="msg"></div><div class="row"><button class="submit" id="rl-lp-submit" type="button">Login & Connect</button><button class="cancel" id="rl-lp-cancel" type="button">Cancel</button></div></div>';
+    document.body.appendChild(lpModal);
+    function closelp(){ lpModal.classList.remove('open'); }
+    document.getElementById('rl-lp-x').addEventListener('click', closelp);
+    document.getElementById('rl-lp-cancel').addEventListener('click', closelp);
+    lpModal.addEventListener('click', function(e){ if (e.target === lpModal) closelp(); });
+
+    // RADIUS-FIRST FLOW
+    document.getElementById('rl-lp-submit').addEventListener('click', async function(){
+      var code = document.getElementById('rl-lp-code').value.trim().toUpperCase();
+      var msg = document.getElementById('rl-lp-msg');
+      var btn = document.getElementById('rl-lp-submit');
+      function showMsg(text, kind) {
+        var bg = kind==='ok'?'rgba(0,212,170,.18);color:#00d4aa'
+               :kind==='warn'?'rgba(243,156,18,.15);color:#f39c12'
+               :'rgba(231,76,60,.18);color:#e74c3c';
+        msg.style.cssText = 'display:block;padding:10px 12px;border-radius:8px;font-size:.84rem;margin-bottom:12px;background:' + bg;
+        msg.textContent = text;
+      }
+      if (!code) { showMsg('Enter a voucher code', 'err'); return; }
+      btn.disabled = true; btn.textContent = 'Connecting...';
+
+      // STEP 1: Quick validate
+      showMsg('Verifying voucher...', 'ok');
+      var validation = await validateVoucher(code);
+      if (validation && validation.ok === false) {
+        showMsg('✗ ' + (validation.error || 'Invalid voucher'), 'err');
+        btn.disabled = false; btn.textContent = 'Login & Connect';
+        return;
+      }
+
+      // STEP 2: NAVIGATE to MikroTik login servlet → triggers RADIUS auth
+      if (loginUrl) {
+        showMsg('✅ Connecting via RADIUS...', 'ok');
+        setTimeout(function(){ navigateToHotspotLogin(code, code); }, 500);
+        return;
+      }
+
+      // STEP 3: FALLBACK - backend manual-login (no RADIUS, no rate limit)
+      showMsg('⚠ No router URL - using backend (no rate limit)...', 'warn');
+      var result = await backendManualLogin(code);
+      if (result.ok) {
+        showMsg('Connected via backend.', 'ok');
+        setTimeout(function(){ window.location.href = 'http://www.google.com/generate_204'; }, 1500);
+      } else {
+        showMsg('✗ ' + (result.error || 'Login failed'), 'err');
+        btn.disabled = false; btn.textContent = 'Login & Connect';
+      }
+    });
+  }
+
+  if (!document.getElementById('rl-already-paid-btn')) {
+    var apBtn = document.createElement('button');
+    apBtn.id = 'rl-already-paid-btn';
+    apBtn.textContent = '🔑 Already Paid? Login';
+    apBtn.onclick = function(){
+      document.getElementById('rl-lp-msg').style.display = 'none';
+      document.getElementById('rl-lp-code').value = '';
+      var sb = document.getElementById('rl-lp-submit');
+      sb.disabled = false; sb.textContent = 'Login & Connect';
+      document.getElementById('rl-lp').classList.add('open');
+      setTimeout(function(){ document.getElementById('rl-lp-code').focus(); }, 80);
+    };
+    document.body.appendChild(apBtn);
+  }
+
+  var pollTimer = null;
+
+  function hideOldUI() {
+    var oldPhone = document.getElementById('phone');
+    if (oldPhone) {
+      var wrap = oldPhone.closest('.form-group, .input-group, .form-row, .row, .input-row') || oldPhone.parentElement;
+      if (wrap) wrap.style.display = 'none';
+      else oldPhone.style.display = 'none';
+    }
+    document.querySelectorAll('[onclick*="initiatePayment"]').forEach(function(b){ b.style.display = 'none'; });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hideOldUI);
+  else hideOldUI();
+
+  document.addEventListener('click', function(e){
+    var card = e.target.closest('.pkg');
+    if (!card) return;
+    var onclickAttr = card.getAttribute('onclick') || '';
+    var m = onclickAttr.match(/selectPkg\(\s*['"]([^'"]+)['"]\s*,\s*([\d.]+)\s*\)/);
+    if (!m) return;
+    e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+    var nameEl = card.querySelector('.pkg-name');
+    var detailEl = card.querySelector('.pkg-detail');
+    window.__rlPkg = {
+      id: m[1], price: parseFloat(m[2]),
+      name: nameEl ? nameEl.textContent.trim() : 'Package',
+      detail: detailEl ? detailEl.textContent.trim() : ''
+    };
+    document.getElementById('rl-pm-name').textContent = window.__rlPkg.name;
+    document.getElementById('rl-pm-detail').textContent = window.__rlPkg.detail;
+    document.getElementById('rl-pm-price').textContent = 'KES ' + window.__rlPkg.price.toLocaleString();
+    document.getElementById('rl-pm-phone').value = '';
+    document.getElementById('rl-pm-msg').style.display = 'none';
+    var go = document.getElementById('rl-pm-go');
+    go.disabled = false; go.textContent = 'Purchase Package';
+    document.getElementById('rl-pm').classList.add('open');
+    setTimeout(function(){ document.getElementById('rl-pm-phone').focus(); }, 80);
+  }, true);
+
+  document.addEventListener('click', function(e){
+    if (e.target.id !== 'rl-pm-go') return;
+    if (!window.__rlPkg) return;
+    var phone = document.getElementById('rl-pm-phone').value.trim();
+    var msgEl = document.getElementById('rl-pm-msg');
+    var goBtn = e.target;
+    function show(text, ok) {
+      msgEl.textContent = text;
+      msgEl.style.cssText = 'display:block;padding:10px 12px;border-radius:8px;font-size:.84rem;margin-bottom:12px;'
+        + (ok ? 'background:rgba(0,212,170,.18);color:#00d4aa' : 'background:rgba(231,76,60,.18);color:#e74c3c');
+    }
+    var clean = phone.replace(/\D/g, '');
+    if (!/^(0|254)?[71]\d{8}$/.test(clean)) { show('Enter a valid M-Pesa number', false); return; }
+    goBtn.disabled = true; goBtn.textContent = 'Sending STK push…';
+    fetch('/api/captive/' + ispId + '/pay', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: clean, package_id: window.__rlPkg.id, amount: window.__rlPkg.price, mac: mac })
+    }).then(function(r){ return r.json().then(function(d){ return { ok: r.ok, status: r.status, data: d }; }); })
+      .then(function(res){
+        if (res.status === 402 || (res.data && (res.data.code === 'LICENSE_EXPIRED' || res.data.error === 'LICENSE_EXPIRED'))) { if(typeof rumalinkShowHotspotUnavailable==='function'){ rumalinkShowHotspotUnavailable(); } goBtn.disabled=false; goBtn.textContent='Purchase Package'; return; }
+        if (!res.ok) throw new Error(res.data.error || 'Payment failed');
+        show('📲 STK push sent! Enter PIN on your phone.', true);
+        goBtn.textContent = 'Waiting for payment…';
+        if (res.data.payment_id) startPolling(res.data.payment_id, clean);
+      })
+      .catch(function(err){
+        show('❌ ' + err.message, false);
+        goBtn.disabled = false; goBtn.textContent = 'Try Again';
+      });
+  });
+
+  function startPolling(paymentId, phone) {
+    if (pollTimer) clearInterval(pollTimer);
+    var elapsed = 0;
+    pollTimer = setInterval(function(){
+      elapsed += 3;
+      if (elapsed > 90) {
+        clearInterval(pollTimer); pollTimer = null;
+        var m = document.getElementById('rl-pm-msg');
+        if (m) { m.style.cssText = 'display:block;padding:10px 12px;border-radius:8px;font-size:.84rem;margin-bottom:12px;background:rgba(243,156,18,.15);color:#f39c12'; m.textContent = '⏳ Still waiting. Use "Already Paid? Login".'; }
+        var go = document.getElementById('rl-pm-go');
+        if (go) { go.disabled = false; go.textContent = 'Try Again'; }
+        return;
+      }
+      fetch('/api/payments/public-status/' + paymentId)
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          console.log('[RL-Captive-v11] poll:', d.status, 'voucher:', d.voucher_code);
+          if (d.status === 'paid') {
+            clearInterval(pollTimer); pollTimer = null;
+            var code = d.voucher_code || d.code;
+            var m = document.getElementById('rl-pm-msg');
+            if (m && code) {
+              m.style.cssText = 'display:block;padding:10px 12px;border-radius:8px;font-size:.84rem;margin-bottom:12px;background:rgba(0,212,170,.18);color:#00d4aa';
+              m.textContent = '✅ Paid! Voucher: ' + code + '. Connecting via RADIUS...';
+            }
+            // AUTO-LOGIN via navigation → RADIUS path
+            if (code && loginUrl) {
+              setTimeout(function(){ navigateToHotspotLogin(code, code); }, 1200);
+            } else if (code) {
+              // No loginurl: fallback to backend
+              backendManualLogin(code).then(function(){
+                setTimeout(function(){ window.location.href = 'http://www.google.com/generate_204'; }, 1500);
+              });
+            }
+          } else if (d.status === 'failed') {
+            clearInterval(pollTimer); pollTimer = null;
+            var m2 = document.getElementById('rl-pm-msg');
+            if (m2) { m2.style.cssText = 'display:block;padding:10px 12px;border-radius:8px;font-size:.84rem;margin-bottom:12px;background:rgba(231,76,60,.15);color:#e74c3c'; m2.textContent = '❌ Payment failed: ' + (d.failure_reason || 'Cancelled or timed out'); }
+            var go = document.getElementById('rl-pm-go');
+            if (go) { go.disabled = false; go.textContent = 'Try Again'; }
+          }
+        })
+        .catch(function(){});
+    }, 3000);
+  }
+
+  console.log('[RL-Captive-v11] ready (RADIUS-first via top-level navigation)');
+})();
+</script>
+
+</body>
+</html>

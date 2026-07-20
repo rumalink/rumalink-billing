@@ -1,0 +1,1963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- RUMALINK-DEVICE-HTML-VERSION: v62.79 -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MikroTik Device • RumaLink</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;background:#0a0f1e;color:#f0f4ff;min-height:100vh}
+  .nav{background:#0d1530;padding:14px 24px;display:flex;align-items:center;gap:16px;border-bottom:1px solid #1e2f52;flex-wrap:wrap}
+  .nav h1{font-size:1.05rem;font-weight:700;color:#00d4aa}
+  .nav .right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .nav a, .nav button{color:#8899bb;text-decoration:none;font-size:.85rem;padding:7px 14px;border-radius:6px;border:1px solid #1e2f52;background:transparent;cursor:pointer;font-family:inherit}
+  .nav a:hover, .nav button:hover{background:rgba(0,212,170,.1);color:#00d4aa;border-color:#00d4aa}
+  .nav button.refresh{background:rgba(0,212,170,.1);color:#00d4aa;border-color:#00d4aa}
+  .nav button.danger{background:rgba(231,76,60,.1);color:#e74c3c;border-color:rgba(231,76,60,.5)}
+  .nav button.danger:hover{background:rgba(231,76,60,.2)}
+  .nav button.winbox{background:rgba(155,89,182,.15);color:#bb86fc;border-color:rgba(155,89,182,.4)}
+  .nav button.winbox:hover{background:rgba(155,89,182,.25)}
+  .container{max-width:1280px;margin:0 auto;padding:24px}
+  .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+  .header h2{font-size:1.7rem;color:#fff;font-family:monospace;letter-spacing:1px}
+  .header .sub{color:#8899bb;font-size:.85rem;margin-top:4px}
+  .badge{display:inline-block;padding:4px 12px;border-radius:999px;font-size:.75rem;font-weight:600}
+  .badge.online{background:rgba(0,212,170,.15);color:#00d4aa;border:1px solid rgba(0,212,170,.3)}
+  .badge.offline{background:rgba(231,76,60,.15);color:#e74c3c;border:1px solid rgba(231,76,60,.3)}
+  .badge.pending{background:rgba(243,156,18,.15);color:#f39c12;border:1px solid rgba(243,156,18,.3)}
+  .panel{background:#0d1530;border:1px solid #1e2f52;border-radius:12px;margin-bottom:20px;overflow:hidden}
+  .panel-head{padding:14px 20px;border-bottom:1px solid #1e2f52;display:flex;align-items:center;justify-content:space-between}
+  .panel-head h3{font-size:.95rem;color:#fff;font-weight:600}
+  .panel-body{padding:20px}
+  .kv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px 24px}
+  .kv-item{display:flex;flex-direction:column;gap:3px}
+  .kv-label{font-size:.72rem;color:#8899bb;text-transform:uppercase;letter-spacing:.5px}
+  .kv-value{font-size:.92rem;color:#f0f4ff;font-weight:500;word-break:break-word}
+  .kv-value.mono{font-family:monospace;font-size:.85rem;color:#00d4aa}
+  .kv-value.dim{color:#8899bb}
+  .gauge-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+  .gauge{background:rgba(0,212,170,.04);border:1px solid rgba(0,212,170,.15);border-radius:10px;padding:16px}
+  .gauge.warn{background:rgba(243,156,18,.04);border-color:rgba(243,156,18,.2)}
+  .gauge.crit{background:rgba(231,76,60,.04);border-color:rgba(231,76,60,.2)}
+  .gauge-label{font-size:.78rem;color:#8899bb;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+  .gauge-val{font-size:1.35rem;font-weight:700;color:#fff}
+  .gauge-bar{height:6px;background:#1e2f52;border-radius:3px;overflow:hidden;margin-top:8px}
+  .gauge-bar-fill{height:100%;background:#00d4aa;transition:width .3s ease}
+  .gauge-bar-fill.warn{background:#f39c12}
+  .gauge-bar-fill.crit{background:#e74c3c}
+  .gauge-sub{font-size:.72rem;color:#8899bb;margin-top:4px}
+  .bw-card{background:rgba(13,21,48,.6);border:1px solid #1e2f52;border-radius:10px;padding:14px}
+  .bw-card .bw-iface{font-size:.7rem;color:#8899bb;text-transform:uppercase;letter-spacing:.5px;font-family:monospace}
+  .bw-card .bw-name{font-size:.85rem;color:#fff;font-weight:600;margin:4px 0 12px}
+  .bw-arrow{display:flex;align-items:center;justify-content:space-between;margin:6px 0;font-size:.85rem}
+  .bw-arrow .dir{display:flex;align-items:center;gap:6px;color:#8899bb}
+  .bw-arrow .rate{font-family:monospace;font-weight:700;color:#00d4aa;font-size:1.05rem}
+  .bw-arrow .rate.tx{color:#f39c12}
+  .bw-arrow.live::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#00d4aa;animation:pulse 1.5s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .winbox-card{background:linear-gradient(135deg,rgba(155,89,182,.08),rgba(155,89,182,.02));border:1px solid rgba(155,89,182,.3);border-radius:10px;padding:16px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .winbox-card .label{font-size:.85rem;color:#bb86fc;font-weight:600;margin-bottom:4px}
+  .winbox-card .url{font-family:monospace;font-size:.82rem;color:#fff;word-break:break-all}
+  .winbox-card .url.empty{color:#8899bb;font-style:italic}
+  .btn{padding:9px 16px;border-radius:6px;border:1px solid #1e2f52;background:transparent;color:#f0f4ff;cursor:pointer;font-size:.85rem;font-family:inherit;font-weight:500;transition:all .15s}
+  .btn:hover{background:rgba(0,212,170,.1)}
+  .btn-teal{background:rgba(0,212,170,.15);color:#00d4aa;border-color:rgba(0,212,170,.3)}
+  .btn-teal:hover{background:rgba(0,212,170,.25)}
+  .btn-purple{background:rgba(155,89,182,.15);color:#bb86fc;border-color:rgba(155,89,182,.4)}
+  .btn-purple:hover{background:rgba(155,89,182,.25)}
+  .btn-red{background:rgba(231,76,60,.1);color:#e74c3c;border-color:rgba(231,76,60,.3)}
+  .btn-red:hover{background:rgba(231,76,60,.2)}
+  .btn-sm{padding:6px 12px;font-size:.78rem}
+  .api-row{display:flex;align-items:center;gap:8px;font-family:monospace;font-size:.85rem}
+  .api-pwd{background:#0a0f1e;padding:4px 10px;border-radius:5px;border:1px solid #1e2f52;flex:1;color:#8899bb;user-select:all}
+  .copy-btn{padding:4px 10px;font-size:.7rem;background:rgba(0,212,170,.1);color:#00d4aa;border:1px solid rgba(0,212,170,.3);border-radius:5px;cursor:pointer}
+  .copy-btn:hover{background:rgba(0,212,170,.2)}
+  .loading{padding:40px;text-align:center;color:#8899bb}
+  .empty{color:#8899bb;font-style:italic;font-size:.85rem}
+  @media (max-width:640px){.container{padding:14px}.header h2{font-size:1.3rem}}
+  /* v62.93: Tab navigation */
+  .tabs{display:flex;gap:4px;margin-bottom:24px;border-bottom:2px solid #1e2f52;padding-bottom:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tab-btn{background:transparent;border:none;color:#8899bb;font-size:.92rem;padding:12px 22px;cursor:pointer;font-family:inherit;font-weight:600;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s;white-space:nowrap;display:flex;align-items:center;gap:8px}
+  .tab-btn:hover{color:#f0f4ff}
+  .tab-btn.active{color:#00d4aa;border-bottom-color:#00d4aa}
+  .tab-pane{display:none}
+  .tab-pane.active{display:block;animation:tabFadeIn .25s ease}
+  @keyframes tabFadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+  
+  /* v62.93: Mode selector cards */
+  .mode-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+  .mode-card{background:rgba(13,21,48,.6);border:2px solid #1e2f52;border-radius:12px;padding:18px 16px;cursor:pointer;transition:all .2s;text-align:center;user-select:none}
+  .mode-card:hover{border-color:#445b8c;background:rgba(20,30,60,.8)}
+  .mode-card.active{border-color:#00d4aa;background:rgba(0,212,170,.06);box-shadow:0 0 0 1px rgba(0,212,170,.3)}
+  .mode-card .mode-icon{font-size:1.6rem;color:#00d4aa;margin-bottom:8px;font-weight:700}
+  .mode-card .mode-title{color:#fff;font-weight:700;font-size:.95rem;margin-bottom:4px}
+  .mode-card .mode-desc{color:#8899bb;font-size:.75rem;line-height:1.4}
+  .mode-card.active .mode-icon{transform:scale(1.1);transition:transform .2s}
+  
+  /* v62.93: WAN link cards */
+  .link-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+  .link-card{background:rgba(13,21,48,.6);border:1px solid #1e2f52;border-radius:12px;overflow:hidden}
+  .link-card.primary{border-color:rgba(0,212,170,.3)}
+  .link-card.secondary{border-color:rgba(155,89,182,.3)}
+  .link-card-head{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:rgba(0,0,0,.2);border-bottom:1px solid #1e2f52}
+  .link-card-title{display:flex;align-items:center;gap:10px;color:#fff;font-weight:600;font-size:.9rem}
+  .link-num{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:rgba(0,212,170,.15);color:#00d4aa;font-weight:700;font-size:.78rem;border:1px solid rgba(0,212,170,.4)}
+  .link-card.secondary .link-num{background:rgba(155,89,182,.15);color:#bb86fc;border-color:rgba(155,89,182,.4)}
+  .link-status-pill{padding:3px 10px;border-radius:999px;font-size:.7rem;font-weight:600}
+  .link-status-pill.up{background:rgba(0,212,170,.15);color:#00d4aa;border:1px solid rgba(0,212,170,.3)}
+    .link-status-pill.ready { background: rgba(94,179,255,.15); color: #5eb3ff; border: 1px solid rgba(94,179,255,.3); }
+  .link-status-pill.standby{background:rgba(243,156,18,.1);color:#f39c12;border:1px solid rgba(243,156,18,.3)}
+  .link-status-pill.down{background:rgba(231,76,60,.15);color:#e74c3c;border:1px solid rgba(231,76,60,.3)}
+  .link-card-body{padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+  
+  /* v62.93: Form inputs */
+  .fg{display:flex;flex-direction:column;gap:5px}
+  .fg label{font-size:.75rem;color:#8899bb;font-weight:500;text-transform:uppercase;letter-spacing:.4px}
+  .form-input{background:#0a0f1e;border:1px solid #1e2f52;border-radius:6px;padding:9px 12px;color:#f0f4ff;font-size:.88rem;font-family:inherit;width:100%;transition:border-color .15s}
+  .form-input:focus{outline:none;border-color:#00d4aa;box-shadow:0 0 0 2px rgba(0,212,170,.1)}
+  .form-input:hover:not(:focus){border-color:#2a3e6b}
+  select.form-input{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%238899bb' d='M5 6L0 0h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;appearance:none}
+  .fg-help{font-size:.7rem;color:#8899bb;line-height:1.5;margin-top:2px}
+  
+  /* v62.93: Weight slider */
+  .weight-slider{-webkit-appearance:none;width:100%;height:6px;background:linear-gradient(to right,#bb86fc 0%,#bb86fc var(--w,50%),#00d4aa var(--w,50%),#00d4aa 100%);border-radius:3px;outline:none;margin:10px 0}
+  .weight-slider::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;background:#fff;border-radius:50%;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.4);transition:transform .15s}
+  .weight-slider::-webkit-slider-thumb:hover{transform:scale(1.15)}
+  .weight-slider::-moz-range-thumb{width:18px;height:18px;background:#fff;border-radius:50%;cursor:pointer;border:none;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+  
+  /* v62.93: Status banner */
+  .status-banner{display:flex;align-items:flex-start;gap:14px;padding:14px 16px;border-radius:10px;background:rgba(243,156,18,.06);border:1px solid rgba(243,156,18,.2)}
+  .status-banner.success{background:rgba(0,212,170,.06);border-color:rgba(0,212,170,.2)}
+  .status-banner.error{background:rgba(231,76,60,.06);border-color:rgba(231,76,60,.2)}
+  .status-banner-icon{font-size:1.4rem;flex-shrink:0}
+  .status-banner-title{color:#fff;font-weight:600;font-size:.9rem;margin-bottom:3px}
+  .status-banner-text{color:#8899bb;font-size:.78rem;line-height:1.5}
+  
+  /* Mobile */
+  @media (max-width:640px){
+    .mode-grid{grid-template-columns:1fr 1fr}
+    .mode-card{padding:14px 10px}
+    .mode-card .mode-title{font-size:.85rem}
+    .mode-card .mode-desc{font-size:.7rem}
+    .link-grid{grid-template-columns:1fr}
+    .tab-btn{padding:10px 16px;font-size:.85rem}
+  }
+
+  
+  /* v62.96: Multi-WAN extended UI */
+  .mwan-section-title{font-size:.85rem;color:#fff;text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin:0 0 14px}
+  .mwan-section-header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+
+  /* WAN link cards (unlimited) */
+  .links-list{display:flex;flex-direction:column;gap:10px}
+  .wan-link-row{background:rgba(13,21,48,.6);border:1px solid #1e2f52;border-radius:10px;padding:14px;display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:start;transition:border-color .2s}
+  .wan-link-row:hover{border-color:#2a3e6b}
+  .wan-link-row.dragging{opacity:.5;border-style:dashed}
+  .wan-link-row .drag-handle{color:#8899bb;cursor:grab;user-select:none;font-size:1.2rem;line-height:1;padding-top:4px}
+  .wan-link-row .drag-handle:active{cursor:grabbing}
+  .wan-link-row .wan-link-num{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:rgba(0,212,170,.15);color:#00d4aa;font-weight:700;font-size:.85rem;border:1px solid rgba(0,212,170,.4);margin-right:8px;flex-shrink:0}
+  .wan-link-row .wan-link-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+  .wan-link-row .wan-link-actions{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+  .wan-link-row .wan-link-name-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .wan-link-row .role-pill{padding:3px 10px;border-radius:999px;font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+  .wan-link-row .role-pill.primary{background:rgba(0,212,170,.15);color:#00d4aa;border:1px solid rgba(0,212,170,.3)}
+  .wan-link-row .role-pill.backup{background:rgba(243,156,18,.1);color:#f39c12;border:1px solid rgba(243,156,18,.3)}
+  .wan-link-row .role-pill.lb{background:rgba(52,152,219,.1);color:#3498db;border:1px solid rgba(52,152,219,.3)}
+  .wan-link-row .role-pill.dedicated{background:rgba(155,89,182,.15);color:#bb86fc;border:1px solid rgba(155,89,182,.4)}
+  .wan-link-row .lb-weight-row{margin-top:10px;display:flex;align-items:center;gap:10px}
+  .wan-link-row .lb-weight-row label{font-size:.72rem;color:#8899bb;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+  .wan-link-row .lb-weight-val{color:#00d4aa;font-weight:600;font-family:monospace;min-width:36px;text-align:right}
+
+  .btn-icon{background:transparent;border:1px solid #1e2f52;color:#8899bb;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:.82rem;transition:all .15s;font-family:inherit}
+  .btn-icon:hover{border-color:#e74c3c;color:#e74c3c;background:rgba(231,76,60,.05)}
+
+  /* Policy rows */
+  .policies-list{display:flex;flex-direction:column;gap:8px}
+  .policy-row{background:rgba(13,21,48,.6);border:1px solid #1e2f52;border-radius:10px;padding:12px 14px;display:grid;grid-template-columns:auto auto 1fr auto auto;gap:10px;align-items:center;font-size:.85rem;transition:border-color .2s}
+  .policy-row:hover{border-color:#2a3e6b}
+  .policy-row.dragging{opacity:.5;border-style:dashed}
+  .policy-row.is-default{background:rgba(155,89,182,.04);border-color:rgba(155,89,182,.2)}
+  .policy-row .policy-num{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:#1e2f52;color:#fff;font-weight:700;font-size:.75rem}
+  .policy-row .policy-arrow{color:#8899bb;font-size:.85rem}
+  .policy-row .policy-text{color:#f0f4ff}
+  .policy-row .policy-text strong{color:#00d4aa;font-weight:600}
+  .policy-row .policy-edit-area{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+  .policy-row .form-input.inline{padding:6px 10px;font-size:.82rem;width:auto;min-width:140px}
+
+  /* Mobile */
+  @media (max-width:640px){
+    .wan-link-row{grid-template-columns:auto 1fr;gap:10px}
+    .wan-link-row .wan-link-actions{grid-column:1/-1;flex-direction:row;justify-content:flex-end}
+    .policy-row{grid-template-columns:1fr;gap:8px}
+    .policy-row .policy-arrow{display:none}
+  }
+
+  </style>
+</head>
+<body>
+<div class="nav">
+  <h1>RumaLink</h1>
+  <a href="dashboard.html">← Dashboard</a>
+  <span style="color:#8899bb;font-size:.85rem">/</span>
+  <span style="color:#f0f4ff;font-size:.85rem">MikroTik Device</span>
+  <div class="right">
+    <button class="refresh" onclick="loadDevice()">🔄 Refresh</button>
+    <button id="btn-winbox" class="winbox" onclick="openWinbox()" style="display:none">🔌 Remote Winbox</button>
+    <button class="danger" onclick="confirmDelete()">🗑 Delete</button>
+  </div>
+</div>
+
+<div class="container">
+  <div id="content"><div class="loading">Loading device details…</div></div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const deviceId = params.get('id');
+const token = localStorage.getItem('rl_token') || '';
+let device = null;
+let bwTimer = null;
+
+if (!deviceId) {
+  document.getElementById('content').innerHTML = '<div class="loading">Missing device id. <a href="dashboard.html" style="color:#00d4aa">Back to dashboard</a></div>';
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch('/api' + path, {
+    ...opts,
+    headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+token, ...(opts.headers||{}) }
+  });
+  if (res.status === 401) { location.href = '/isp/login.html'; return; }
+  const j = await res.json();
+  if (!res.ok) throw new Error(j.error || 'API error');
+  return j;
+}
+
+function fmtBytes(n) {
+  n = Number(n) || 0;
+  if (n < 1024) return n + ' B';
+  if (n < 1024*1024) return (n/1024).toFixed(1) + ' KB';
+  if (n < 1024*1024*1024) return (n/1024/1024).toFixed(1) + ' MB';
+  return (n/1024/1024/1024).toFixed(2) + ' GB';
+}
+
+function fmtBps(bps) {
+  bps = Number(bps) || 0;
+  if (bps < 1000) return bps + ' bps';
+  if (bps < 1e6) return (bps/1000).toFixed(1) + ' Kbps';
+  if (bps < 1e9) return (bps/1e6).toFixed(2) + ' Mbps';
+  return (bps/1e9).toFixed(2) + ' Gbps';
+}
+
+function fmtDuration(sec) {
+  sec = Number(sec) || 0;
+  if (sec < 60) return sec + 's';
+  const m = Math.floor(sec/60), h = Math.floor(m/60), d = Math.floor(h/24);
+  if (d > 0) return `${d}d ${h%24}h ${m%60}m`;
+  if (h > 0) return `${h}h ${m%60}m`;
+  return `${m}m`;
+}
+
+function fmtAgo(iso) {
+  if (!iso) return '—';
+  const sec = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (sec < 60) return sec + 's ago';
+  if (sec < 3600) return Math.floor(sec/60) + 'm ago';
+  if (sec < 86400) return Math.floor(sec/3600) + 'h ago';
+  return Math.floor(sec/86400) + 'd ago';
+}
+
+function pct(used, total) {
+  if (!total) return 0;
+  return Math.round(used/total*100);
+}
+
+function esc(s) { return String(s||'').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'})[c]); }
+
+async function loadDevice() {
+  try {
+    const d = await api('/nas/' + encodeURIComponent(deviceId));
+    device = d.device;
+    render();
+    startBwPolling();
+    startLinkStatusPolling();
+    // v62.95: auto-load mwan config so it's ready when user switches tabs
+    loadMwanConfig();
+  } catch (e) {
+    document.getElementById('content').innerHTML = `<div class="loading">Failed to load device: ${esc(e.message)}<br><a href="dashboard.html" style="color:#00d4aa">Back to dashboard</a></div>`;
+  }
+}
+
+function render() {
+  const dev = device;
+  const status = dev.is_online ? 'online' : dev.is_provisioned ? 'offline' : 'pending';
+  const statusLabel = dev.is_online ? '● Online' : dev.is_provisioned ? '● Offline' : '⏳ Pending Provisioning';
+  
+  // Show winbox button if URL exists
+  if (dev.remote_winbox_url) {
+    document.getElementById('btn-winbox').style.display = '';
+  }
+  
+  // Parse bridge_ports (may be JSON or comma-separated string)
+  let bridgePorts = dev.bridge_ports || dev.bridged_ports || '';
+  if (Array.isArray(bridgePorts)) bridgePorts = bridgePorts.join(', ');
+  
+  // CPU / RAM / disk gauges
+  const cpu = Number(dev.cpu_load) || 0;
+  const memPct = pct(dev.memory_used_mb, dev.memory_total_mb);
+  const diskPct = pct(dev.disk_used_mb, dev.disk_total_mb);
+  const cpuClass = cpu > 80 ? 'crit' : cpu > 60 ? 'warn' : '';
+  const memClass = memPct > 80 ? 'crit' : memPct > 60 ? 'warn' : '';
+  const diskClass = diskPct > 85 ? 'crit' : diskPct > 70 ? 'warn' : '';
+
+  document.getElementById('content').innerHTML = `
+    <div class="header">
+      <div>
+        <h2>${esc(dev.name)}</h2>
+        <div class="sub">${esc(dev.description || dev.mikrotik_identity || 'MikroTik Router')}</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span class="badge ${status}">${statusLabel}</span>
+        ${dev.last_seen ? `<span style="font-size:.78rem;color:#8899bb">Last seen ${fmtAgo(dev.last_seen)}</span>` : ''}
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="general" onclick="showTab('general')">📋 General</button>
+      <button class="tab-btn" data-tab="multi-wan" onclick="showTab('multi-wan')">🌐 Failover & Load Balancing</button>
+    </div>
+
+    <div class="tab-pane active" data-tab="general">
+    <!-- Overview -->
+    <div class="panel">
+      <div class="panel-head"><h3>📛 Overview</h3></div>
+      <div class="panel-body">
+        <div class="kv-grid">
+          <div class="kv-item"><div class="kv-label">Identity</div><div class="kv-value mono">${esc(dev.mikrotik_identity) || '<span class="empty">—</span>'}</div></div>
+          <div class="kv-item"><div class="kv-label">Model / Board</div><div class="kv-value">${esc(dev.mikrotik_board) || '<span class="empty">—</span>'}</div></div>
+          <div class="kv-item"><div class="kv-label">RouterOS Version</div><div class="kv-value">${esc(dev.mikrotik_version) || '<span class="empty">—</span>'}</div></div>
+          <div class="kv-item"><div class="kv-label">MAC Address</div><div class="kv-value mono">${esc(dev.mikrotik_mac) || '<span class="empty">—</span>'}</div></div>
+          <div class="kv-item"><div class="kv-label">WAN IP</div><div class="kv-value mono">${esc(dev.wan_ip) || '<span class="empty">—</span>'}</div></div>
+          <div class="kv-item"><div class="kv-label">WireGuard IP</div><div class="kv-value mono">${esc(dev.wireguard_ip) || '<span class="empty">—</span>'}</div></div>
+          <div class="kv-item"><div class="kv-label">Uptime</div><div class="kv-value">${dev.uptime_seconds ? fmtDuration(dev.uptime_seconds) : '<span class="empty">—</span>'}</div></div>
+          <div class="kv-item"><div class="kv-label">Hotspot Enabled</div><div class="kv-value">${dev.hotspot_enabled ? '✓ Yes' : '✗ No'}</div></div>
+          <div class="kv-item"><div class="kv-label">PPPoE Enabled</div><div class="kv-value">${dev.pppoe_enabled ? '✓ Yes' : '✗ No'}</div></div>
+        </div>
+      </div>
+    </div>
+
+    
+    <!-- v62.87: ISP Link Status panel -->
+    <div class="panel" id="isp-link-panel">
+      <div class="panel-head">
+        <h3>🌐 ISP Link Status</h3>
+        <button class="btn btn-sm btn-outline" id="btn-check-link" onclick="manualLinkCheck()">⚡ Check Now</button>
+      </div>
+      <div class="panel-body">
+        <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:center;margin-bottom:18px">
+          <div id="link-status-pill" style="display:inline-flex;align-items:center;gap:10px;padding:10px 18px;border-radius:999px;font-size:1.05rem;font-weight:700;background:rgba(136,153,187,.1);color:#8899bb;border:1px solid rgba(136,153,187,.3)">
+            <span class="status-dot" id="link-status-dot" style="width:10px;height:10px;border-radius:50%;background:#8899bb"></span>
+            <span id="link-status-text">Checking…</span>
+          </div>
+          <div style="flex:1;min-width:200px">
+            <div style="font-size:.72rem;color:#8899bb;text-transform:uppercase;letter-spacing:.5px">Current State Duration</div>
+            <div id="link-duration" style="font-size:1.05rem;color:#fff;font-weight:600;margin-top:2px">—</div>
+          </div>
+          <div>
+            <div style="font-size:.72rem;color:#8899bb;text-transform:uppercase;letter-spacing:.5px">Last Checked</div>
+            <div id="link-last-checked" style="font-size:.95rem;color:#fff;margin-top:2px">—</div>
+          </div>
+        </div>
+        <div style="background:rgba(13,21,48,.6);border:1px solid #1e2f52;border-radius:8px;padding:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div style="font-size:.85rem;color:#fff;font-weight:600">Recent Events</div>
+            <label style="display:flex;align-items:center;gap:6px;font-size:.75rem;color:#8899bb;cursor:pointer">
+              <input type="checkbox" id="link-notif-toggle" onchange="toggleLinkNotifications(this.checked)" style="width:14px;height:14px"/>
+              SMS notifications
+            </label>
+          </div>
+          <div id="link-events-list" style="font-size:.82rem;color:#8899bb;max-height:200px;overflow-y:auto">
+            Loading event history…
+          </div>
+        </div>
+        <div style="font-size:.72rem;color:#8899bb;margin-top:10px;font-style:italic">
+          Auto-checks every 60 seconds via /ping 8.8.8.8 + 1.1.1.1. Sends SMS to <span id="link-sms-recipient" style="font-family:monospace">your registered phone</span> when state changes.
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Bandwidth -->
+    <div class="panel">
+      <div class="panel-head">
+        <h3>📊 Live Bandwidth</h3>
+        <span style="font-size:.72rem;color:#8899bb">Updates every 3s</span>
+      </div>
+      <div class="panel-body">
+        <div class="gauge-grid" id="bw-grid">
+          <div class="bw-card">
+            <div class="bw-iface">LAN (clients)</div>
+            <div class="bw-name" id="bw-lan-name">—</div>
+            <div class="bw-arrow live"><span class="dir">⬇ Download <span style="font-size:.7rem">(to clients)</span></span><span class="rate" id="bw-lan-rx">— bps</span></div>
+            <div class="bw-arrow live"><span class="dir">⬆ Upload <span style="font-size:.7rem">(from clients)</span></span><span class="rate tx" id="bw-lan-tx">— bps</span></div>
+          </div>
+        </div>
+        <div id="bw-error" style="display:none;color:#e74c3c;font-size:.78rem;margin-top:12px"></div>
+      </div>
+    </div>
+
+    <!-- Health -->
+    <div class="panel">
+      <div class="panel-head"><h3>💚 Health</h3></div>
+      <div class="panel-body">
+        <div class="gauge-grid">
+          <div class="gauge ${cpuClass}">
+            <div class="gauge-label">⚙️ CPU Load</div>
+            <div class="gauge-val">${cpu}%</div>
+            <div class="gauge-bar"><div class="gauge-bar-fill ${cpuClass}" style="width:${cpu}%"></div></div>
+          </div>
+          <div class="gauge ${memClass}">
+            <div class="gauge-label">🧠 Memory</div>
+            <div class="gauge-val">${memPct}%</div>
+            <div class="gauge-bar"><div class="gauge-bar-fill ${memClass}" style="width:${memPct}%"></div></div>
+            <div class="gauge-sub">${dev.memory_used_mb || 0} MB / ${dev.memory_total_mb || 0} MB</div>
+          </div>
+          <div class="gauge ${diskClass}">
+            <div class="gauge-label">💾 Disk</div>
+            <div class="gauge-val">${diskPct}%</div>
+            <div class="gauge-bar"><div class="gauge-bar-fill ${diskClass}" style="width:${diskPct}%"></div></div>
+            <div class="gauge-sub">${dev.disk_used_mb || 0} MB / ${dev.disk_total_mb || 0} MB</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Configuration -->
+    <div class="panel">
+      <div class="panel-head"><h3>⚙️ Configuration</h3></div>
+      <div class="panel-body">
+        <div class="kv-grid">
+          <div class="kv-item"><div class="kv-label">WAN Interface</div><div class="kv-value mono">${esc(dev.wan_interface) || esc(dev.pppoe_interface) || '<span class="empty">—</span>'}</div></div>
+          <div class="kv-item"><div class="kv-label">Hotspot Interface</div><div class="kv-value mono">${esc(dev.hotspot_interface) || '<span class="empty">—</span>'}</div></div>
+          <div class="kv-item"><div class="kv-label">Bridge Ports</div><div class="kv-value mono">${esc(bridgePorts) || '<span class="empty">—</span>'}</div></div>
+          <div class="kv-item"><div class="kv-label">Gateway IP</div><div class="kv-value mono">${esc(dev.gateway_ip) || esc(dev.hotspot_gateway) || '<span class="empty">—</span>'}</div></div>
+          <div class="kv-item"><div class="kv-label">DHCP Pool</div><div class="kv-value mono">${esc(dev.ip_pool_start || dev.hotspot_pool_start)} – ${esc(dev.ip_pool_end || dev.hotspot_pool_end) || '<span class="empty">—</span>'}</div></div>
+          <div class="kv-item"><div class="kv-label">DNS Servers</div><div class="kv-value mono">${esc(dev.dns_primary) || '—'}${dev.dns_secondary ? ' / ' + esc(dev.dns_secondary) : ''}</div></div>
+          <div class="kv-item"><div class="kv-label">PPPoE Pool</div><div class="kv-value mono">${esc(dev.pppoe_pool) || '<span class="empty">—</span>'}</div></div>
+          <div class="kv-item"><div class="kv-label">Hotspot Profile</div><div class="kv-value mono">${esc(dev.hotspot_profile) || '<span class="empty">—</span>'}</div></div>
+          <div class="kv-item"><div class="kv-label">Anti-Share</div><div class="kv-value">${dev.antishare_enabled ? `✓ Enabled (max ${dev.antishare_max_devices} devices)` : '✗ Disabled'}</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Remote Access -->
+    <div class="panel">
+      <div class="panel-head"><h3>🔌 Remote Access</h3></div>
+      <div class="panel-body">
+        <div class="winbox-card" style="margin-bottom:14px;flex-direction:column;align-items:stretch">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:10px">
+            <div>
+              <div class="label">Remote WinBox Address</div>
+              <div class="url ${dev.remote_winbox_url ? '' : 'empty'}" style="font-size:1.05rem;font-weight:600">${esc(dev.remote_winbox_url) || 'Not configured'}</div>
+            </div>
+            ${dev.remote_winbox_url ? `<button class="copy-btn" style="padding:8px 16px;font-size:.82rem" onclick="copyText('${esc(dev.remote_winbox_url)}')">📋 Copy Address</button>` : ''}
+          </div>
+          <div style="background:rgba(155,89,182,.05);border-left:3px solid rgba(155,89,182,.5);padding:10px 14px;border-radius:6px;font-size:.78rem;line-height:1.6;color:#bb86fc">
+            <strong style="color:#bb86fc">How to connect:</strong><br>
+            1. Download <a href="https://mikrotik.com/download" target="_blank" style="color:#00d4aa;text-decoration:underline">WinBox</a> if you haven't already<br>
+            2. Open WinBox → paste the address above into the <strong>Connect To</strong> field<br>
+            3. Enter your MikroTik admin <strong>username</strong> and <strong>password</strong><br>
+            4. Click <strong>Connect</strong>
+          </div>
+        </div>
+        <div class="kv-grid">
+          <div class="kv-item"><div class="kv-label">MikroTik API User</div><div class="kv-value mono">${esc(dev.mikrotik_api_user) || '<span class="empty">—</span>'}</div></div>
+          <div class="kv-item">
+            <div class="kv-label">MikroTik API Password</div>
+            <div class="api-row">
+              <span class="api-pwd" id="api-pwd-display">••••••••••••</span>
+              <button class="copy-btn" id="reveal-btn" onclick="revealApiPassword()">Reveal</button>
+            </div>
+          </div>
+          <div class="kv-item"><div class="kv-label">Winbox Port</div><div class="kv-value mono">${dev.winbox_port || 8291}</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="panel">
+      <div class="panel-head"><h3>🛠 Actions</h3></div>
+      <div class="panel-body" style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-teal" onclick="regenerateProvisioningToken()">🔄 Regenerate Provisioning Token</button>
+        <button class="btn" onclick="openEdit()">✏️ Edit Device</button>
+        <button class="btn btn-red" onclick="confirmDelete()">🗑 Delete Device</button>
+      </div>
+    </div>
+  
+    </div><!-- /tab-pane general -->
+
+    <div class="tab-pane" data-tab="multi-wan">
+    <!-- v62.96: Multi-WAN tab (Failover & Load Balancing) with unlimited links + policies -->
+    <div class="panel">
+      <div class="panel-head">
+        <h3>🌐 Multi-WAN Configuration</h3>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="mwan-saved-badge" class="badge" style="display:none;background:rgba(0,212,170,.15);color:#00d4aa;border:1px solid rgba(0,212,170,.3)">✓ Saved</span>
+        </div>
+      </div>
+      <div class="panel-body">
+        <p style="color:#8899bb;font-size:.85rem;margin-bottom:18px;line-height:1.6">
+          Configure failover and load balancing across multiple WAN links. Add as many uplinks as you need, then define routing policies to send specific users or packages through specific links. The MikroTik stays lightweight — all policy decisions happen on the RumaLink server.
+        </p>
+
+        <!-- ============= Section: Routing Mode ============= -->
+        <h4 class="mwan-section-title">🎯 Routing Mode</h4>
+        <div class="mode-grid">
+          <div class="mode-card" data-mode="none" onclick="setMwanMode('none')">
+            <div class="mode-icon">○</div>
+            <div class="mode-title">Disabled</div>
+            <div class="mode-desc">Single WAN, no redundancy</div>
+          </div>
+          <div class="mode-card" data-mode="failover" onclick="setMwanMode('failover')">
+            <div class="mode-icon">↻</div>
+            <div class="mode-title">Failover Only</div>
+            <div class="mode-desc">Use links in priority order</div>
+          </div>
+          <div class="mode-card" data-mode="load_balance" onclick="setMwanMode('load_balance')">
+            <div class="mode-icon">⇄</div>
+            <div class="mode-title">Load Balancing</div>
+            <div class="mode-desc">Spread traffic across links</div>
+          </div>
+          <div class="mode-card" data-mode="both" onclick="setMwanMode('both')">
+            <div class="mode-icon">⚡</div>
+            <div class="mode-title">Both</div>
+            <div class="mode-desc">Load balance + auto-failover</div>
+          </div>
+        </div>
+
+        <!-- ============= Section: WAN Links ============= -->
+        <div id="mwan-links-section" style="display:none;margin-top:28px">
+          <div class="mwan-section-header">
+            <h4 class="mwan-section-title" style="margin:0">🔗 WAN Links</h4>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn btn-sm" id="mwan-status-refresh-btn" onclick="refreshLinkStatus()" title="Refresh live status">↻ Refresh</button>
+              <button class="btn btn-sm btn-teal" onclick="addWanLink()">+ Add Link</button>
+            </div>
+          </div>
+          <p style="color:#8899bb;font-size:.78rem;margin:6px 0 14px">Add each uplink your router has. Drag to reorder (priority order matters for failover).</p>
+          <div id="rl-conns"></div>
+          <div id="rl-lb-split"></div>
+          <div id="mwan-links-list" class="links-list">
+            <div style="color:#8899bb;font-style:italic;text-align:center;padding:24px">No links configured yet. Click "Add Link" above.</div>
+          </div>
+        </div>
+
+        <!-- ============= Section: Failover settings ============= -->
+        <div id="mwan-failover-section" style="display:none;margin-top:24px">
+          <h4 class="mwan-section-title">⚙️ Failover Health Check</h4>
+          <div class="kv-grid">
+            <div class="fg">
+              <label>Check Interval (seconds)</label>
+              <input type="number" id="mwan-check-interval" value="10" min="3" max="60" class="form-input"/>
+              <div class="fg-help">How often router pings link gateways. Lower = faster failover, more overhead.</div>
+            </div>
+            <div class="fg">
+              <label>Failure Threshold</label>
+              <input type="number" id="mwan-fail-threshold" value="3" min="1" max="10" class="form-input"/>
+              <div class="fg-help">Consecutive failed pings before link is considered down.</div>
+            </div>
+          </div>
+          <!-- RL_QUALITY_DASH -->
+          <h4 class="mwan-section-title" style="margin-top:20px">📶 Quality Failover <span style="font-size:.7rem;color:#8899bb;font-weight:400">(switch to backup when the main link lags, before it fully drops)</span></h4>
+          <label style="display:flex;align-items:center;gap:8px;margin:6px 0 12px;color:#c8d4ee;font-size:.82rem"><input type="checkbox" id="wq-enabled" checked style="width:auto"/> Enable quality-based failover</label>
+          <div class="kv-grid">
+            <div class="fg"><label>Max Latency (ms)</label><input type="number" id="wq-latency" value="100" min="10" max="1000" class="form-input"/><div class="fg-help">Trip if ping time exceeds this.</div></div>
+            <div class="fg"><label>Max Jitter (ms)</label><input type="number" id="wq-jitter" value="30" min="5" max="500" class="form-input"/><div class="fg-help">Trip if latency varies more than this.</div></div>
+            <div class="fg"><label>Max Packet Loss (%)</label><input type="number" id="wq-loss" value="2" min="1" max="50" class="form-input"/><div class="fg-help">Trip if loss exceeds this.</div></div>
+            <div class="fg"><label>Trip after (samples)</label><input type="number" id="wq-trip" value="3" min="1" max="20" class="form-input"/><div class="fg-help">Bad samples before failover (~15s each).</div></div>
+            <div class="fg"><label>Recover after (samples)</label><input type="number" id="wq-recover" value="20" min="2" max="100" class="form-input"/><div class="fg-help">Good samples before switching back (anti-flap).</div></div>
+          </div>
+        </div>
+
+        <!-- ============= Section: Load Balance config ============= -->
+        <div id="mwan-lb-section" style="display:none;margin-top:24px">
+          <h4 class="mwan-section-title">⚖️ Load Balance Distribution</h4>
+          <div class="fg" style="max-width:560px">
+            <label>Distribution Method</label>
+            <select id="mwan-pcc-mode" class="form-input">
+              <option value="both-addresses">Per Source+Destination (recommended)</option>
+              <option value="src-address">Per Source IP (sticky per user)</option>
+              <option value="dst-address">Per Destination</option>
+              <option value="both-addresses-and-ports">Per Connection (most balanced)</option>
+            </select>
+            <div class="fg-help">Choose how traffic is distributed across load-balanced links. "Per Source+Destination" works for most cases. Use "Per Source IP" if clients need consistent IPs (banking apps, etc.).</div>
+          </div>
+          <p style="color:#8899bb;font-size:.78rem;margin-top:12px">Weight per link is set in each WAN Link card above (slider appears when link role is "Load Balance").</p>
+        </div>
+
+        <!-- ============= Section: Routing Policies ============= -->
+        <div id="mwan-policies-section" style="display:none;margin-top:28px">
+          <div class="mwan-section-header">
+            <h4 class="mwan-section-title" style="margin:0">📋 Routing Policies</h4>
+            <button class="btn btn-sm btn-teal" onclick="addWanPolicy()">+ Add Policy</button>
+          </div>
+          <p style="color:#8899bb;font-size:.78rem;margin:6px 0 14px">Tell the system which users should use which links. Policies are checked top-to-bottom — first match wins. The Default policy at the bottom catches everyone not matched by other rules.</p>
+          <div id="mwan-policies-list" class="policies-list">
+            <div style="color:#8899bb;font-style:italic;text-align:center;padding:24px">No policies yet. The default policy will use all available links.</div>
+          </div>
+        </div>
+
+        <!-- ============= Section: Live Status ============= -->
+        <div id="mwan-status-section" style="display:none;margin-top:24px">
+          <h4 class="mwan-section-title">📡 Status</h4>
+          <div class="status-banner" id="mwan-status-banner">
+            <div class="status-banner-icon">📡</div>
+            <div>
+              <div class="status-banner-title" id="mwan-status-title">Configuration not yet applied to router</div>
+              <div class="status-banner-text" id="mwan-status-text">Save settings, then click "Apply to Router" to push the config to the MikroTik (Apply will be enabled in v62.97).</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div id="mwan-actions" style="display:none;margin-top:28px;gap:10px;flex-wrap:wrap;justify-content:flex-end">
+          <button class="btn" onclick="loadMwanConfig()">↻ Discard Changes</button>
+          <button class="btn btn-red" id="mwan-revert-btn" onclick="revertMwanConfig()" style="display:none">↺ Revert from Router</button>
+          <button class="btn" onclick="previewMwanConfig()">👁 Preview Config</button>
+          <button class="btn btn-teal" onclick="saveMwanConfig()">💾 Save Settings</button>
+          <button class="btn btn-purple" id="mwan-apply-btn" onclick="applyMwanToRouter()">⚡ Apply to Router</button>
+        </div>
+      </div>
+    </div>
+
+    </div><!-- /tab-pane multi-wan -->
+`;
+}
+
+function openWinbox() {
+  if (device?.remote_winbox_url) {
+    window.open(device.remote_winbox_url, '_blank');
+  }
+}
+
+let apiPwdRevealed = false;
+function revealApiPassword() {
+  apiPwdRevealed = !apiPwdRevealed;
+  const el = document.getElementById('api-pwd-display');
+  const btn = document.getElementById('reveal-btn');
+  if (apiPwdRevealed) {
+    el.textContent = device?.mikrotik_api_password || '—';
+    el.style.color = '#00d4aa';
+    btn.textContent = 'Hide';
+  } else {
+    el.textContent = '••••••••••••';
+    el.style.color = '#8899bb';
+    btn.textContent = 'Reveal';
+  }
+}
+
+function copyText(t) {
+  navigator.clipboard.writeText(t).then(() => {
+    // simple inline feedback
+    const btns = document.querySelectorAll('.copy-btn');
+    btns.forEach(b => { if (b.textContent === 'Copy') { const o = b.textContent; b.textContent = '✓ Copied'; setTimeout(() => b.textContent = o, 1200); } });
+  });
+}
+
+async function fetchBandwidth() {
+  try {
+    const d = await api('/nas/' + encodeURIComponent(deviceId) + '/bandwidth');
+    const err = document.getElementById('bw-error');
+    if (d.error) {
+      err.style.display = '';
+      err.textContent = 'Live bandwidth unavailable: ' + d.error;
+      return;
+    }
+    err.style.display = 'none';
+    if (d.lan) {
+      document.getElementById('bw-lan-name').textContent = d.lan.iface || '—';
+      // v62.86: use semantic down_bps/up_bps (down = router → clients, up = clients → router)
+      document.getElementById('bw-lan-rx').textContent = fmtBps(d.lan.down_bps || 0);
+      document.getElementById('bw-lan-tx').textContent = fmtBps(d.lan.up_bps || 0);
+    }
+  } catch (e) {
+    const err = document.getElementById('bw-error');
+    if (err) { err.style.display = ''; err.textContent = 'Live bandwidth error: ' + e.message; }
+  }
+}
+
+function startBwPolling() {
+  if (bwTimer) clearInterval(bwTimer);
+  if (!device?.is_online) return;
+  fetchBandwidth();
+  bwTimer = setInterval(fetchBandwidth, 3000);
+}
+
+window.addEventListener('beforeunload', () => { if (bwTimer) clearInterval(bwTimer); });
+
+async function regenerateProvisioningToken() {
+  if (!confirm('Generate a new provisioning token? The old script URL will stop working.')) return;
+  try {
+    const d = await api('/nas/' + encodeURIComponent(deviceId) + '/regenerate-token', { method: 'POST' });
+    alert('New provisioning URL: ' + (d.provision_url || 'check device list'));
+    loadDevice();
+  } catch (e) { alert('Failed: ' + e.message); }
+}
+
+function openEdit() {
+  alert('Edit modal — coming soon. Navigate back to dashboard and use the Add Device wizard if needed.');
+}
+
+async function confirmDelete() {
+  if (!confirm(`Delete ${device?.name || 'this device'}? This cannot be undone.`)) return;
+  if (!confirm('This will REMOVE the device from RumaLink and all RADIUS associations. Type-confirm by clicking OK once more.')) return;
+  try {
+    await api('/nas/' + encodeURIComponent(deviceId), { method: 'DELETE' });
+    location.href = 'dashboard.html';
+  } catch (e) { alert('Failed: ' + e.message); }
+}
+
+loadDevice();
+
+
+
+
+
+
+// v62.90: ISP Link Status — JS functions (was missing from v62.87 due to skip-condition bug)
+let linkStatusTimer = null;
+
+async function loadLinkStatus() {
+  try {
+    const d = await api('/nas/' + encodeURIComponent(deviceId) + '/link-status');
+    renderLinkStatus(d);
+  } catch (e) {
+    console.warn('link-status:', e.message);
+  }
+  try {
+    const d = await api('/nas/' + encodeURIComponent(deviceId) + '/link-events?limit=10');
+    renderLinkEvents(d.events || []);
+  } catch (e) {
+    console.warn('link-events:', e.message);
+  }
+}
+
+function renderLinkStatus(d) {
+  const pill = document.getElementById('link-status-pill');
+  const dot = document.getElementById('link-status-dot');
+  const text = document.getElementById('link-status-text');
+  const dur = document.getElementById('link-duration');
+  const lc = document.getElementById('link-last-checked');
+  const toggle = document.getElementById('link-notif-toggle');
+  
+  if (!pill) return;
+  
+  const status = d.isp_link_status || 'unknown';
+  if (status === 'up') {
+    pill.style.background = 'rgba(0,212,170,.15)';
+    pill.style.color = '#00d4aa';
+    pill.style.borderColor = 'rgba(0,212,170,.4)';
+    dot.style.background = '#00d4aa';
+    dot.style.boxShadow = '0 0 8px #00d4aa';
+    text.textContent = '● LIVE — Internet Reachable';
+  } else if (status === 'down') {
+    pill.style.background = 'rgba(231,76,60,.15)';
+    pill.style.color = '#e74c3c';
+    pill.style.borderColor = 'rgba(231,76,60,.4)';
+    dot.style.background = '#e74c3c';
+    dot.style.boxShadow = '0 0 8px #e74c3c';
+    text.textContent = '● OFFLINE — No Internet from ISP';
+  } else {
+    pill.style.background = 'rgba(243,156,18,.15)';
+    pill.style.color = '#f39c12';
+    pill.style.borderColor = 'rgba(243,156,18,.4)';
+    dot.style.background = '#f39c12';
+    text.textContent = '⏳ Pending — First Check…';
+  }
+  
+  if (d.isp_link_changed_at) {
+    const sec = Math.floor((Date.now() - new Date(d.isp_link_changed_at).getTime()) / 1000);
+    dur.textContent = status === 'up' ? `UP for ${fmtDuration(sec)}` : status === 'down' ? `DOWN for ${fmtDuration(sec)}` : '—';
+  } else {
+    dur.textContent = '—';
+  }
+  
+  if (d.isp_link_last_checked) {
+    lc.textContent = fmtAgo(d.isp_link_last_checked);
+  } else {
+    lc.textContent = 'Never';
+  }
+  
+  if (toggle) toggle.checked = d.isp_link_notifications_enabled !== false;
+}
+
+function renderLinkEvents(events) {
+  const list = document.getElementById('link-events-list');
+  if (!list) return;
+  if (!events.length) {
+    list.innerHTML = '<div style="color:#8899bb;font-style:italic">No events yet — link has been stable</div>';
+    return;
+  }
+  list.innerHTML = events.map(e => {
+    const icon = e.event_type === 'isp_link_down' ? '🔴' : '🟢';
+    const color = e.event_type === 'isp_link_down' ? '#e74c3c' : '#00d4aa';
+    return `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(30,47,82,.4)">
+      <div style="color:${color}">${icon}</div>
+      <div style="flex:1">
+        <div style="color:#f0f4ff;font-size:.82rem">${esc(e.message)}</div>
+        <div style="color:#8899bb;font-size:.7rem;margin-top:2px">${new Date(e.created_at).toLocaleString()}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function manualLinkCheck() {
+  const btn = document.getElementById('btn-check-link');
+  if (!btn) return;
+  btn.disabled = true;
+  const orig = btn.innerHTML;
+  btn.textContent = '⏳ Checking…';
+  try {
+    const d = await api('/nas/' + encodeURIComponent(deviceId) + '/link-check', { method: 'POST' });
+    if (d.ok) {
+      await loadLinkStatus();
+    }
+  } catch (e) {
+    alert('Check failed: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+}
+
+async function toggleLinkNotifications(enabled) {
+  try {
+    await api('/nas/' + encodeURIComponent(deviceId) + '/link-notifications', {
+      method: 'PUT', body: JSON.stringify({ enabled })
+    });
+  } catch (e) { console.warn(e); }
+}
+
+function startLinkStatusPolling() {
+  if (linkStatusTimer) clearInterval(linkStatusTimer);
+  loadLinkStatus();
+  linkStatusTimer = setInterval(loadLinkStatus, 15000);
+}
+
+window.addEventListener('beforeunload', () => { if (linkStatusTimer) clearInterval(linkStatusTimer); });
+
+// v62.98: Tab switcher (was removed during v62.96 JS replacement)
+function showTab(tabName) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabName));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.dataset.tab === tabName));
+  if (tabName === 'multi-wan' && (!window.mwanLinks || !window.mwanLinks.length)) {
+    if (typeof loadMwanConfig === 'function') loadMwanConfig();
+  }
+  history.replaceState(null, '', '?id=' + encodeURIComponent(deviceId) + '#' + tabName);
+}
+
+// v62.96: Multi-WAN with unlimited links + routing policies
+let mwanLinks = [];          // [{id, position, name, interface, gateway, ping_target, role, lb_weight, enabled}]
+let mwanPolicies = [];       // [{id, priority, name, match_type, match_value, action_type, target_link_id, target_link_ids}]
+let mwanInterfaces = [];     // list of available router interfaces
+let mwanCurrentMode = 'none';
+let mwanPppoePackages = [];  // cache for policy match dropdown
+let mwanHotspotPackages = [];
+let mwanPppoeSubscribers = [];
+
+async function loadMwanConfig() {
+  try {
+    const d = await api('/nas/' + encodeURIComponent(deviceId) + '/multi-wan');
+    mwanLinks = d.links || [];
+    mwanPolicies = d.policies || [];
+    mwanInterfaces = d.available_interfaces || ['ether1','ether2','ether3','ether4','ether5'];
+    mwanPppoePackages = d.pppoe_packages || [];
+    mwanHotspotPackages = d.hotspot_packages || [];
+    mwanPppoeSubscribers = d.pppoe_subscribers || [];
+
+    // Set mode
+    const cfg = d.config || {};
+    document.getElementById('mwan-check-interval').value = cfg.check_interval_sec || 10;
+    document.getElementById('mwan-fail-threshold').value = cfg.fail_threshold || 3;
+    /* RL_QUALITY_DASH */
+    if (document.getElementById('wq-enabled')) {
+      document.getElementById('wq-enabled').checked = cfg.wan_quality_enabled !== false;
+      document.getElementById('wq-latency').value = cfg.wan_quality_latency_ms || 100;
+      document.getElementById('wq-jitter').value = cfg.wan_quality_jitter_ms || 30;
+      document.getElementById('wq-loss').value = cfg.wan_quality_loss_pct || 2;
+      document.getElementById('wq-trip').value = cfg.wan_quality_trip_count || 3;
+      document.getElementById('wq-recover').value = cfg.wan_quality_recover_count || 20;
+    }
+    document.getElementById('mwan-pcc-mode').value = cfg.pcc_mode || 'both-addresses';
+    setMwanMode(cfg.mode || 'none');
+
+    // Render dynamic lists
+    renderWanLinks();
+    renderWanPolicies();
+    updateMwanStatusBanner(cfg);
+    // v62.101: kick off live status polling
+    startLinkStatusPollingMwan();
+  } catch (e) {
+    console.warn('mwan load:', e.message);
+  }
+}
+
+function setMwanMode(mode) {
+  mwanCurrentMode = mode;
+  /* RL_MODE_VIS: repaint the LB panels immediately on mode switch */
+  try { rlPaintLbSplit(); } catch(_e){}
+  try { if (typeof rlLoadConns === 'function') rlLoadConns(); } catch(_e){}
+  document.querySelectorAll('.mode-card').forEach(c => c.classList.toggle('active', c.dataset.mode === mode));
+
+  // Sync each link's role flags to the chosen mode so the SAVED config matches the tab.
+  // Failover Only -> every link failover; Load Balancing -> every link LB; Both -> per-link.
+  (mwanLinks || []).forEach((l, i) => {
+    if (mode === 'load_balance') { l.in_load_balance = true; l.is_failover = false; l.failover_priority = null; }
+    else if (mode === 'failover') { l.in_load_balance = false; l.is_failover = true; if (!l.failover_priority) l.failover_priority = i + 1; }
+    l.role = l.in_load_balance ? 'load_balance' : (l.is_failover ? 'failover_primary' : 'dedicated');
+  });
+
+  const showLinks    = mode !== 'none';
+  const showFailover = mode === 'failover' || mode === 'both';
+  const showLB       = mode === 'load_balance' || mode === 'both';
+  const showPolicies = showLB;  // policies only matter for load-balance/both
+  const showStatus   = mode !== 'none';
+
+  document.getElementById('mwan-links-section').style.display    = showLinks ? '' : 'none';
+  document.getElementById('mwan-failover-section').style.display = showFailover ? '' : 'none';
+  document.getElementById('mwan-lb-section').style.display       = showLB ? '' : 'none';
+  document.getElementById('mwan-policies-section').style.display = showPolicies ? '' : 'none';
+  document.getElementById('mwan-status-section').style.display   = showStatus ? '' : 'none';
+  document.getElementById('mwan-actions').style.display          = 'flex';
+
+  if (mwanLinks && mwanLinks.length) { renderWanLinks(); renderWanPolicies(); }
+}
+
+
+// v62.101: Live link status fetching + display
+let mwanLinkStatuses = {};
+let mwanLinkStatusTimer = null;
+
+async function refreshLinkStatus() {
+  if (!mwanCurrentMode || mwanCurrentMode === 'none') return;
+  if (!mwanLinks || !mwanLinks.length) return;
+  // Skip if not yet saved (links have null IDs)
+  if (mwanLinks.some(l => !l.id)) return;
+  
+  const btn = document.getElementById('mwan-status-refresh-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '⟳ Refreshing…'; }
+  try {
+    const d = await api('/nas/' + encodeURIComponent(deviceId) + '/multi-wan/link-status');
+    if (d && d.statuses) {
+      mwanLinkStatuses = {};
+      d.statuses.forEach(s => { mwanLinkStatuses[s.id] = s; });
+      try { rlPaintLbSplit(); } catch (e) {}   /* RL_LB_LIVE: repaint the split with fresh byte counts */
+      try { if (!rlConnsTimer) rlStartConns(); } catch (e) {}
+      // Re-render link cards to show updated pills
+      renderWanLinks();
+    }
+  } catch (e) {
+    console.warn('[mwan link-status]', e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '↻ Refresh'; }
+  }
+}
+
+function startLinkStatusPollingMwan() {
+  stopLinkStatusPollingMwan();
+  if (mwanCurrentMode === 'none' || !mwanLinks || !mwanLinks.length) return;
+  if (mwanLinks.some(l => !l.id)) return; // not saved yet
+  refreshLinkStatus();
+  mwanLinkStatusTimer = setInterval(refreshLinkStatus, 20000); // every 20s
+}
+
+function stopLinkStatusPollingMwan() {
+  if (mwanLinkStatusTimer) clearInterval(mwanLinkStatusTimer);
+  mwanLinkStatusTimer = null;
+}
+
+window.addEventListener('beforeunload', stopLinkStatusPollingMwan);
+
+function renderLinkStatusPill(linkId) {
+  const s = mwanLinkStatuses[linkId];
+  if (!s) {
+    return `<span class="link-status-pill standby">⏳ Unknown</span>`;
+  }
+  let cls = 'standby', icon = '○', label = s.status_label || 'Unknown';
+  if (s.status === 'online')          { cls = 'up';      icon = '●'; label = s.status_label || 'Online'; }
+  else if (s.status === 'standby')    { cls = 'ready';   icon = '◐'; label = s.status_label || 'Standby'; }
+  else if (s.status === 'no-internet'){ cls = 'down';    icon = '⚠'; label = s.status_label || 'No Internet'; }
+  else if (s.status === 'searching')  { cls = 'standby'; icon = '⏳'; label = s.status_label || 'Getting IP'; }
+  else if (s.status === 'offline')    { cls = 'down';    icon = '○'; label = s.status_label || 'Offline'; }
+  const tip = (s.status_detail || '') + ` (gw-ping=${s.gateway_ping_ok ? 'ok' : 'fail'}${s.external_ping_ok ? ', internet=ok' : ''})`;
+  return `<span class="link-status-pill ${cls}" title="${esc(tip)}">${icon} ${esc(label)}</span>`;
+}
+
+function renderQualityChip(s){ /* RL_QUALITY_DASH */
+  if (s == null || (s.latency_ms == null && s.jitter_ms == null && s.loss_pct == null)) return '';
+  var lat = (s.latency_ms != null) ? (Math.round(s.latency_ms*10)/10 + 'ms') : '\u2014';
+  var jit = (s.jitter_ms != null) ? (Math.round(s.jitter_ms*10)/10 + 'ms') : '\u2014';
+  var loss = (s.loss_pct != null) ? (s.loss_pct + '%') : '\u2014';
+  var state = s.quality_parked ? 'parked' : (s.quality_state || 'good');
+  var badge, color, bg;
+  if (state === 'parked' || state === 'degraded') { badge = '\uD83D\uDD34 Degraded \u2014 on backup'; color = '#e74c3c'; bg = 'rgba(231,76,60,.12)'; }
+  else if (state === 'degrading') { badge = '\uD83D\uDFE1 Degrading'; color = '#f39c12'; bg = 'rgba(243,156,18,.12)'; }
+  else { badge = '\uD83D\uDFE2 Good'; color = '#00d4aa'; bg = 'rgba(0,212,170,.12)'; }
+  return '<span style="display:inline-flex;gap:10px;align-items:center;padding:2px 8px;border-radius:6px;background:'+bg+';color:'+color+'">'
+    + '<span title="latency">\u26A1 '+lat+'</span><span title="jitter">\u301C '+jit+'</span><span title="packet loss">\u2B07 '+loss+'</span>'
+    + '<strong>'+badge+'</strong></span>';
+}
+/* RL_CONNS_UI: live connections, grouped by the WAN each one actually took.
+   The connection-mark (rl_conn_wanN) is stamped by PCC when the connection is established, so
+   this is not an estimate — it is where the traffic genuinely went. If the hash is honouring
+   your weights, the flow counts here will match them. */
+let rlConnsTimer = null;
+
+async function rlLoadConns() {
+  /* RL_MODE_VIS: Live Connections is LB content — in failover-only mode, don't poll the
+     router for connection data and keep the panel empty. */
+  if (mwanCurrentMode === 'failover') { try { rlRenderConns({}); } catch(_e){} return; }
+  const box = document.getElementById('rl-conns');
+  if (!box) return;
+  try {
+    const d = await api('/nas/' + encodeURIComponent(deviceId) + '/connections');
+    rlRenderConns(d);
+  } catch (e) {
+    box.innerHTML = '<div style="color:#7788aa;font-size:.75rem;padding:10px">Could not read connections from the router.</div>';
+  }
+}
+
+function rlRenderConns(d) {
+  const box = document.getElementById('rl-conns');
+  if (!box) return;
+  const wans = (d.wans || []).filter(function(w){ return w.in_lb; });
+  const conns = d.conns || [];
+
+  if (!wans.length) { box.innerHTML = ''; return; }
+
+  const totalFlows = wans.reduce(function(a,w){ return a + w.flows; }, 0);
+  const cols = ['#00d4aa','#5eb3ff','#f0a020','#c678dd'];
+
+  // Per-WAN summary cards
+  const cards = wans.map(function(w, i) {
+    const pct = totalFlows ? (w.flows / totalFlows) * 100 : 0;
+    const c = cols[i % 4];
+    return '<div style="flex:1;background:' + c + '14;border:1px solid ' + c + '40;border-radius:8px;padding:10px 12px">' +
+      '<div style="color:' + c + ';font-weight:700;font-size:.76rem">WAN' + w.position + ' · ' + esc(w.interface) + '</div>' +
+      '<div style="color:#f0f4ff;font-size:1.25rem;font-weight:700;margin:3px 0">' + w.flows +
+        ' <span style="font-size:.68rem;color:#8899bb;font-weight:400">flows · ' + pct.toFixed(0) + '%</span></div>' +
+      '<div style="font-size:.68rem;color:' + c + '">' + rlFmtBytes(w.bytes) + ' · set ' + (w.weight || 0) + '%</div>' +
+    '</div>';
+  }).join('');
+
+  // Is PCC obeying the weights?
+  let verdict = '';
+  if (totalFlows >= 6) {
+    const wTot = wans.reduce(function(a,w){ return a + Number(w.weight||0); }, 0);
+    let worst = 0;
+    wans.forEach(function(w){
+      const act = (w.flows / totalFlows) * 100;
+      const set = wTot ? (Number(w.weight||0) / wTot) * 100 : 0;
+      worst = Math.max(worst, Math.abs(act - set));
+    });
+    verdict = worst <= 15
+      ? '<div style="background:rgba(0,212,170,.07);border-left:3px solid #00d4aa;border-radius:4px;padding:7px 11px;font-size:.72rem;margin:10px 0"><strong style="color:#00d4aa">PCC is obeying your weights</strong> — live flows are within ' + worst.toFixed(0) + '% of the split you set.</div>'
+      : '<div style="background:rgba(240,160,32,.07);border-left:3px solid #f0a020;border-radius:4px;padding:7px 11px;font-size:.72rem;margin:10px 0"><strong style="color:#f0a020">Flows are ' + worst.toFixed(0) + '% off your weights.</strong> PCC hashes per connection, so small samples skew — but a persistent gap on a busy network means the hash is not distributing evenly.</div>';
+  } else if (totalFlows > 0) {
+    verdict = '<div style="color:#7788aa;font-size:.7rem;margin:10px 0">Only ' + totalFlows + ' active flow' + (totalFlows===1?'':'s') + ' — too few to judge the split. It needs real customer traffic.</div>';
+  }
+
+  // The table
+  let table;
+  if (!conns.length) {
+    table = '<div style="text-align:center;padding:22px;color:#7788aa;font-size:.76rem">' +
+      '<div style="font-size:1.6rem;margin-bottom:6px;opacity:.4">◌</div>' +
+      'No customer connections right now.<br>' +
+      '<span style="font-size:.7rem">Traffic appears here as soon as someone browses. The router\'s own traffic (tunnel, DNS, health probes) is excluded — it would distort the split.</span></div>';
+  } else {
+    const rows = conns.map(function(c) {
+      const wc = cols[(c.wan - 1) % 4];
+      const svc = c.service
+        ? '<span style="color:' + c.color + '">' + c.icon + '</span> ' + esc(c.service) +
+          ' <span style="color:#7788aa;font-family:monospace;font-size:.68rem">' + esc(c.dst) + '</span>'
+        : '<span style="color:#7788aa;font-family:monospace">' + esc(c.dst) + (c.port ? ':' + esc(c.port) : '') + '</span>';
+      return '<tr style="border-bottom:1px solid rgba(136,153,187,.07)">' +
+        '<td style="padding:7px 4px;font-family:monospace;color:#f0f4ff;font-size:.7rem">' + esc(c.src) + '</td>' +
+        '<td style="padding:7px 4px">' + svc + '</td>' +
+        '<td style="padding:7px 4px"><span style="color:' + wc + ';font-weight:600">WAN' + c.wan + '</span></td>' +
+        '<td style="padding:7px 4px;text-align:right;color:#f0f4ff">' + rlFmtBytes(c.bytes) + '</td></tr>';
+    }).join('');
+    table = '<table style="width:100%;border-collapse:collapse;font-size:.72rem">' +
+      '<tr style="color:#7788aa;text-align:left;border-bottom:1px solid rgba(136,153,187,.2)">' +
+        '<th style="padding:6px 4px;font-weight:600">Client</th>' +
+        '<th style="padding:6px 4px;font-weight:600">Destination</th>' +
+        '<th style="padding:6px 4px;font-weight:600">Via</th>' +
+        '<th style="padding:6px 4px;font-weight:600;text-align:right">Data</th></tr>' + rows + '</table>';
+  }
+
+  box.innerHTML =
+    '<div style="background:rgba(20,26,40,.55);border:1px solid rgba(136,153,187,.18);border-radius:10px;padding:14px;margin:0 0 16px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:11px">' +
+        '<span style="color:#f0f4ff;font-weight:700;font-size:.86rem">🔴 Live Connections</span>' +
+        '<span style="color:#7788aa;font-size:.7rem">refreshing every 5s · ' + (d.total || 0) + ' active</span></div>' +
+      '<div style="display:flex;gap:10px;margin-bottom:4px">' + cards + '</div>' +
+      verdict + table +
+      '<div style="color:#7788aa;font-size:.65rem;margin-top:9px;border-top:1px solid rgba(136,153,187,.12);padding-top:7px">' +
+        'The WAN column is read from the connection mark PCC stamped on each flow — this is where traffic actually went, not an estimate. Service names are inferred from destination IP ownership; everything is HTTPS, so CDN-hosted apps may show as their CDN.</div>' +
+    '</div>';
+}
+
+function rlStartConns(){ if(rlConnsTimer) clearInterval(rlConnsTimer); rlLoadConns(); rlConnsTimer = setInterval(rlLoadConns, 5000); }
+function rlPaintLbSplit(){ var e=document.getElementById("rl-lb-split"); if(e) e.innerHTML = (mwanCurrentMode === 'failover') ? '' : renderLbSplit(); } /* RL_MODE_VIS */
+function renderLinkStatusDetails(linkId) {
+  const s = mwanLinkStatuses[linkId];
+  if (!s) return '';
+  if (!s.ip && !s.gateway) return '';
+  const gwColor = s.gateway_ping_ok ? '#00d4aa' : '#e74c3c';
+  const gwMark = s.gateway_ping_ok ? '✓' : '✗';
+  const netActive = s.route_active_in_main;
+  return `<div style="margin-top:8px;padding:8px 10px;background:rgba(0,0,0,.15);border-radius:6px;font-size:.72rem;color:#8899bb;display:flex;flex-wrap:wrap;gap:14px;align-items:center">
+    ${s.ip ? `<span><strong style="color:#f0f4ff">IP:</strong> <span style="color:#00d4aa;font-family:monospace">${esc(s.ip)}</span></span>` : ''}
+    ${s.gateway ? `<span><strong style="color:#f0f4ff">GW:</strong> <span style="color:#00d4aa;font-family:monospace">${esc(s.gateway)}</span> <span style="color:${gwColor}">${gwMark}${s.gateway_ping_ms ? ' ' + esc(s.gateway_ping_ms) : ''}</span></span>` : ''}
+    ${netActive ? `<span style="color:#00d4aa">⚡ Carrying Traffic</span>` : `<span style="color:#5eb3ff">◐ Ready (standby)</span>`}
+    ${renderInternetVerdict(s)}
+    ${renderBytesCarried(s)}
+    ${s.status_detail ? `<span style="color:#7788aa;font-style:italic">${esc(s.status_detail)}</span>` : ''}
+    ${renderQualityChip(s)}
+  </div>`;
+}
+
+
+/* RL_PROBE_UI: the honest internet verdict.
+   The old line read s.external_ping_ok — an ICMP flag. That is exactly what reported
+   "70ms, 0% loss, Good" while no site would load: the ISP's transit was dead but the router
+   still answered pings. This renders what the fetch probe actually found: whether real
+   content (DNS -> TCP -> TLS -> HTTP) was retrieved THROUGH THIS WAN. */
+/* RL_BYTES_UI: data carried by this link. On a BACKUP this is the number that matters —
+   backup uplinks are often metered, and a failover you did not notice can run up a bill. */
+/* RL_LB_SPLIT: the traffic split across load-balanced links.
+   Configured weight is an INTENTION; PCC hashes by connection, so a handful of heavy flows can
+   pull a 50/50 config to 70/30. Showing configured-vs-ACTUAL is what makes this diagnostic
+   rather than decorative — a persistent skew means the hash is not distributing your traffic. */
+
+function fmtBytes(b) {
+  b = Number(b||0);
+  var u = ['B','KB','MB','GB','TB'], i = 0;
+  while (b >= 1024 && i < u.length-1) { b /= 1024; i++; }
+  return b.toFixed(b < 10 && i > 0 ? 1 : 0) + ' ' + u[i];
+}
+
+function renderBytesCarried(s) {
+  const b = Number(s.bytes_carried || 0);
+  if (!b) return '';
+  const u = ['B','KB','MB','GB','TB']; let i = 0, v = b;
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+  return '<span style="color:#8899bb">📊 <strong style="color:#f0f4ff">' +
+         v.toFixed(v < 10 && i > 0 ? 1 : 0) + ' ' + u[i] + '</strong> carried</span>';
+}
+
+/* RL_LB_LIVE: the live traffic split across load-balanced links.
+   The configured weight is an INTENTION. PCC hashes by connection, so a handful of heavy flows
+   (one big download, a video stream) can pull a 50/50 config to 70/30. Showing configured vs
+   ACTUAL is what makes this diagnostic rather than decorative: a persistent skew means the hash
+   is not distributing your traffic the way you asked. */
+function rlFmtBytes(b) {
+  b = Number(b || 0);
+  var u = ['B','KB','MB','GB','TB'], i = 0;
+  while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; }
+  return b.toFixed(b < 10 && i > 0 ? 1 : 0) + ' ' + u[i];
+}
+
+function renderLbSplit() {
+  // RL_LB_FIX: mwanLinkStatuses is declared with `let` (line ~934), and a `let` does NOT
+  // attach to window. Reading window.mwanLinkStatuses therefore returned undefined, this fell
+  // back to {}, found no links, and returned '' on every single call — which is why the visual
+  // never appeared no matter how many repaint hooks were added.
+  var st = (typeof mwanLinkStatuses !== 'undefined' && mwanLinkStatuses) ? mwanLinkStatuses : {};
+  var lbs = Object.keys(st).map(function(k){ return st[k]; })
+              .filter(function(x){ return x && x.in_load_balance; })
+              .sort(function(a,b){ return (a.position||0) - (b.position||0); });
+  if (lbs.length < 2) return '';
+
+  var total = lbs.reduce(function(a,x){ return a + Number(x.bytes_carried || 0); }, 0);
+  if (!total) return '';
+  var wTotal = lbs.reduce(function(a,x){ return a + Number(x.lb_weight || 0); }, 0);
+  var cols = ['#00d4aa','#5eb3ff','#f0a020','#c678dd'];
+
+  var bar = lbs.map(function(x, i) {
+    var pct = (Number(x.bytes_carried || 0) / total) * 100;
+    if (pct < 0.4) return '';
+    return '<div style="width:' + pct.toFixed(1) + '%;background:' + cols[i % 4] +
+      ';display:flex;align-items:center;justify-content:center;color:#04121a;font-weight:700;font-size:.72rem">' +
+      (pct >= 14 ? 'WAN' + x.position + ' · ' + pct.toFixed(0) + '%' : '') + '</div>';
+  }).join('');
+
+  var maxSkew = 0;
+  var rows = lbs.map(function(x, i) {
+    var b = Number(x.bytes_carried || 0);
+    var pct = (b / total) * 100;
+    var wPct = wTotal ? (Number(x.lb_weight || 0) / wTotal) * 100 : 0;
+    var skew = Math.abs(pct - wPct);
+    if (skew > maxSkew) maxSkew = skew;
+    var health = x.probe_verdict === 'good' ? '<span style="color:#00d4aa">✓</span>'
+               : x.probe_verdict === 'slow' ? '<span style="color:#f0a020">slow</span>'
+               : x.probe_verdict === 'down' ? '<span style="color:#e74c3c">✗</span>' : '';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:.76rem;border-bottom:1px solid rgba(136,153,187,.08)">' +
+      '<span style="color:' + cols[i % 4] + ';font-weight:600">● WAN' + x.position + ' ' +
+        esc(x.interface || '') + ' ' + health + '</span>' +
+      '<span style="color:#8899bb"><strong style="color:#f0f4ff">' + rlFmtBytes(b) + '</strong> · ' +
+        pct.toFixed(0) + '% <span style="color:#7788aa">(set ' + wPct.toFixed(0) + '%)</span></span>' +
+    '</div>';
+  }).join('');
+
+  var note = maxSkew > 20
+    ? '<div style="color:#f0a020;font-size:.7rem;margin-top:7px">⚠ Split is ' + maxSkew.toFixed(0) +
+      '% off the configured weights. PCC hashes by connection, so a few heavy flows can skew it — but a persistent gap means traffic is not distributing as set.</div>'
+    : '<div style="color:#7788aa;font-size:.68rem;margin-top:7px">Traffic is distributing close to the configured weights.</div>';
+
+  var month = lbs[0] && lbs[0].bytes_month_start
+    ? new Date(lbs[0].bytes_month_start).toLocaleDateString(undefined, { month: 'long' })
+    : 'This month';
+
+  return '<div style="background:rgba(20,26,40,.55);border:1px solid rgba(136,153,187,.18);border-radius:10px;padding:14px;margin:0 0 16px">' +
+    '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">' +
+      '<span style="color:#f0f4ff;font-weight:700;font-size:.86rem">⚖️ Live Traffic Split</span>' +
+      '<span style="color:#7788aa;font-size:.7rem">' + esc(month) + ' · resets 1st, 00:00</span>' +
+    '</div>' +
+    '<div style="height:30px;display:flex;border-radius:6px;overflow:hidden;margin-bottom:10px;border:1px solid rgba(136,153,187,.15)">' + bar + '</div>' +
+    rows + note +
+  '</div>';
+}
+
+function renderInternetVerdict(s) {
+  const v = s.probe_verdict;
+  if (!v) {
+    // No probe data yet — fall back to the old flag, but say so rather than implying certainty.
+    return s.external_ping_ok
+      ? '<span style="color:#8899bb">· Internet: ping only</span>'
+      : '<span style="color:#e74c3c">· Internet ✗</span>';
+  }
+  const ms = s.fetch_ms ? (s.fetch_ms / 1000).toFixed(1) + 's' : null;
+  const stage = s.probe_stage || '';
+  const fails = Number(s.consec_fetch_fail || 0);
+
+  if (v === 'good') {
+    return '<span style="color:#00d4aa">· Internet ✓' + (ms ? ' <span style="color:#6f8">fetched ' + ms + '</span>' : '') + '</span>';
+  }
+  if (v === 'slow') {
+    return '<span style="color:#f0a020">· Internet ✓ <strong>slow</strong>' + (ms ? ' — fetched ' + ms : '') +
+           '<span style="color:#8899bb"> (congested)</span></span>';
+  }
+  if (v === 'suspect') {
+    // The critical state: real traffic is failing while ICMP still looks perfect.
+    return '<span style="color:#f0a020">· Internet ⚠ <strong>verifying ' + fails + '/3</strong>' +
+           '<span style="color:#8899bb"> — fetch failing at ' + esc(stage) + ', ping still OK</span></span>';
+  }
+  if (v === 'down') {
+    let why = stage === 'no-address' ? 'no IP on interface'
+            : stage === 'no-gateway' ? 'no gateway'
+            : stage === 'timeout'    ? 'no response'
+            : stage === 'dns'        ? 'DNS failed'
+            : stage === 'tcp'        ? 'TCP refused'
+            : stage === 'tls'        ? 'TLS failed'
+            : ('failed at ' + stage);
+    // If ping still answers while the fetch cannot, say so plainly — that is the whole point.
+    const lying = s.external_ping_ok ? ' <span style="color:#f0a020">(ping OK — ICMP lying)</span>' : '';
+    return '<span style="color:#e74c3c">· Internet ✗ <strong>' + esc(why) + '</strong>' + lying + '</span>';
+  }
+  if (v === 'skipped') {
+    return '<span style="color:#8899bb">· Internet: router busy, ping only</span>';
+  }
+  return '<span style="color:#8899bb">· Internet: ' + esc(v) + '</span>';
+}
+
+function renderWanLinks() {
+  setTimeout(function(){ try { rlPaintLbSplit(); } catch(e){} }, 60);
+  setTimeout(function(){ try { rlPaintLbSplit(); } catch(e){} }, 1200);  /* RL_LB_LIVE: retry once statuses have landed */
+  const list = document.getElementById('mwan-links-list');
+  if (!list) return;
+  if (!mwanLinks.length) {
+    list.innerHTML = '<div style="color:#8899bb;font-style:italic;text-align:center;padding:24px">No links configured yet. Click "Add Link" above.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  mwanLinks.forEach((link, idx) => {
+    list.appendChild(renderWanLinkRow(link, idx));
+  });
+}
+
+function renderWanLinkRow(link, idx) {
+  const div = document.createElement('div');
+  div.className = 'wan-link-row';
+  div.dataset.linkId = link.id || '';
+  div.dataset.idx = idx;
+
+  const ifaceOpts = mwanInterfaces.map(i => `<option value="${i}" ${i === link.interface ? 'selected' : ''}>${i}</option>`).join('');
+  const _inLb = link.in_load_balance === true || (link.in_load_balance == null && link.role === 'load_balance');
+  const _isFo = link.is_failover === true || (link.is_failover == null && (link.role === 'failover_primary' || link.role === 'failover_backup'));
+  let _pills = '';
+  if (_inLb) _pills += `<span class="role-pill lb">Load Balance</span>`;
+  if (_isFo) _pills += `<span class="role-pill primary">Failover${link.failover_priority ? ' P'+link.failover_priority : ''}</span>`;
+  if (!_inLb && !_isFo) _pills += `<span class="role-pill dedicated">Dedicated</span>`;
+  const _both = mwanCurrentMode === 'both';
+  let _rolesHtml = '';
+  if (_both) {
+    _rolesHtml = `
+        <div class="fg" style="grid-column:1/-1">
+          <label>Roles</label>
+          <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;padding-top:4px">
+            <label style="display:flex;gap:6px;align-items:center;cursor:pointer;font-size:.82rem;text-transform:none;letter-spacing:0;color:#cdd6f4">
+              <input type="checkbox" ${_inLb ? 'checked' : ''} onchange="toggleLinkRole(${idx},'in_load_balance',this.checked)"/> Load Balance
+            </label>
+            <label style="display:flex;gap:6px;align-items:center;cursor:pointer;font-size:.82rem;text-transform:none;letter-spacing:0;color:#cdd6f4">
+              <input type="checkbox" ${_isFo ? 'checked' : ''} onchange="toggleLinkRole(${idx},'is_failover',this.checked)"/> Failover
+            </label>
+            ${_isFo ? `<span style="display:flex;gap:6px;align-items:center;font-size:.82rem;color:#8899bb">Priority <input type="number" min="1" max="9" value="${link.failover_priority || 1}" onchange="updateLinkField(${idx},'failover_priority',parseInt(this.value)||1)" style="width:58px;padding:4px 8px" class="form-input"/></span>` : ''}
+          </div>
+        </div>`;
+  } else if (_isFo) {
+    _rolesHtml = `
+        <div class="fg">
+          <label>Failover Priority</label>
+          <input type="number" min="1" max="9" value="${link.failover_priority || (idx+1)}" onchange="updateLinkField(${idx},'failover_priority',parseInt(this.value)||1)" style="width:90px" class="form-input"/>
+        </div>`;
+  }
+
+  div.innerHTML = `
+    <div class="drag-handle" title="Drag to reorder">⋮⋮</div>
+    <div style="min-width:0">
+      <div class="wan-link-name-row">
+        <span class="wan-link-num">${idx + 1}</span>
+        <input type="text" class="form-input" placeholder="Link name (e.g. Safaricom Fiber)" value="${esc(link.name || '')}" onchange="updateLinkField(${idx},'name',this.value)" style="flex:1;font-weight:600"/>
+        ${_pills}
+        ${renderLinkStatusPill(link.id)}
+      </div>
+      ${renderLinkStatusDetails(link.id)}
+      <div class="wan-link-form">
+        <div class="fg">
+          <label>Interface</label>
+          <select class="form-input" onchange="updateLinkField(${idx},'interface',this.value)">${ifaceOpts}</select>
+        </div>
+        ${_rolesHtml}
+        <div class="fg">
+          <label>Gateway IP <span style="color:#8899bb">(optional)</span></label>
+          <input type="text" class="form-input" placeholder="auto" value="${esc(link.gateway || '')}" onchange="updateLinkField(${idx},'gateway',this.value)"/>
+        </div>
+        <div class="fg">
+          <label>Ping Target</label>
+          <input type="text" class="form-input" value="${esc(link.ping_target || '8.8.8.8')}" onchange="updateLinkField(${idx},'ping_target',this.value)"/>
+        </div>
+      </div>
+      ${_inLb ? `
+        <div class="lb-weight-row">
+          <label>Weight:</label>
+          <input type="range" min="1" max="100" step="1" value="${link.lb_weight || 50}" oninput="updateLinkWeight(${idx}, this.value)" style="flex:1" class="weight-slider"/>
+          <span class="lb-weight-val" id="lb-weight-val-${idx}">${link.lb_weight || 50}%</span>
+        </div>
+      ` : ''}
+    </div>
+    <div class="wan-link-actions">
+      <button class="btn-icon" title="Move up" onclick="moveLink(${idx},-1)" ${idx === 0 ? 'disabled style="opacity:.3"' : ''}>▲</button>
+      <button class="btn-icon" title="Move down" onclick="moveLink(${idx},1)" ${idx === mwanLinks.length - 1 ? 'disabled style="opacity:.3"' : ''}>▼</button>
+      <button class="btn-icon" title="Delete" onclick="deleteLink(${idx})">🗑</button>
+    </div>
+  `;
+  return div;
+}
+
+function addWanLink() {
+  const usedIfaces = mwanLinks.map(l => l.interface);
+  const freeIface = mwanInterfaces.find(i => !usedIfaces.includes(i)) || 'ether' + (mwanLinks.length + 1);
+  mwanLinks.push({
+    id: null,
+    position: mwanLinks.length + 1,
+    name: 'Link ' + (mwanLinks.length + 1),
+    interface: freeIface,
+    gateway: '',
+    ping_target: '8.8.8.8',
+    role: 'load_balance',
+    in_load_balance: mwanCurrentMode !== 'failover',
+    is_failover: mwanCurrentMode === 'failover',
+    failover_priority: mwanCurrentMode === 'failover' ? (mwanLinks.length + 1) : null,
+    lb_weight: 50,
+    enabled: true
+  });
+  renderWanLinks();
+  renderWanPolicies(); // policies depend on link list
+}
+
+function updateLinkField(idx, field, value) {
+  if (mwanLinks[idx]) mwanLinks[idx][field] = value;
+}
+
+function toggleLinkRole(idx, field, checked) {
+  if (!mwanLinks[idx]) return;
+  mwanLinks[idx][field] = checked;
+  if (field === 'is_failover') {
+    if (checked && !mwanLinks[idx].failover_priority) mwanLinks[idx].failover_priority = idx + 1;
+    if (!checked) mwanLinks[idx].failover_priority = null;
+  }
+  mwanLinks[idx].role = mwanLinks[idx].in_load_balance ? 'load_balance' : (mwanLinks[idx].is_failover ? 'failover_primary' : 'dedicated');
+  renderWanLinks();
+  renderWanPolicies();
+}
+
+function updateLinkRole(idx, value) {
+  if (!mwanLinks[idx]) return;
+  mwanLinks[idx].role = value;
+  renderWanLinks();
+  renderWanPolicies();
+}
+
+function updateLinkWeight(idx, value) {
+  if (!mwanLinks[idx]) return;
+  mwanLinks[idx].lb_weight = parseInt(value);
+  const el = document.getElementById('lb-weight-val-' + idx);
+  if (el) el.textContent = value + '%';
+}
+
+function moveLink(idx, dir) {
+  const target = idx + dir;
+  if (target < 0 || target >= mwanLinks.length) return;
+  [mwanLinks[idx], mwanLinks[target]] = [mwanLinks[target], mwanLinks[idx]];
+  // Re-number positions
+  mwanLinks.forEach((l, i) => l.position = i + 1);
+  renderWanLinks();
+  renderWanPolicies();
+}
+
+function deleteLink(idx) {
+  if (!confirm('Remove link "' + (mwanLinks[idx].name || 'WAN ' + (idx+1)) + '"?')) return;
+  const removedId = mwanLinks[idx].id;
+  mwanLinks.splice(idx, 1);
+  mwanLinks.forEach((l, i) => l.position = i + 1);
+  // Also remove any policies pointing to this link
+  if (removedId) {
+    mwanPolicies = mwanPolicies.filter(p => p.target_link_id !== removedId);
+    mwanPolicies.forEach(p => {
+      if (Array.isArray(p.target_link_ids)) p.target_link_ids = p.target_link_ids.filter(id => id !== removedId);
+    });
+  }
+  renderWanLinks();
+  renderWanPolicies();
+}
+
+function renderWanPolicies() {
+  const list = document.getElementById('mwan-policies-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  // Add user policies
+  mwanPolicies.forEach((p, idx) => {
+    list.appendChild(renderPolicyRow(p, idx));
+  });
+
+  // Always-present default catch-all (display-only at bottom)
+  const defaultDiv = document.createElement('div');
+  defaultDiv.className = 'policy-row is-default';
+  const lbLinks = mwanLinks.filter(l => l.in_load_balance === true || l.role === 'load_balance');
+  const defaultText = lbLinks.length
+    ? `<strong>Load balance pool:</strong> ${lbLinks.map(l => esc(l.name || l.interface)).join(', ')}`
+    : 'No load-balance links — please add at least one Load Balance link above';
+  defaultDiv.innerHTML = `
+    <span class="policy-num" title="Default rule (lowest priority)">∞</span>
+    <span class="policy-text"><strong>Default (catch-all):</strong></span>
+    <span class="policy-text">${defaultText}</span>
+    <span class="policy-arrow">→</span>
+    <span style="color:#bb86fc;font-size:.78rem;font-weight:600">Always last</span>
+  `;
+  list.appendChild(defaultDiv);
+}
+
+function renderPolicyRow(p, idx) {
+  const div = document.createElement('div');
+  div.className = 'policy-row';
+
+  // Match label
+  let matchLabel = '';
+  let matchValueLabel = '';
+  if (p.match_type === 'all_pppoe') matchLabel = 'All PPPoE users';
+  else if (p.match_type === 'all_hotspot') matchLabel = 'All Hotspot users';
+  else if (p.match_type === 'pppoe_package') {
+    const pkg = mwanPppoePackages.find(x => x.id === p.match_value);
+    matchLabel = 'PPPoE package';
+    matchValueLabel = pkg ? pkg.name : '(missing)';
+  }
+  else if (p.match_type === 'hotspot_package') {
+    const pkg = mwanHotspotPackages.find(x => x.id === p.match_value);
+    matchLabel = 'Hotspot package';
+    matchValueLabel = pkg ? pkg.name : '(missing)';
+  }
+  else if (p.match_type === 'pppoe_subscriber') {
+    const sub = mwanPppoeSubscribers.find(x => x.id === p.match_value);
+    matchLabel = 'PPPoE subscriber';
+    matchValueLabel = sub ? sub.username : '(missing)';
+  }
+
+  // Action label
+  let actionLabel = '';
+  if (p.action_type === 'use_link') {
+    const link = mwanLinks.find(l => l.id === p.target_link_id);
+    actionLabel = link ? `Use <strong>${esc(link.name || link.interface)}</strong>` : '(unset)';
+  } else if (p.action_type === 'load_balance_pool') {
+    const linkNames = (p.target_link_ids || [])
+      .map(id => mwanLinks.find(l => l.id === id))
+      .filter(Boolean)
+      .map(l => esc(l.name || l.interface));
+    actionLabel = linkNames.length ? `Load balance: ${linkNames.join(', ')}` : '(no links selected)';
+  }
+
+  div.innerHTML = `
+    <span class="policy-num">${idx + 1}</span>
+    <span class="policy-text">
+      <strong>${esc(p.name || 'Unnamed policy')}</strong>
+      <div style="color:#8899bb;font-size:.75rem;margin-top:2px">${esc(matchLabel)}${matchValueLabel ? ': <span style="color:#f0f4ff">' + esc(matchValueLabel) + '</span>' : ''}</div>
+    </span>
+    <span class="policy-text" style="text-align:right">${actionLabel}</span>
+    <span class="policy-arrow">→</span>
+    <span style="display:flex;gap:6px">
+      <button class="btn-icon" title="Edit" onclick="editPolicy(${idx})">✎</button>
+      <button class="btn-icon" title="Move up" onclick="movePolicy(${idx},-1)" ${idx === 0 ? 'disabled style="opacity:.3"' : ''}>▲</button>
+      <button class="btn-icon" title="Move down" onclick="movePolicy(${idx},1)" ${idx === mwanPolicies.length - 1 ? 'disabled style="opacity:.3"' : ''}>▼</button>
+      <button class="btn-icon" title="Delete" onclick="deletePolicy(${idx})">🗑</button>
+    </span>
+  `;
+  return div;
+}
+
+function addWanPolicy() {
+  editPolicy(-1);
+}
+
+async function editPolicy(idx) {
+  const isNew = idx === -1;
+  const existing = isNew ? {
+    name: '', match_type: 'all_pppoe', match_value: null,
+    action_type: 'use_link', target_link_id: null, target_link_ids: []
+  } : { ...mwanPolicies[idx] };
+
+  // Build modal
+  const modal = document.createElement('div');
+  modal.id = 'policy-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9998;display:flex;align-items:center;justify-content:center;padding:20px';
+
+  const linkOpts = mwanLinks.map(l => `<option value="${l.id}">${esc(l.name || l.interface)} (${esc(l.interface)})</option>`).join('');
+  const pppoePkgOpts = mwanPppoePackages.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  const hsPkgOpts = mwanHotspotPackages.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  const subOpts = mwanPppoeSubscribers.map(s => `<option value="${s.id}">${esc(s.username)} - ${esc(s.full_name || '')}</option>`).join('');
+
+  modal.innerHTML = `
+    <div style="background:#0d1530;border:1px solid #1e2f52;border-radius:14px;padding:24px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto">
+      <h3 style="color:#fff;margin-bottom:18px">${isNew ? 'New' : 'Edit'} Routing Policy</h3>
+
+      <div class="fg" style="margin-bottom:14px">
+        <label>Policy Name</label>
+        <input type="text" id="pp-name" class="form-input" placeholder="e.g. PPPoE business users" value="${esc(existing.name || '')}"/>
+      </div>
+
+      <div class="fg" style="margin-bottom:14px">
+        <label>Match</label>
+        <select id="pp-match-type" class="form-input" onchange="onPolicyMatchTypeChange()">
+          <option value="all_pppoe" ${existing.match_type === 'all_pppoe' ? 'selected' : ''}>All PPPoE users</option>
+          <option value="all_hotspot" ${existing.match_type === 'all_hotspot' ? 'selected' : ''}>All Hotspot users</option>
+          <option value="pppoe_package" ${existing.match_type === 'pppoe_package' ? 'selected' : ''}>Specific PPPoE package</option>
+          <option value="hotspot_package" ${existing.match_type === 'hotspot_package' ? 'selected' : ''}>Specific Hotspot package</option>
+          <option value="pppoe_subscriber" ${existing.match_type === 'pppoe_subscriber' ? 'selected' : ''}>Specific PPPoE subscriber</option>
+        </select>
+      </div>
+
+      <div class="fg" id="pp-match-value-wrap" style="margin-bottom:14px;display:none">
+        <label id="pp-match-value-label">Value</label>
+        <select id="pp-match-value" class="form-input">${pppoePkgOpts}</select>
+      </div>
+
+      <div class="fg" style="margin-bottom:14px">
+        <label>Action</label>
+        <select id="pp-action-type" class="form-input" onchange="onPolicyActionTypeChange()">
+          <option value="use_link" ${existing.action_type === 'use_link' ? 'selected' : ''}>Use specific WAN link</option>
+          <option value="load_balance_pool" ${existing.action_type === 'load_balance_pool' ? 'selected' : ''}>Load balance across multiple links</option>
+        </select>
+      </div>
+
+      <div class="fg" id="pp-link-single-wrap" style="margin-bottom:14px">
+        <label>WAN Link</label>
+        <select id="pp-target-link" class="form-input">${linkOpts}</select>
+      </div>
+
+      <div class="fg" id="pp-link-multi-wrap" style="margin-bottom:14px;display:none">
+        <label>Pool of links <span style="color:#8899bb">(hold Ctrl/Cmd to select multiple)</span></label>
+        <select id="pp-target-links" class="form-input" multiple size="4" style="height:auto">${linkOpts}</select>
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">
+        <button class="btn" onclick="closePolicyModal()">Cancel</button>
+        <button class="btn btn-teal" onclick="savePolicyFromModal(${idx})">${isNew ? 'Add' : 'Save'} Policy</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  // Init match-value dropdown based on type
+  window._policyPppoePkgOpts = pppoePkgOpts;
+  window._policyHsPkgOpts = hsPkgOpts;
+  window._policySubOpts = subOpts;
+  onPolicyMatchTypeChange();
+  onPolicyActionTypeChange();
+
+  if (existing.match_value) {
+    setTimeout(() => {
+      const mv = document.getElementById('pp-match-value');
+      if (mv) mv.value = existing.match_value;
+    }, 50);
+  }
+  if (existing.target_link_id) {
+    setTimeout(() => {
+      const tl = document.getElementById('pp-target-link');
+      if (tl) tl.value = existing.target_link_id;
+    }, 50);
+  }
+  if (Array.isArray(existing.target_link_ids) && existing.target_link_ids.length) {
+    setTimeout(() => {
+      const tls = document.getElementById('pp-target-links');
+      if (tls) {
+        [...tls.options].forEach(o => o.selected = existing.target_link_ids.includes(o.value));
+      }
+    }, 50);
+  }
+}
+
+function onPolicyMatchTypeChange() {
+  const t = document.getElementById('pp-match-type').value;
+  const wrap = document.getElementById('pp-match-value-wrap');
+  const label = document.getElementById('pp-match-value-label');
+  const sel = document.getElementById('pp-match-value');
+  if (t === 'all_pppoe' || t === 'all_hotspot') {
+    wrap.style.display = 'none';
+  } else {
+    wrap.style.display = '';
+    if (t === 'pppoe_package') { label.textContent = 'PPPoE Package'; sel.innerHTML = window._policyPppoePkgOpts || ''; }
+    if (t === 'hotspot_package') { label.textContent = 'Hotspot Package'; sel.innerHTML = window._policyHsPkgOpts || ''; }
+    if (t === 'pppoe_subscriber') { label.textContent = 'PPPoE Subscriber'; sel.innerHTML = window._policySubOpts || ''; }
+  }
+}
+
+function onPolicyActionTypeChange() {
+  const t = document.getElementById('pp-action-type').value;
+  document.getElementById('pp-link-single-wrap').style.display = (t === 'use_link') ? '' : 'none';
+  document.getElementById('pp-link-multi-wrap').style.display = (t === 'load_balance_pool') ? '' : 'none';
+}
+
+function closePolicyModal() {
+  const m = document.getElementById('policy-modal');
+  if (m) m.remove();
+}
+
+function savePolicyFromModal(idx) {
+  const name = document.getElementById('pp-name').value.trim() || 'Unnamed';
+  const match_type = document.getElementById('pp-match-type').value;
+  const mvEl = document.getElementById('pp-match-value');
+  const match_value = (match_type === 'all_pppoe' || match_type === 'all_hotspot') ? null : (mvEl && mvEl.value || null);
+  const action_type = document.getElementById('pp-action-type').value;
+  let target_link_id = null;
+  let target_link_ids = [];
+  if (action_type === 'use_link') {
+    target_link_id = document.getElementById('pp-target-link').value || null;
+  } else {
+    target_link_ids = [...document.getElementById('pp-target-links').selectedOptions].map(o => o.value);
+  }
+
+  const policy = { name, match_type, match_value, action_type, target_link_id, target_link_ids };
+  if (idx === -1) {
+    policy.id = null;
+    policy.priority = mwanPolicies.length + 1;
+    mwanPolicies.push(policy);
+  } else {
+    mwanPolicies[idx] = { ...mwanPolicies[idx], ...policy };
+  }
+  closePolicyModal();
+  renderWanPolicies();
+}
+
+function movePolicy(idx, dir) {
+  const t = idx + dir;
+  if (t < 0 || t >= mwanPolicies.length) return;
+  [mwanPolicies[idx], mwanPolicies[t]] = [mwanPolicies[t], mwanPolicies[idx]];
+  mwanPolicies.forEach((p, i) => p.priority = i + 1);
+  renderWanPolicies();
+}
+
+function deletePolicy(idx) {
+  if (!confirm('Remove policy "' + (mwanPolicies[idx].name || 'this policy') + '"?')) return;
+  mwanPolicies.splice(idx, 1);
+  mwanPolicies.forEach((p, i) => p.priority = i + 1);
+  renderWanPolicies();
+}
+
+function gatherMwanForm() {
+  return {
+    mode: mwanCurrentMode,
+    check_interval_sec: parseInt(document.getElementById('mwan-check-interval').value) || 10,
+    fail_threshold: parseInt(document.getElementById('mwan-fail-threshold').value) || 3,
+    pcc_mode: document.getElementById('mwan-pcc-mode').value || 'both-addresses',
+    wan_quality_enabled: document.getElementById('wq-enabled').checked, /* RL_QUALITY_DASH */
+    wan_quality_latency_ms: parseInt(document.getElementById('wq-latency').value) || 100,
+    wan_quality_jitter_ms: parseInt(document.getElementById('wq-jitter').value) || 30,
+    wan_quality_loss_pct: parseInt(document.getElementById('wq-loss').value) || 2,
+    wan_quality_trip_count: parseInt(document.getElementById('wq-trip').value) || 3,
+    wan_quality_recover_count: parseInt(document.getElementById('wq-recover').value) || 20,
+    links: mwanLinks.map((l, i) => ({
+      id: l.id,
+      position: i + 1,
+      name: l.name,
+      interface: l.interface,
+      gateway: l.gateway || null,
+      ping_target: l.ping_target || '8.8.8.8',
+      role: l.role,
+      lb_weight: l.lb_weight || 50,
+      in_load_balance: l.in_load_balance === true,
+      is_failover: l.is_failover === true,
+      failover_priority: l.failover_priority || null,
+      enabled: l.enabled !== false
+    })),
+    policies: mwanPolicies.map((p, i) => ({
+      id: p.id,
+      priority: i + 1,
+      name: p.name,
+      match_type: p.match_type,
+      match_value: p.match_value,
+      action_type: p.action_type,
+      target_link_id: p.target_link_id || null,
+      target_link_ids: p.target_link_ids || [],
+      enabled: p.enabled !== false
+    }))
+  };
+}
+
+async function saveMwanConfig() {
+  // Validation
+  const ifaces = mwanLinks.map(l => l.interface);
+  const dupes = ifaces.filter((x, i) => ifaces.indexOf(x) !== i);
+  if (dupes.length) {
+    showMwanToast('Error: Interface "' + dupes[0] + '" is used by multiple links.', 'error');
+    return;
+  }
+  if (mwanCurrentMode !== 'none' && !mwanLinks.length) {
+    showMwanToast('Error: Add at least one WAN link.', 'error');
+    return;
+  }
+
+  const cfg = gatherMwanForm();
+  const btn = event && event.target;
+  const originalText = btn ? btn.innerHTML : null;
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Saving...'; }
+
+  console.log('[mwan] Saving config:', cfg);
+  try {
+    const r = await api('/nas/' + encodeURIComponent(deviceId) + '/multi-wan', {
+      method: 'PUT', body: JSON.stringify(cfg)
+    });
+    console.log('[mwan] Save response:', r);
+    if (r && !r.error) {
+      showSavedBadge();
+      showMwanToast('✓ Settings saved successfully!', 'success');
+      // Reload to get fresh IDs from server
+      await loadMwanConfig();
+    } else {
+      showMwanToast('Save failed: ' + (r?.error || 'Unknown error'), 'error');
+    }
+  } catch (e) {
+    console.error('[mwan] Save error:', e);
+    showMwanToast('Save failed: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+  }
+}
+
+// v62.99: Apply Multi-WAN config to MikroTik via REST
+async function previewMwanConfig() {
+  try {
+    const d = await api('/nas/' + encodeURIComponent(deviceId) + '/multi-wan/preview');
+    if (!d || d.error) {
+      showMwanToast('Preview failed: ' + (d?.error || 'unknown'), 'error');
+      return;
+    }
+    showMwanPreviewModal(d);
+  } catch (e) {
+    showMwanToast('Preview failed: ' + e.message, 'error');
+  }
+}
+
+function showMwanPreviewModal(plan) {
+  const modal = document.createElement('div');
+  modal.id = 'mwan-preview-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9998;display:flex;align-items:center;justify-content:center;padding:20px';
+
+  const opsHtml = plan.operations.map((op, i) => {
+    let icon = '⚙';
+    let bg = 'rgba(13,21,48,.6)';
+    if (op.cleanup) { icon = '🧹'; bg = 'rgba(243,156,18,.06)'; }
+    else if (op.prepare) { icon = '🔌'; bg = 'rgba(155,89,182,.06)'; }
+    else if (op.method === 'PUT' || op.method === 'POST') { icon = '✚'; bg = 'rgba(0,212,170,.06)'; }
+    return `<div style="display:flex;gap:10px;padding:8px 12px;background:${bg};border-radius:6px;margin-bottom:6px;font-size:.82rem">
+      <div style="color:#8899bb;min-width:24px">${i + 1}.</div>
+      <div style="flex:1;color:#f0f4ff">${esc(op.description)}</div>
+    </div>`;
+  }).join('');
+
+  modal.innerHTML = `
+    <div style="background:#0d1530;border:1px solid #1e2f52;border-radius:14px;padding:24px;max-width:720px;width:100%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column">
+      <h3 style="color:#fff;margin:0 0 6px">📋 Preview Multi-WAN Configuration</h3>
+      <p style="color:#8899bb;font-size:.82rem;margin:0 0 14px">
+        Mode: <strong style="color:#00d4aa">${esc(plan.mode)}</strong> &nbsp;·&nbsp;
+        Links: <strong style="color:#fff">${plan.link_count}</strong> &nbsp;·&nbsp;
+        Policies: <strong style="color:#fff">${plan.policy_count}</strong>
+      </p>
+      <div style="border-top:1px solid #1e2f52;padding-top:12px;margin-top:4px"></div>
+      <div style="overflow-y:auto;flex:1;margin-bottom:14px;padding-right:6px">
+        <div style="color:#8899bb;font-size:.78rem;margin-bottom:8px">The following operations will be performed on the MikroTik:</div>
+        ${opsHtml}
+      </div>
+      <div style="background:rgba(243,156,18,.06);border:1px solid rgba(243,156,18,.2);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:.78rem;color:#f0f4ff">
+        ⚠️ Existing client connections may briefly drop while routes are reconfigured.
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn" onclick="closeMwanPreviewModal()">Cancel</button>
+        <button class="btn btn-purple" onclick="closeMwanPreviewModal(); applyMwanToRouter()">⚡ Apply to Router</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function closeMwanPreviewModal() {
+  const m = document.getElementById('mwan-preview-modal');
+  if (m) m.remove();
+}
+
+async function applyMwanToRouter() {
+  if (!confirm('Apply this Multi-WAN configuration to the MikroTik?\n\nExisting client connections may briefly drop while routes are reconfigured.')) return;
+  const applyBtn = document.getElementById('mwan-apply-btn');
+  if (applyBtn) { applyBtn.disabled = true; applyBtn.innerHTML = '⏳ Applying...'; }
+  showMwanProgressModal();
+  try {
+    const d = await api('/nas/' + encodeURIComponent(deviceId) + '/multi-wan/apply', { method: 'POST' });
+    closeMwanProgressModal();
+    if (d && d.ok) {
+      showMwanToast(`✓ Applied to router: ${d.applied_count} operations succeeded`, 'success');
+      await loadMwanConfig();
+    } else {
+      const errSummary = d.errors && d.errors.length 
+        ? d.errors.slice(0, 3).join('\n') + (d.errors.length > 3 ? `\n+ ${d.errors.length - 3} more...` : '')
+        : 'Unknown error';
+      showMwanToast(`Apply finished with ${d.error_count || 0} error(s). ${d.applied_count || 0} ops succeeded.`, 'error');
+      console.error('[mwan apply] errors:', d.errors);
+      if (d.error_count > 0) alert('Some apply operations failed:\n\n' + errSummary + '\n\nCheck console for full list. Router config is partially applied.');
+      await loadMwanConfig();
+    }
+  } catch (e) {
+    closeMwanProgressModal();
+    console.error('[mwan apply] failed:', e);
+    showMwanToast('Apply failed: ' + e.message, 'error');
+  } finally {
+    if (applyBtn) { applyBtn.disabled = false; applyBtn.innerHTML = '⚡ Apply to Router'; }
+  }
+}
+
+async function revertMwanConfig() {
+  if (!confirm('Remove all Multi-WAN configuration from the MikroTik?\n\nThis will restore single-WAN behavior. Existing connections may drop.')) return;
+  const revertBtn = document.getElementById('mwan-revert-btn');
+  if (revertBtn) { revertBtn.disabled = true; revertBtn.innerHTML = '⏳ Reverting...'; }
+  try {
+    const d = await api('/nas/' + encodeURIComponent(deviceId) + '/multi-wan/revert', { method: 'POST' });
+    if (d && d.ok) {
+      showMwanToast(`✓ Reverted: ${d.removed_count} objects removed`, 'success');
+      await loadMwanConfig();
+    } else {
+      showMwanToast('Revert failed: ' + (d?.error || 'Unknown'), 'error');
+    }
+  } catch (e) {
+    showMwanToast('Revert failed: ' + e.message, 'error');
+  } finally {
+    if (revertBtn) { revertBtn.disabled = false; revertBtn.innerHTML = '↺ Revert from Router'; }
+  }
+}
+
+function showMwanProgressModal() {
+  const modal = document.createElement('div');
+  modal.id = 'mwan-progress-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `
+    <div style="background:#0d1530;border:1px solid #1e2f52;border-radius:14px;padding:32px 40px;text-align:center;max-width:420px">
+      <div style="font-size:2.6rem;margin-bottom:12px;animation:spin 1.5s linear infinite">⚙</div>
+      <h3 style="color:#fff;margin:0 0 6px">Applying to Router</h3>
+      <p style="color:#8899bb;font-size:.85rem;margin:0">Pushing routing tables, mangle rules, and address-lists to the MikroTik. This typically takes 10-30 seconds.</p>
+    </div>
+    <style>@keyframes spin { from { transform: rotate(0) } to { transform: rotate(360deg) } }</style>
+  `;
+  document.body.appendChild(modal);
+}
+
+function closeMwanProgressModal() {
+  const m = document.getElementById('mwan-progress-modal');
+  if (m) m.remove();
+}
+
+function updateMwanStatusBanner(cfg) {
+  const banner = document.getElementById('mwan-status-banner');
+  const title = document.getElementById('mwan-status-title');
+  const text = document.getElementById('mwan-status-text');
+  const revertBtn = document.getElementById('mwan-revert-btn');
+  if (!banner || !title || !text) return;
+  if (!cfg.applied_at) {
+    banner.className = 'status-banner';
+    title.textContent = 'Configuration not yet applied to router';
+    text.textContent = mwanLinks.length + ' link(s), ' + mwanPolicies.length + ' policy/policies saved server-side. Click "Apply to Router" to push to the MikroTik.';
+    if (revertBtn) revertBtn.style.display = 'none';
+  } else {
+    banner.className = 'status-banner success';
+    title.textContent = '✓ Active on router';
+    text.textContent = 'Last applied: ' + new Date(cfg.applied_at).toLocaleString() + ' · ' + mwanLinks.length + ' link(s), ' + mwanPolicies.length + ' polic' + (mwanPolicies.length === 1 ? 'y' : 'ies');
+    if (revertBtn) revertBtn.style.display = '';
+  }
+}
+
+function showSavedBadge() {
+  const b = document.getElementById('mwan-saved-badge');
+  if (b) { b.style.display = ''; setTimeout(() => b.style.display = 'none', 3000); }
+}
+function hideSavedBadge() {
+  const b = document.getElementById('mwan-saved-badge');
+  if (b) b.style.display = 'none';
+}
+
+function showMwanToast(message, type) {
+  type = type || 'success';
+  let toast = document.getElementById('mwan-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'mwan-toast';
+    toast.style.cssText = 'position:fixed;top:80px;right:20px;padding:14px 22px;border-radius:10px;font-size:.92rem;font-weight:600;z-index:9999;box-shadow:0 10px 40px rgba(0,0,0,.5);transform:translateX(450px);transition:transform .35s cubic-bezier(.34,1.56,.64,1);max-width:380px;line-height:1.4';
+    document.body.appendChild(toast);
+  }
+  if (type === 'success') {
+    toast.style.background = 'linear-gradient(135deg,#00d4aa,#00b294)';
+    toast.style.color = '#0a0f1e';
+    toast.style.border = '1px solid #00d4aa';
+  } else if (type === 'error') {
+    toast.style.background = 'linear-gradient(135deg,#e74c3c,#c0392b)';
+    toast.style.color = '#fff';
+    toast.style.border = '1px solid #e74c3c';
+  } else {
+    toast.style.background = 'linear-gradient(135deg,#3498db,#2980b9)';
+    toast.style.color = '#fff';
+    toast.style.border = '1px solid #3498db';
+  }
+  toast.textContent = message;
+  requestAnimationFrame(() => { toast.style.transform = 'translateX(0)'; });
+  if (toast._timeout) clearTimeout(toast._timeout);
+  toast._timeout = setTimeout(() => { toast.style.transform = 'translateX(450px)'; }, 3500);
+}
+
+  </script>
+</body>
+</html>

@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RumaLink Enterprise — WiFi Billing for Kenyan ISPs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --ink:#0a0f1e;
+  --navy:#0d1530;
+  --mid:#132044;
+  --teal:#00d4aa;
+  --teal2:#00b894;
+  --amber:#f39c12;
+  --white:#f0f4ff;
+  --muted:#8899bb;
+  --card:#111d3a;
+  --border:#1e2f52;
+  --radius:14px;
+  --font-head:'Syne',sans-serif;
+  --font-body:'DM Sans',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--ink);color:var(--white);font-family:var(--font-body);overflow-x:hidden;line-height:1.6}
+
+/* ── NAV ── */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:18px 6%;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(18px);background:rgba(10,15,30,.85);border-bottom:1px solid rgba(0,212,170,.1)}
+.logo{font-family:var(--font-head);font-size:1.4rem;font-weight:800;color:var(--teal);letter-spacing:-.5px}
+.logo span{color:var(--white);font-weight:400}
+.nav-links{display:flex;gap:36px;list-style:none}
+.nav-links a{color:var(--muted);text-decoration:none;font-size:.9rem;font-weight:500;transition:color .2s}
+.nav-links a:hover{color:var(--teal)}
+.nav-cta{display:flex;gap:12px}
+.btn{padding:10px 22px;border-radius:8px;font-family:var(--font-body);font-weight:500;font-size:.9rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px;transition:all .2s}
+.btn-outline{border:1.5px solid var(--border);color:var(--white);background:transparent}
+.btn-outline:hover{border-color:var(--teal);color:var(--teal)}
+.btn-primary{background:var(--teal);color:var(--ink);border:none;font-weight:700}
+.btn-primary:hover{background:var(--teal2);transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,212,170,.3)}
+.btn-lg{padding:15px 36px;font-size:1rem;border-radius:10px}
+
+/* ── HERO ── */
+.hero{min-height:100vh;display:flex;align-items:center;position:relative;padding:100px 6% 60px;overflow:hidden}
+.hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 60% 40%,rgba(0,212,170,.08) 0%,transparent 70%),radial-gradient(ellipse 40% 40% at 80% 80%,rgba(243,156,18,.05) 0%,transparent 60%);pointer-events:none}
+.hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(0,212,170,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,170,.04) 1px,transparent 1px);background-size:60px 60px;pointer-events:none}
+.hero-content{max-width:620px;position:relative;z-index:2}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.25);color:var(--teal);padding:7px 16px;border-radius:100px;font-size:.8rem;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:28px;animation:fadeUp .7s ease both}
+.hero-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--teal);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+h1{font-family:var(--font-head);font-size:clamp(2.4rem,5vw,3.8rem);font-weight:800;line-height:1.1;margin-bottom:22px;animation:fadeUp .7s .1s ease both}
+h1 .accent{color:var(--teal);display:block}
+.hero-sub{font-size:1.15rem;color:var(--muted);max-width:480px;margin-bottom:40px;font-weight:300;line-height:1.7;animation:fadeUp .7s .2s ease both}
+.hero-actions{display:flex;gap:14px;flex-wrap:wrap;animation:fadeUp .7s .3s ease both}
+.hero-stats{display:flex;gap:40px;margin-top:60px;padding-top:40px;border-top:1px solid var(--border);animation:fadeUp .7s .4s ease both}
+.stat-item{}
+.stat-num{font-family:var(--font-head);font-size:2rem;font-weight:800;color:var(--white)}
+.stat-num span{color:var(--teal)}
+.stat-label{font-size:.82rem;color:var(--muted);margin-top:2px}
+.hero-visual{position:absolute;right:4%;top:50%;transform:translateY(-50%);width:44%;max-width:580px;z-index:1;animation:fadeIn 1s .5s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* dashboard mockup */
+.dashboard-mock{background:var(--navy);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.6),0 0 0 1px rgba(0,212,170,.08)}
+.mock-bar{background:var(--mid);padding:10px 16px;display:flex;align-items:center;gap:8px}
+.mock-dot{width:10px;height:10px;border-radius:50%}
+.mock-title{font-size:.75rem;color:var(--muted);margin-left:8px;font-family:var(--font-head)}
+.mock-body{padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mock-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px}
+.mock-card-label{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.mock-card-val{font-family:var(--font-head);font-size:1.4rem;font-weight:700;color:var(--white)}
+.mock-card-val.teal{color:var(--teal)}
+.mock-card-val.amber{color:var(--amber)}
+.mock-bar-chart{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;grid-column:span 2}
+.mock-bars{display:flex;align-items:flex-end;gap:6px;height:60px;margin-top:8px}
+.mock-bar-item{flex:1;background:rgba(0,212,170,.2);border-radius:4px 4px 0 0;transition:height .3s}
+.mock-bar-item.hi{background:var(--teal)}
+.mock-table{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;grid-column:span 2}
+.mock-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.7rem}
+.mock-row:last-child{border-bottom:none}
+.mock-row .name{color:var(--white)}
+.mock-row .badge{background:rgba(0,212,170,.15);color:var(--teal);padding:2px 8px;border-radius:100px;font-size:.65rem}
+.mock-row .amt{color:var(--teal);font-weight:600}
+
+/* ── LOGOS / TRUST ── */
+.trust{padding:40px 6%;display:flex;align-items:center;gap:32px;border-bottom:1px solid var(--border);overflow:hidden}
+.trust-label{color:var(--muted);font-size:.8rem;white-space:nowrap;min-width:fit-content}
+.trust-logos{display:flex;gap:32px;align-items:center;flex-wrap:wrap}
+.trust-logo{color:var(--border);font-family:var(--font-head);font-weight:700;font-size:.9rem;letter-spacing:1px;text-transform:uppercase;transition:color .2s}
+.trust-logo:hover{color:var(--muted)}
+
+/* ── SECTION COMMON ── */
+section{padding:80px 6%}
+.section-label{font-size:.78rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--teal);margin-bottom:14px}
+.section-title{font-family:var(--font-head);font-size:clamp(1.8rem,3.5vw,2.8rem);font-weight:800;line-height:1.15;margin-bottom:16px}
+.section-sub{color:var(--muted);font-size:1.05rem;max-width:520px;font-weight:300;line-height:1.7;margin-bottom:48px}
+
+/* ── FEATURES ── */
+.features{background:var(--navy)}
+.features-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
+.feat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:28px;transition:border-color .2s,transform .2s;position:relative;overflow:hidden}
+.feat-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at top left,rgba(0,212,170,.06),transparent 60%);pointer-events:none}
+.feat-card:hover{border-color:rgba(0,212,170,.35);transform:translateY(-3px)}
+.feat-icon{width:46px;height:46px;background:rgba(0,212,170,.12);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin-bottom:18px}
+.feat-card h3{font-family:var(--font-head);font-size:1.05rem;font-weight:700;margin-bottom:10px}
+.feat-card p{color:var(--muted);font-size:.9rem;line-height:1.6;font-weight:300}
+
+/* ── HOW IT WORKS ── */
+.how{background:var(--ink)}
+.steps{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0;counter-reset:steps}
+.step{padding:32px;border:1px solid var(--border);position:relative;counter-increment:steps}
+.step::before{content:counter(steps);position:absolute;top:20px;right:20px;font-family:var(--font-head);font-size:3rem;font-weight:800;color:rgba(0,212,170,.06);line-height:1}
+.step-icon{font-size:1.8rem;margin-bottom:16px}
+.step h3{font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:8px}
+.step p{color:var(--muted);font-size:.88rem;line-height:1.6;font-weight:300}
+.step-connector{display:none}
+
+/* ── PRICING ── */
+.pricing{background:var(--navy)}
+.plans{display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:860px;margin:0 auto}
+.plan{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:36px;position:relative;transition:border-color .25s}
+.plan.popular{border-color:var(--teal);background:linear-gradient(135deg,rgba(0,212,170,.06),var(--card))}
+.popular-badge{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:var(--teal);color:var(--ink);font-size:.75rem;font-weight:700;padding:5px 16px;border-radius:100px;font-family:var(--font-head);letter-spacing:.5px;white-space:nowrap}
+.plan-icon{font-size:2rem;margin-bottom:14px}
+.plan-name{font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:4px}
+.plan-desc{color:var(--muted);font-size:.85rem;margin-bottom:24px;font-weight:300}
+.plan-price{font-family:var(--font-head);font-size:2.4rem;font-weight:800;color:var(--teal);margin-bottom:6px}
+.plan-price sup{font-size:1rem;vertical-align:super}
+.plan-billing{color:var(--muted);font-size:.82rem;margin-bottom:28px}
+.plan-features{list-style:none;margin-bottom:32px}
+.plan-features li{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.9rem;color:var(--muted);font-weight:300;line-height:1.4}
+.plan-features li:last-child{border-bottom:none}
+.plan-features li::before{content:'✓';color:var(--teal);font-weight:700;flex-shrink:0;margin-top:1px}
+.plan-cta{display:block;text-align:center;padding:14px;border-radius:10px;font-weight:700;font-family:var(--font-body);font-size:.95rem;text-decoration:none;transition:all .2s}
+.cta-solid{background:var(--teal);color:var(--ink)}
+.cta-solid:hover{background:var(--teal2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,212,170,.3)}
+.cta-ghost{border:1.5px solid var(--teal);color:var(--teal);background:transparent}
+.cta-ghost:hover{background:rgba(0,212,170,.08)}
+
+/* ── SIGNUP FORM ── */
+.signup{background:var(--ink);position:relative;overflow:hidden}
+.signup::before{content:'';position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:800px;height:800px;background:radial-gradient(circle,rgba(0,212,170,.07),transparent 65%);pointer-events:none}
+.signup-wrap{max-width:560px;margin:0 auto;position:relative;z-index:2}
+.signup-wrap .section-title,.signup-wrap .section-sub{text-align:center}
+.signup-wrap .section-sub{margin:0 auto 40px}
+.form{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:40px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-group{margin-bottom:18px}
+.form-group label{display:block;font-size:.82rem;font-weight:500;color:var(--muted);margin-bottom:7px;letter-spacing:.3px}
+.form-group input,.form-group select{width:100%;background:var(--mid);border:1.5px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--white);font-family:var(--font-body);font-size:.95rem;outline:none;transition:border-color .2s}
+.form-group input:focus,.form-group select:focus{border-color:var(--teal)}
+.form-group input::placeholder{color:var(--border)}
+.form-group select option{background:var(--navy)}
+.form-submit{width:100%;padding:15px;background:var(--teal);color:var(--ink);border:none;border-radius:10px;font-family:var(--font-head);font-size:1rem;font-weight:700;cursor:pointer;transition:all .2s;margin-top:8px}
+.form-submit:hover{background:var(--teal2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,212,170,.3)}
+.form-submit:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.form-note{text-align:center;font-size:.8rem;color:var(--muted);margin-top:16px;font-weight:300}
+.form-note a{color:var(--teal);text-decoration:none}
+#form-msg{text-align:center;padding:12px;border-radius:8px;font-size:.9rem;margin-top:12px;display:none}
+#form-msg.success{background:rgba(0,212,170,.12);color:var(--teal);display:block}
+#form-msg.error{background:rgba(231,76,60,.12);color:#e74c3c;display:block}
+
+/* ── FOOTER ── */
+footer{background:var(--navy);border-top:1px solid var(--border);padding:48px 6% 32px}
+.footer-top{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px;margin-bottom:40px}
+.footer-logo{font-family:var(--font-head);font-size:1.4rem;font-weight:800;color:var(--teal);margin-bottom:14px}
+.footer-desc{color:var(--muted);font-size:.88rem;line-height:1.7;font-weight:300;max-width:260px}
+.footer-col h4{font-family:var(--font-head);font-size:.85rem;font-weight:700;margin-bottom:16px;color:var(--white);letter-spacing:.5px}
+.footer-col a{display:block;color:var(--muted);text-decoration:none;font-size:.85rem;margin-bottom:10px;transition:color .2s;font-weight:300}
+.footer-col a:hover{color:var(--teal)}
+.footer-bottom{display:flex;justify-content:space-between;align-items:center;padding-top:24px;border-top:1px solid var(--border)}
+.footer-copy{color:var(--muted);font-size:.82rem}
+.footer-links{display:flex;gap:24px}
+.footer-links a{color:var(--muted);text-decoration:none;font-size:.82rem}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:30px;right:30px;background:var(--card);border:1px solid var(--teal);border-radius:12px;padding:16px 24px;color:var(--white);font-size:.9rem;z-index:999;display:flex;align-items:center;gap:12px;transform:translateY(80px);opacity:0;transition:all .35s;box-shadow:0 12px 36px rgba(0,0,0,.4)}
+.toast.show{transform:translateY(0);opacity:1}
+.toast-icon{font-size:1.2rem}
+
+/* ── RESPONSIVE ── */
+.nav-toggle{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:8px;z-index:60}
+.nav-toggle span{display:block;width:26px;height:2.5px;background:var(--white);border-radius:2px;transition:all .3s}
+.nav-toggle.open span:nth-child(1){transform:translateY(7.5px) rotate(45deg)}
+.nav-toggle.open span:nth-child(2){opacity:0}
+.nav-toggle.open span:nth-child(3){transform:translateY(-7.5px) rotate(-45deg)}
+.nav-mobile-cta{display:none}
+@media(max-width:900px){
+  .hero-visual{display:none}
+  .hero-content{max-width:100%}
+  .plans{grid-template-columns:1fr}
+  .footer-top{grid-template-columns:1fr 1fr}
+  .nav-toggle{display:flex}
+  .nav-cta{display:none}
+  .nav-links{position:fixed;top:0;right:-100%;width:min(280px,80vw);height:100vh;flex-direction:column;background:var(--navy,#0d1530);gap:0;padding:80px 0 20px;box-shadow:-8px 0 40px rgba(0,0,0,.4);transition:right .3s cubic-bezier(.4,0,.2,1);z-index:50}
+  .nav-links.open{right:0}
+  .nav-links li{width:100%}
+  .nav-links a{display:block;padding:15px 28px;font-size:1rem;border-bottom:1px solid rgba(255,255,255,.05)}
+  .nav-mobile-cta{display:block}
+  .nav-mobile-cta a{color:var(--teal)!important;font-weight:600}
+  .form-row{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  section{padding:60px 5%}
+  .footer-top{grid-template-columns:1fr}
+  .hero-stats{flex-wrap:wrap;gap:24px}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">RumaLink <span>Enterprise</span></div>
+  <ul class="nav-links" id="navLinks">
+    <li><a href="#features" onclick="closeMenu()">Features</a></li>
+    <li><a href="#how" onclick="closeMenu()">How It Works</a></li>
+    <li><a href="#pricing" onclick="closeMenu()">Pricing</a></li>
+    <li><a href="/shop.html">Shop</a></li>
+    <li><a href="#signup" onclick="closeMenu()">Sign Up</a></li>
+    <li class="nav-mobile-cta"><a href="/isp/login.html">Log In</a></li>
+    <li class="nav-mobile-cta"><a href="#signup" onclick="closeMenu()">Get Started →</a></li>
+  </ul>
+  <div class="nav-cta">
+    <a href="/isp/login.html" class="btn btn-outline">Log In</a>
+    <a href="#signup" class="btn btn-primary">Get Started →</a>
+  </div>
+  <button class="nav-toggle" id="navToggle" onclick="toggleMenu()" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <div class="hero-content">
+    <div class="hero-badge">🇰🇪 Built for Kenyan ISPs</div>
+    <h1>WiFi Billing That <span class="accent">Actually Works</span></h1>
+    <p class="hero-sub">RumaLink Enterprise gives ISPs a complete hotspot & PPPoE billing system — with MikroTik auto-provisioning, MPesa payments, SMS alerts, and real-time dashboards. All in Kenyan Shillings.</p>
+    <div class="hero-actions">
+      <a href="#signup" class="btn btn-primary btn-lg">Start Free Trial →</a>
+      <a href="#how" class="btn btn-outline btn-lg">See How It Works</a>
+    </div>
+    <div class="hero-stats">
+      <div class="stat-item">
+        <div class="stat-num" id="hero-hotspot-num">3<span>%</span></div>
+        <div class="stat-label">Flat hotspot fee</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">KES <span id="hero-pppoe-num">32</span></div>
+        <div class="stat-label">Per PPPoE user/mo</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num"><span>∞</span></div>
+        <div class="stat-label">Users & devices</div>
+      </div>
+    </div>
+  </div>
+  <div class="hero-visual">
+    <div class="dashboard-mock">
+      <div class="mock-bar">
+        <div class="mock-dot" style="background:#e74c3c"></div>
+        <div class="mock-dot" style="background:#f39c12"></div>
+        <div class="mock-dot" style="background:#2ecc71"></div>
+        <span class="mock-title">ISP Dashboard — RumaLink Enterprise</span>
+      </div>
+      <div class="mock-body">
+        <div class="mock-card">
+          <div class="mock-card-label">Today's Revenue</div>
+          <div class="mock-card-val teal">KES 14,800</div>
+        </div>
+        <div class="mock-card">
+          <div class="mock-card-label">Active Sessions</div>
+          <div class="mock-card-val">247</div>
+        </div>
+        <div class="mock-card">
+          <div class="mock-card-label">PPPoE Subscribers</div>
+          <div class="mock-card-val">312</div>
+        </div>
+        <div class="mock-card">
+          <div class="mock-card-label">Devices Online</div>
+          <div class="mock-card-val amber">4/5</div>
+        </div>
+        <div class="mock-bar-chart">
+          <div class="mock-card-label">Revenue (7 days)</div>
+          <div class="mock-bars">
+            <div class="mock-bar-item" style="height:35%"></div>
+            <div class="mock-bar-item" style="height:60%"></div>
+            <div class="mock-bar-item" style="height:45%"></div>
+            <div class="mock-bar-item" style="height:80%"></div>
+            <div class="mock-bar-item" style="height:55%"></div>
+            <div class="mock-bar-item hi" style="height:100%"></div>
+            <div class="mock-bar-item" style="height:70%"></div>
+          </div>
+        </div>
+        <div class="mock-table">
+          <div class="mock-card-label">Recent Payments</div>
+          <div class="mock-row"><span class="name">John Mwangi</span><span class="badge">MPesa</span><span class="amt">KES 1,500</span></div>
+          <div class="mock-row"><span class="name">Sarah Wanjiku</span><span class="badge">MPesa</span><span class="amt">KES 800</span></div>
+          <div class="mock-row"><span class="name">Peter Ochieng</span><span class="badge">Cash</span><span class="amt">KES 2,000</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TRUST -->
+<div class="trust">
+  <span class="trust-label">TRUSTED BY ISPs ACROSS KENYA</span>
+  <div class="trust-logos">
+    <span class="trust-logo">Nairobi Connect</span>
+    <span class="trust-logo">Mombasa Net</span>
+    <span class="trust-logo">Kisumu WiFi</span>
+    <span class="trust-logo">Nakuru Link</span>
+    <span class="trust-logo">CyberKibera</span>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="section-label">Everything You Need</div>
+  <h2 class="section-title">A Complete Billing Platform</h2>
+  <p class="section-sub">Manage hotspot vouchers, PPPoE subscribers, payments, and MikroTik routers from one clean dashboard.</p>
+  <div class="features-grid">
+    <div class="feat-card">
+      <div class="feat-icon">📡</div>
+      <h3>MikroTik Auto-Provisioning</h3>
+      <p>Paste one command in your router — it connects automatically. No manual NAS config. No RADIUS headaches.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🎟️</div>
+      <h3>Hotspot Voucher System</h3>
+      <p>Generate branded vouchers in bulk. Set time limits, data caps, bandwidth. Print and sell instantly.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">👥</div>
+      <h3>PPPoE Subscriber Management</h3>
+      <p>Add subscribers, assign packages, auto-bill monthly, send SMS reminders, suspend on non-payment.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">📱</div>
+      <h3>MPesa Integration</h3>
+      <p>STK push payments directly to your Safaricom paybill. Subscribers pay from their phone — funds land instantly.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">💬</div>
+      <h3>SMS Gateway Support</h3>
+      <p>Africa's Talking, BongaSMS, WebSMS — connect your preferred gateway for automated alerts and reminders.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">📊</div>
+      <h3>Real-Time Analytics</h3>
+      <p>Live session monitoring, revenue charts, bandwidth stats, and subscriber growth — all in one dashboard.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🔒</div>
+      <h3>RADIUS Authentication</h3>
+      <p>Powered by FreeRADIUS with full accounting. Hotspot and PPPoE users authenticated securely.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🖥️</div>
+      <h3>Remote Winbox Access</h3>
+      <p>Manage your MikroTik routers remotely through the dashboard without needing to be on-site.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🧾</div>
+      <h3>Automated Invoicing</h3>
+      <p>Monthly invoices generated automatically. Payment reminders sent by SMS 3 days before due date.</p>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how" id="how">
+  <div class="section-label">Simple Setup</div>
+  <h2 class="section-title">Live in Under 30 Minutes</h2>
+  <p class="section-sub">No server setup. No complex configurations. Just sign up, paste one command, and you're billing.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-icon">📝</div>
+      <h3>Create Your Account</h3>
+      <p>Register as an ISP, choose your plan (Hotspot or PPPoE), and access your dashboard instantly.</p>
+    </div>
+    <div class="step">
+      <div class="step-icon">📋</div>
+      <h3>Copy Provisioning Link</h3>
+      <p>From the Devices section, add your MikroTik router and copy the auto-generated provisioning command.</p>
+    </div>
+    <div class="step">
+      <div class="step-icon">🖥️</div>
+      <h3>Paste Into MikroTik</h3>
+      <p>Open Winbox or SSH, paste the command in the terminal. Your router connects and configures itself automatically.</p>
+    </div>
+    <div class="step">
+      <div class="step-icon">💰</div>
+      <h3>Start Billing</h3>
+      <p>Create hotspot packages, generate vouchers, add PPPoE subscribers, and accept MPesa payments. Done.</p>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing" id="pricing">
+  <div style="text-align:center">
+    <div class="section-label">Transparent Pricing</div>
+    <h2 class="section-title">Pay Only For What You Earn</h2>
+    <p class="section-sub" style="margin:0 auto 48px">No setup fees. No monthly minimums. Start free and grow at your own pace.</p>
+  </div>
+  <div class="plans">
+    <div class="plan popular">
+      <div class="popular-badge">📌 Most Popular Choice</div>
+      <div class="plan-icon">📶</div>
+      <div class="plan-name">Pay-As-You-Grow Hotspot</div>
+      <div class="plan-desc">Perfect for hotspot businesses and cyber cafes</div>
+      <div class="plan-price"><span id="price-hotspot-num">3</span><sup>%</sup></div>
+      <div class="plan-billing">Flat fee on hotspot earnings only</div>
+      <ul class="plan-features">
+        <li>No limit on integrated MikroTik devices</li>
+        <li>Infinite user base allowance</li>
+        <li>Manage Winbox remotely with ease</li>
+        <li>Accept payments via multiple channels</li>
+        <li>Connect with various SMS gateways</li>
+        <li>Reliable support via email</li>
+        <li>Built-in voucher management tools</li>
+      </ul>
+      <a href="#signup" class="plan-cta cta-solid">Start at No Cost →</a>
+    </div>
+    <div class="plan">
+      <div class="plan-icon">🏠</div>
+      <div class="plan-name">Per-User PPPoE Subscription</div>
+      <div class="plan-desc">For residential & office internet providers</div>
+      <div class="plan-price">KES <sup></sup><span id="price-pppoe-num">32</span></div>
+      <div class="plan-billing">Monthly per active subscriber (~$0.25/user)</div>
+      <ul class="plan-features">
+        <li>Add as many MikroTik routers as you need</li>
+        <li>Unrestricted subscriber growth</li>
+        <li>Keep your earnings — no revenue ceiling</li>
+        <li>Fully automated billing and invoices</li>
+        <li>Self-running payment processing</li>
+        <li>Seamless multi-gateway payment support</li>
+        <li>Live notifications and status updates</li>
+      </ul>
+      <a href="#signup" class="plan-cta cta-ghost">Start at No Cost →</a>
+    </div>
+  </div>
+</section>
+
+<!-- SIGNUP -->
+<section class="signup" id="signup">
+  <div class="signup-wrap">
+    <div class="section-label" style="text-align:center">Join RumaLink Enterprise</div>
+    <h2 class="section-title">Register Your ISP Today</h2>
+    <p class="section-sub">Free trial for 30 days. No credit card. Cancel anytime.</p>
+    <div class="form">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Company Name</label>
+          <input type="text" id="company_name" placeholder="e.g. Nakuru Net Solutions"/>
+        </div>
+        <div class="form-group">
+          <label>Owner / Contact Name</label>
+          <input type="text" id="owner_name" placeholder="e.g. James Kariuki"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="email" placeholder="you@yourcompany.co.ke"/>
+        </div>
+        <div class="form-group">
+          <label>Phone Number</label>
+          <input type="tel" id="phone" placeholder="0712 345 678"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>County</label>
+          <input type="text" id="county" placeholder="e.g. Nakuru"/>
+        </div>
+        <div class="form-group">
+          <label>Town / Area</label>
+          <input type="text" id="town" placeholder="e.g. Nakuru Town"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Plan Type</label>
+        <select id="plan_type">
+          <option value="hotspot" id="opt-hotspot">Hotspot — 3% flat fee on earnings</option>
+          <option value="pppoe" id="opt-pppoe">PPPoE — KES 32/subscriber/month</option>
+          <option value="both" id="opt-both">Hotspot + PPPoE — both fees apply</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="password" placeholder="Min 8 characters"/>
+        </div>
+        <div class="form-group">
+          <label>Confirm Password</label>
+          <input type="password" id="confirm_password" placeholder="Repeat password"/>
+        </div>
+      </div>
+      <button class="form-submit" id="reg-btn" onclick="registerISP()">Create My Account →</button>
+      <div id="form-msg"></div>
+      <p class="form-note">Already have an account? <a href="/isp/login.html">Sign in here</a></p>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-top">
+    <div>
+      <div class="footer-logo">RumaLink Enterprise</div>
+      <p class="footer-desc">The complete WiFi billing platform for Kenyan ISPs. Hotspot, PPPoE, MPesa, MikroTik — all in one place.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Platform</h4>
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#how">How It Works</a>
+      <a href="#signup">Sign Up</a>
+    </div>
+    <div class="footer-col">
+      <h4>Resources</h4>
+      <a href="#">Documentation</a>
+      <a href="#">MikroTik Setup Guide</a>
+      <a href="#">MPesa Integration</a>
+      <a href="#">API Reference</a>
+    </div>
+    <div class="footer-col">
+      <h4>Support</h4>
+      <a href="mailto:support@rumalink.co.ke">support@rumalink.co.ke</a>
+      <a href="#">Submit a Ticket</a>
+      <a href="#">Terms of Service</a>
+      <a href="#">Privacy Policy</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span class="footer-copy">© 2024 RumaLink Enterprise. All rights reserved.</span>
+    <div class="footer-links">
+      <a href="#">Privacy</a>
+      <a href="#">Terms</a>
+      <a href="#">Contact</a>
+    </div>
+  </div>
+</footer>
+
+<div class="toast" id="toast">
+  <span class="toast-icon" id="toast-icon">✅</span>
+  <span id="toast-msg">Success!</span>
+</div>
+
+<script>
+const API = '/api'; // relative path -> works through nginx on the live domain
+
+// Live platform rates -> reflect the admin Commission Defaults across the landing page.
+async function loadPublicRates() {
+  try {
+    const r = await fetch('/api/public/rates');
+    if (!r.ok) return;
+    const d = await r.json();
+    const pct = (d.hotspot_commission_percent != null) ? d.hotspot_commission_percent : 3;
+    const fee = (d.pppoe_per_user_fee != null) ? d.pppoe_per_user_fee : 32.25;
+    const set = (id, html, isHtml) => { const e = document.getElementById(id); if (e) { if (isHtml) e.innerHTML = html; else e.textContent = html; } };
+    set('hero-hotspot-num', pct + '<span>%</span>', true);
+    set('hero-pppoe-num', String(fee));
+    set('price-hotspot-num', String(pct));
+    set('price-pppoe-num', String(fee));
+    set('opt-hotspot', 'Hotspot — ' + pct + '% flat fee on earnings');
+    set('opt-pppoe', 'PPPoE — KES ' + fee + '/subscriber/month');
+    set('opt-both', 'Hotspot + PPPoE — both fees apply');
+  } catch (e) { /* keep static fallback */ }
+}
+document.addEventListener('DOMContentLoaded', loadPublicRates);
+
+function showToast(msg, ok=true) {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  document.getElementById('toast-icon').textContent = ok ? '✅' : '❌';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+async function registerISP() {
+  console.log('registerISP clicked');
+  const btn = document.getElementById('reg-btn');
+  const msg = document.getElementById('form-msg');
+  const showMsg = (text, isError) => { msg.textContent = text; msg.className = isError ? 'error' : 'success'; msg.style.display = 'block'; };
+  msg.className = ''; msg.style.display = 'none';
+
+  const data = {
+    company_name: document.getElementById('company_name').value.trim(),
+    owner_name: document.getElementById('owner_name').value.trim(),
+    email: document.getElementById('email').value.trim(),
+    phone: document.getElementById('phone').value.trim(),
+    county: document.getElementById('county').value.trim(),
+    town: document.getElementById('town').value.trim(),
+    plan_type: document.getElementById('plan_type').value,
+    password: document.getElementById('password').value,
+    confirm_password: document.getElementById('confirm_password').value,
+  };
+
+  if (!data.company_name || !data.owner_name || !data.email || !data.phone || !data.password) {
+    showMsg('Please fill in all required fields.', true); return;
+  }
+  if (data.password !== data.confirm_password) {
+    showMsg('Passwords do not match.', true); return;
+  }
+  if (data.password.length < 8) {
+    showMsg('Password must be at least 8 characters.', true); return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Creating account…';
+
+  try {
+    const res = await fetch(`${API}/auth/isp/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+
+    if (res.ok) {
+      localStorage.setItem('rl_token', json.token);
+      localStorage.setItem('rl_refresh', json.refreshToken);
+      localStorage.setItem('rl_isp', JSON.stringify(json.isp));
+      showToast('Account created! Redirecting to dashboard…');
+      setTimeout(() => window.location.href = '/isp/dashboard.html', 1800);
+    } else {
+      showMsg(json.error || 'Registration failed. Please try again.', true);
+      btn.disabled = false; btn.textContent = 'Create My Account →';
+    }
+  } catch (e) {
+    console.error('registerISP error:', e);
+    showMsg('Connection error: ' + (e && e.message ? e.message : 'unknown'), true);
+    btn.disabled = false; btn.textContent = 'Create My Account →';
+  }
+}
+
+// smooth nav highlight
+const sections = document.querySelectorAll('section[id]');
+window.addEventListener('scroll', () => {
+  const y = window.scrollY + 120;
+  sections.forEach(s => {
+    const a = document.querySelector(`.nav-links a[href="#${s.id}"]`);
+    if (a) {
+      if (s.offsetTop <= y && s.offsetTop + s.offsetHeight > y) a.style.color = 'var(--teal)';
+      else a.style.color = '';
+    }
+  });
+});
+</script>
+<script>
+function toggleMenu(){
+  document.getElementById('navLinks').classList.toggle('open');
+  document.getElementById('navToggle').classList.toggle('open');
+}
+function closeMenu(){
+  document.getElementById('navLinks').classList.remove('open');
+  document.getElementById('navToggle').classList.remove('open');
+}
+</script>
+</body>
+</html>

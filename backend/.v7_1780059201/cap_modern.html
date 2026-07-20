@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>WiFi Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{--primary:#00d4aa;--ink:#0a0f1e;--card:#111d3a;--border:#1e2f52;--muted:#8899bb;--white:#f0f4ff}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--ink);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;position:relative;overflow:hidden}
+body::before{content:'';position:fixed;top:-200px;left:50%;transform:translateX(-50%);width:700px;height:700px;background:radial-gradient(circle,rgba(0,212,170,.1),transparent 65%);pointer-events:none}
+.card{background:var(--card);border:1px solid var(--border);border-radius:24px;padding:36px 30px;width:100%;max-width:440px;position:relative;z-index:1;box-shadow:0 24px 80px rgba(0,0,0,.5)}
+.logo-wrap{text-align:center;margin-bottom:22px}
+.logo-text{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;color:var(--primary)}
+.welcome{text-align:center;margin-bottom:28px}
+.welcome h1{font-family:'Syne',sans-serif;font-size:1.3rem;color:var(--white);font-weight:700;margin-bottom:6px}
+.welcome p{font-size:.86rem;color:var(--muted);font-weight:300}
+.packages{display:flex;flex-direction:column;gap:10px;margin-bottom:22px}
+.pkg{border:1.5px solid var(--border);border-radius:14px;padding:15px 17px;cursor:pointer;transition:all .2s;display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.02)}
+.pkg:hover,.pkg.selected{border-color:var(--primary);background:rgba(0,212,170,.06)}
+.pkg-name{font-weight:500;color:var(--white);font-size:.92rem}
+.pkg-detail{font-size:.75rem;color:var(--muted);margin-top:3px}
+.pkg-price{font-family:'Syne',sans-serif;font-weight:700;font-size:1.05rem;color:var(--primary);white-space:nowrap;margin-left:12px}
+.section-label{font-size:.7rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:18px 0 10px;font-weight:600}
+.fg{margin-bottom:12px}
+.fg label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:5px}
+.fg input{width:100%;background:rgba(255,255,255,.04);border:1.5px solid var(--border);border-radius:9px;padding:11px 14px;color:var(--white);font-family:'DM Sans',sans-serif;font-size:.9rem;outline:none;transition:border-color .2s}
+.fg input:focus{border-color:var(--primary)}
+.fg input::placeholder{color:var(--border)}
+.btn{width:100%;padding:13px;border-radius:11px;border:none;font-family:'DM Sans',sans-serif;font-size:.9rem;font-weight:600;cursor:pointer;transition:all .2s;letter-spacing:.3px}
+.btn-primary{background:var(--primary);color:#0d1530;margin-top:4px}
+.btn-primary:hover{opacity:.9;transform:translateY(-1px)}
+.btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--muted);margin-top:8px}
+.btn-outline:hover{border-color:var(--primary);color:var(--primary)}
+.powered{text-align:center;font-size:.7rem;color:var(--border);margin-top:20px}
+.powered a{color:var(--primary);text-decoration:none}
+.msg{padding:12px 14px;border-radius:10px;font-size:.86rem;margin-top:12px;display:none;white-space:pre-line}
+.msg.success{background:rgba(0,212,170,.1);color:var(--primary);border:1px solid rgba(0,212,170,.2)}
+.msg.error{background:rgba(231,76,60,.1);color:#e74c3c;border:1px solid rgba(231,76,60,.2)}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo-wrap"><div class="logo-text" id="isp-name">WiFi Network</div></div>
+  <div class="welcome">
+    <h1 id="welcome-title">Connect to WiFi</h1>
+    <p id="welcome-sub">Choose your package and pay with MPesa</p>
+  </div>
+  <div class="section-label">Available Packages</div>
+  <div class="packages" id="packages-list"></div>
+  <div class="section-label">Pay with MPesa</div>
+  <div class="fg"><label>Phone Number</label><input type="tel" id="phone" placeholder="0712 345 678"/></div>
+  <button class="btn btn-primary" onclick="initiatePayment()">💳 Pay & Connect Now</button>
+  <div class="section-label">Have a Voucher?</div>
+  <div class="fg"><label>Voucher Code</label><input type="text" id="voucher-code" placeholder="Enter code…" style="text-transform:uppercase"/></div>
+  <div class="fg"><label>Phone (for SMS receipt)</label><input type="tel" id="voucher-phone" placeholder="Optional"/></div>
+  <button class="btn btn-outline" onclick="redeemVoucher()">🎟️ Redeem Voucher</button>
+  <div class="msg" id="msg"></div>
+  <div class="powered" id="powered-by">Powered by <a href="https://rumalink.co.ke">RumaLink Enterprise</a></div>
+</div>
+<script>
+const API=window.RUMALINK_API||'https://rumalinkenterprise.online/api';
+const ISP_ID=window.PORTAL_ISP_ID||new URLSearchParams(location.search).get('isp');
+let sel=null;
+async function init(){
+  if(!ISP_ID)return;
+  const res=await fetch(`${API}/captive/${ISP_ID}`);
+  const {isp,portal,packages}=await res.json();
+  document.title=isp.company_name+' WiFi';
+  document.getElementById('isp-name').textContent=isp.company_name;
+  document.getElementById('welcome-title').textContent=portal.welcome_title||'Connect to WiFi';
+  document.getElementById('welcome-sub').textContent=portal.welcome_subtitle||'Choose your package';
+  document.documentElement.style.setProperty('--primary',portal.primary_color||'#00d4aa');
+  if(isp.logo_url)document.getElementById('isp-name').innerHTML=`<img src="${API.replace('/api','')}${isp.logo_url}" style="max-height:50px;border-radius:8px;display:block;margin:0 auto 8px"/>`;
+  if(!portal.show_powered_by)document.getElementById('powered-by').style.display='none';
+  const list=document.getElementById('packages-list');
+  list.innerHTML=(packages||[]).map(p=>`
+    <div class="pkg" id="p-${p.id}" onclick="selectPkg('${p.id}',${p.price})">
+      <div><div class="pkg-name">${p.name}</div><div class="pkg-detail">${p.duration_hours?p.duration_hours+'h':'Unlimited'}${p.bandwidth_down_mbps?' · '+p.bandwidth_down_mbps+'Mbps':''}</div></div>
+      <div class="pkg-price">KES ${parseFloat(p.price).toLocaleString()}</div>
+    </div>`).join('');
+}
+function selectPkg(id,price){sel={id,price};document.querySelectorAll('.pkg').forEach(p=>p.classList.remove('selected'));document.getElementById('p-'+id)?.classList.add('selected');}
+async function initiatePayment(){
+  if(!sel)return showMsg('Select a package first.','error');
+  const phone=document.getElementById('phone').value.trim();
+  if(!phone)return showMsg('Enter your phone number.','error');
+  try{
+    const r=await fetch(`${API}/captive/${ISP_ID}/pay`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone,package_id:sel.id,amount:sel.price})});
+    const j=await r.json();
+    showMsg(r.ok?`📱 MPesa prompt sent to ${phone}. Enter PIN to connect.\nYour voucher will arrive via SMS.`:j.error||'Payment failed.',r.ok?'success':'error');
+  }catch(e){showMsg('Network error.','error');}
+}
+async function redeemVoucher(){
+  const code=document.getElementById('voucher-code').value.trim().toUpperCase();
+  const phone=document.getElementById('voucher-phone').value.trim();
+  if(!code)return showMsg('Enter a voucher code.','error');
+  try{
+    const r=await fetch(`${API}/captive/${ISP_ID}/redeem`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,phone})});
+    const j=await r.json();
+    const exp=j.expires_at?`\nExpires: ${new Date(j.expires_at).toLocaleString('en-KE')}`:'';
+    showMsg(r.ok?`✅ Connected!\nCode: ${j.username}${exp}${phone?'\n📱 SMS sent':''}`:j.error||'Invalid code.',r.ok?'success':'error');
+  }catch(e){showMsg('Network error.','error');}
+}
+function showMsg(m,t){const e=document.getElementById('msg');e.textContent=m;e.className='msg '+t;e.style.display='block';}
+init();
+</script>
+
+<!-- Payment spinner widget -->
+<div id="rml-spinner-include"></div>
+<script>
+fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
+  document.getElementById('rml-spinner-include').innerHTML = html;
+  // Re-execute scripts (innerHTML doesn't run them)
+  document.querySelectorAll('#rml-spinner-include script').forEach(s => {
+    var n = document.createElement('script');
+    n.textContent = s.textContent;
+    document.body.appendChild(n);
+  });
+});
+</script>
+
+<script>
+// Hook into existing pay() flow — wrap fetch responses to show spinner
+(function(){
+  var origFetch = window.fetch;
+  window.fetch = function(url, opts) {
+    var prom = origFetch.apply(this, arguments);
+    if (typeof url === 'string' && url.indexOf('/pay') > -1 && opts && opts.method === 'POST') {
+      prom.then(r => r.clone().json()).then(data => {
+        if (data && data.payment_id && typeof rumalinkShowPaymentSpinner === 'function') {
+          var body = {};
+          try { body = JSON.parse(opts.body || '{}'); } catch(e){}
+          var ispId = (typeof ISP_ID !== 'undefined') ? ISP_ID : (location.search.match(/isp=([^&]+)/)||[])[1];
+          rumalinkShowPaymentSpinner({
+            phone: body.phone,
+            amount: data.amount,
+            paymentId: data.payment_id,
+            statusUrl: '/api/captive/' + ispId + '/payment-status/' + data.payment_id
+          });
+        }
+      }).catch(()=>{});
+    }
+    return prom;
+  };
+})();
+</script>
+
+<script>
+/* RumaLink Captive — Already Paid Login Button */
+(function(){
+  // Don't double-inject
+  if (document.getElementById('rl-already-paid-btn')) return;
+
+  const ispId = (location.search.match(/isp=([^&]+)/)||[])[1];
+  if (!ispId) return;
+
+  // Find the page's main container to attach the floating button
+  const btn = document.createElement('button');
+  btn.id = 'rl-already-paid-btn';
+  btn.innerHTML = '🔑 Already Paid? Login';
+  btn.style.cssText = 'position:fixed;top:14px;right:14px;background:rgba(0,212,170,.15);border:1px solid rgba(0,212,170,.4);color:#00d4aa;padding:10px 18px;border-radius:8px;font-weight:600;cursor:pointer;font-size:.88rem;z-index:9998;backdrop-filter:blur(6px);font-family:sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.3)';
+  btn.onclick = openLoginModal;
+  document.body.appendChild(btn);
+
+  function openLoginModal() {
+    let modal = document.getElementById('rl-login-modal');
+    if (modal) { modal.style.display='flex'; return; }
+    modal = document.createElement('div');
+    modal.id = 'rl-login-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:99998;display:flex;align-items:center;justify-content:center;padding:20px;font-family:sans-serif';
+    modal.innerHTML = `
+      <div style="background:#0d1530;border:1px solid rgba(0,212,170,.2);border-radius:18px;padding:28px 24px;max-width:380px;width:100%;color:#fff">
+        <h2 style="margin:0 0 6px;font-size:1.2rem">🔑 Reconnect to WiFi</h2>
+        <p style="margin:0 0 18px;color:rgba(255,255,255,.7);font-size:.86rem">Enter the voucher code you received after paying. If your session hasn't expired, you'll be reconnected instantly.</p>
+        <input type="text" id="rl-login-code" placeholder="WIFI-1234-XYZ" style="width:100%;padding:12px 14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-size:1.05rem;margin-bottom:10px;box-sizing:border-box;font-family:monospace;letter-spacing:2px;text-transform:uppercase"/>
+        <input type="tel" id="rl-login-phone" placeholder="Phone (optional - 07XX or 254XX)" style="width:100%;padding:12px 14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-size:.92rem;margin-bottom:16px;box-sizing:border-box"/>
+        <div id="rl-login-msg" style="display:none;padding:10px 14px;border-radius:8px;font-size:.84rem;margin-bottom:12px"></div>
+        <div style="display:flex;gap:8px">
+          <button id="rl-login-go" style="flex:1;background:#00d4aa;color:#0d1530;border:none;border-radius:8px;padding:12px;font-weight:700;cursor:pointer;font-size:.96rem">Login</button>
+          <button id="rl-login-close" style="background:transparent;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);border-radius:8px;padding:12px 20px;cursor:pointer">Cancel</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.style.display='none'; });
+    document.getElementById('rl-login-close').onclick = () => modal.style.display='none';
+    document.getElementById('rl-login-go').onclick = doLogin;
+    document.getElementById('rl-login-code').focus();
+  }
+
+  function getMac(){
+    const p = new URLSearchParams(location.search);
+    return p.get('mac') || p.get('client-mac') || '';
+  }
+
+  async function doLogin() {
+    const code = document.getElementById('rl-login-code').value.trim().toUpperCase();
+    const phone = document.getElementById('rl-login-phone').value.trim();
+    const msg = document.getElementById('rl-login-msg');
+    const btn = document.getElementById('rl-login-go');
+    function show(t, ok) {
+      msg.textContent = t;
+      msg.style.cssText = 'display:block;padding:10px 14px;border-radius:8px;font-size:.84rem;margin-bottom:12px;'
+        + (ok ? 'background:rgba(0,212,170,.15);color:#00d4aa' : 'background:rgba(231,76,60,.15);color:#e74c3c');
+    }
+    if (!code) { show('Please enter your voucher code', false); return; }
+    btn.disabled = true; btn.textContent = 'Logging in…';
+    try {
+      const r = await fetch('/api/captive/'+ispId+'/login', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ username: code, password: phone, mac: getMac() })
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Login failed');
+      show('✅ Connected! Refreshing…', true);
+      // Try to POST to MikroTik link-login-only to complete the hotspot session
+      const loginUrl = (location.search.match(/loginurl=([^&]+)/)||[])[1];
+      if (loginUrl) {
+        const f = document.createElement('form');
+        f.method = 'POST'; f.action = decodeURIComponent(loginUrl);
+        ['username','password','dst'].forEach((n,i)=>{ const x=document.createElement('input'); x.type='hidden'; x.name=n; x.value = [code, phone||code, ''][i]; f.appendChild(x); });
+        document.body.appendChild(f);
+        setTimeout(()=>f.submit(), 1200);
+      } else {
+        setTimeout(()=>location.reload(), 1500);
+      }
+    } catch(e) {
+      show('❌ ' + e.message, false);
+      btn.disabled = false; btn.textContent = 'Login';
+    }
+  }
+})();
+</script>
+
+
+<script>
+/* RumaLink — Auto-dismiss STK push notifications */
+(function(){
+  // Patterns that identify ephemeral payment-initiation messages that should auto-clear
+  const dismissPatterns = [
+    /STK Push sent/i,
+    /MPesa prompt sent/i,
+    /M-Pesa prompt sent/i,
+    /Payment ID:/i,
+    /Enter PIN to complete/i,
+    /Payment Requested/i,
+    /SMS voucher incoming/i
+  ];
+
+  function shouldDismiss(text) {
+    return dismissPatterns.some(p => p.test(text));
+  }
+
+  // Observe DOM and auto-dismiss matching elements after 6 seconds
+  const observer = new MutationObserver(mutations => {
+    mutations.forEach(m => {
+      m.addedNodes.forEach(node => {
+        if (node.nodeType !== 1) return;
+        // Check node + descendants
+        const candidates = [node, ...node.querySelectorAll?.('*') || []];
+        candidates.forEach(el => {
+          if (!el.textContent) return;
+          if (shouldDismiss(el.textContent)) {
+            // If this is a small status banner (not the whole modal), schedule removal
+            const tag = el.tagName?.toLowerCase();
+            if (['div','p','span','section','article'].includes(tag) && el.textContent.length < 300) {
+              if (!el.dataset.rlDismissed) {
+                el.dataset.rlDismissed = '1';
+                setTimeout(() => {
+                  // Fade out smoothly
+                  el.style.transition = 'opacity .4s';
+                  el.style.opacity = '0';
+                  setTimeout(() => {
+                    // Only remove if still a banner (not the spinner itself)
+                    if (el.parentNode && !el.closest('.rml-spinner-overlay')) {
+                      el.style.display = 'none';
+                    }
+                  }, 400);
+                }, 6000);
+              }
+            }
+          }
+        });
+      });
+    });
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  // Also: when spinner shows success/failure, clear any sticky payment banner immediately
+  window.addEventListener('storage', () => {});  // touch to trigger
+  const origShow = window.rumalinkShowPaymentSpinner;
+  // Hook spinner success/fail to also nuke any sticky banners
+  document.addEventListener('click', function(e){
+    // When user clicks Continue or Try Again on spinner, also dismiss any banner
+    if (e.target?.classList?.contains('rml-spin-action')) {
+      document.querySelectorAll('[data-rl-dismissed]').forEach(el => el.style.display='none');
+    }
+  });
+
+  console.log('[RumaLink] Notification auto-dismiss active');
+})();
+</script>
+
+</body>
+</html>

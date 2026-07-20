@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Connecting…</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{--p:#00d4aa;--ink:#0a0f1e;--card:#111d3a;--border:#1e2f52;--muted:#8899bb;--white:#f0f4ff;--amber:#f39c12;--red:#e74c3c}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--ink);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;position:relative;overflow:hidden}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 60% 50% at 50% 40%,rgba(0,212,170,.08),transparent 70%);pointer-events:none}
+.card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:36px 30px;width:100%;max-width:420px;position:relative;z-index:1;text-align:center}
+.isp-logo{margin-bottom:20px}
+.isp-name{font-size:1.3rem;font-weight:600;color:var(--white)}
+.icon{font-size:3rem;margin-bottom:16px}
+h2{font-size:1.15rem;font-weight:600;color:var(--white);margin-bottom:8px}
+p{font-size:.88rem;color:var(--muted);font-weight:300;line-height:1.6;margin-bottom:16px}
+
+/* Checking state */
+.state{display:none}.state.active{display:block}
+.spinner-ring{width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--p);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* MAC randomization warning */
+.warning-box{background:rgba(243,156,18,.08);border:1px solid rgba(243,156,18,.25);border-radius:12px;padding:20px;margin:16px 0;text-align:left}
+.warning-box h3{color:var(--amber);font-size:.95rem;font-weight:600;margin-bottom:8px}
+.warning-box p{font-size:.83rem;color:var(--muted);margin-bottom:0}
+.steps-list{list-style:none;margin-top:12px}
+.steps-list li{display:flex;gap:10px;padding:8px 0;font-size:.83rem;color:var(--muted);border-bottom:1px solid rgba(255,255,255,.04)}
+.steps-list li:last-child{border:none}
+.step-num{width:22px;height:22px;background:rgba(243,156,18,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;color:var(--amber);flex-shrink:0}
+
+/* Portal redirect */
+.portal-btn{display:block;width:100%;padding:13px;background:var(--p);color:var(--ink);border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:.95rem;font-weight:600;cursor:pointer;text-decoration:none;margin-top:16px;transition:opacity .2s}
+.portal-btn:hover{opacity:.9}
+.portal-btn.secondary{background:transparent;border:1.5px solid var(--border);color:var(--muted);margin-top:8px}
+.portal-btn.secondary:hover{border-color:var(--p);color:var(--p)}
+.success-icon{font-size:3rem;margin-bottom:16px}
+.countdown{font-size:.8rem;color:var(--muted);margin-top:12px}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="isp-logo"><div class="isp-name" id="isp-name">WiFi Network</div></div>
+
+  <!-- STATE: Checking -->
+  <div class="state active" id="state-checking">
+    <div class="spinner-ring"></div>
+    <h2>Checking your device…</h2>
+    <p>Please wait while we verify your access.</p>
+  </div>
+
+  <!-- STATE: MAC Randomized Warning -->
+  <div class="state" id="state-mac-warning">
+    <div class="icon">⚠️</div>
+    <h2>One-Time Setup Required</h2>
+    <p>Your device uses a <strong style="color:var(--amber)">randomized MAC address</strong>. This prevents auto-reconnect. Follow these steps <em>once</em> to enjoy seamless WiFi forever:</p>
+    <div class="warning-box">
+      <h3>📱 iPhone / iPad</h3>
+      <ul class="steps-list">
+        <li><div class="step-num">1</div><div>Go to <strong>Settings → Wi-Fi</strong></div></li>
+        <li><div class="step-num">2</div><div>Tap the ℹ️ next to <strong id="wifi-name-ios">this network</strong></div></li>
+        <li><div class="step-num">3</div><div>Turn off <strong>"Private Wi-Fi Address"</strong></div></li>
+        <li><div class="step-num">4</div><div>Tap <strong>Rejoin</strong> when prompted</div></li>
+      </ul>
+    </div>
+    <div class="warning-box">
+      <h3>🤖 Android</h3>
+      <ul class="steps-list">
+        <li><div class="step-num">1</div><div>Go to <strong>Settings → Wi-Fi</strong></div></li>
+        <li><div class="step-num">2</div><div>Long-press <strong id="wifi-name-android">this network</strong> → <strong>Modify</strong></div></li>
+        <li><div class="step-num">3</div><div>Tap <strong>Advanced</strong> → MAC address type</div></li>
+        <li><div class="step-num">4</div><div>Select <strong>"Use device MAC"</strong> and Save</div></li>
+      </ul>
+    </div>
+    <p style="font-size:.78rem;color:var(--muted);margin-top:4px">You only need to do this once. After that, your device will auto-connect instantly every time.</p>
+    <a class="portal-btn" id="continue-btn" href="#">Continue to Portal →</a>
+  </div>
+
+  <!-- STATE: Known device, auto-connect -->
+  <div class="state" id="state-known">
+    <div class="success-icon">⚡</div>
+    <h2>Welcome back!</h2>
+    <p>Your device is recognized. Connecting you automatically…</p>
+    <div class="countdown" id="countdown">Redirecting in 3 seconds…</div>
+  </div>
+
+  <!-- STATE: No package, go to portal -->
+  <div class="state" id="state-no-package">
+    <div class="icon">📶</div>
+    <h2 id="welcome-title">Welcome!</h2>
+    <p id="welcome-sub">Purchase a package to get started with fast internet access.</p>
+    <a class="portal-btn" id="portal-btn" href="#">Browse Packages →</a>
+  </div>
+
+  <!-- STATE: Package expired -->
+  <div class="state" id="state-expired">
+    <div class="icon">⏰</div>
+    <h2>Your Package Has Expired</h2>
+    <p>Your internet session has ended. Purchase a new package to continue browsing.</p>
+    <a class="portal-btn" id="renew-btn" href="#">Renew Package →</a>
+  </div>
+
+</div>
+
+<script>
+const API = window.RUMALINK_API || 'https://rumalinkenterprise.online/api';
+const params = new URLSearchParams(location.search);
+const ISP_ID = params.get('isp') || window.PORTAL_ISP_ID;
+const NAS_ID = params.get('nas');
+// MikroTik passes MAC via URL in the captive portal redirect
+const MAC = params.get('mac') || params.get('identity') || getMikrotikMAC();
+const PORTAL_URL = `/captive/${ISP_ID}?nas=${NAS_ID}`;
+
+function getMikrotikMAC() {
+  // MikroTik appends ?mac=XX:XX:XX:XX:XX:XX to captive portal redirect
+  const m = location.search.match(/[?&]mac=([^&]+)/i);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+function showState(id) {
+  document.querySelectorAll('.state').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById('state-' + id);
+  if (el) el.classList.add('active');
+}
+
+function isRandomizedMAC(mac) {
+  if (!mac) return false;
+  const first = parseInt(mac.replace(/[^a-f0-9]/gi, '').substring(0, 2), 16);
+  return (first & 0x02) !== 0;
+}
+
+async function init() {
+  // Load ISP name
+  try {
+    const r = await fetch(`${API}/captive/${ISP_ID}`);
+    const d = await r.json();
+    document.getElementById('isp-name').textContent = d.isp?.company_name || 'WiFi Network';
+    document.title = (d.isp?.company_name || 'WiFi') + ' — Connecting';
+    // Apply portal colors
+    if (d.portal?.primary_color) document.documentElement.style.setProperty('--p', d.portal.primary_color);
+    // Set WiFi network name in instructions
+    const wifiName = d.isp?.company_name || 'this network';
+    document.getElementById('wifi-name-ios').textContent = wifiName;
+    document.getElementById('wifi-name-android').textContent = wifiName;
+    // Portal link
+    document.getElementById('portal-btn').href = `/captive/${ISP_ID}`;
+    document.getElementById('welcome-title').textContent = d.portal?.welcome_title || 'Welcome!';
+    document.getElementById('welcome-sub').textContent = d.portal?.welcome_subtitle || 'Purchase a package to get started.';
+    document.getElementById('renew-btn').href = `/captive/${ISP_ID}`;
+    document.getElementById('continue-btn').href = `/captive/${ISP_ID}`;
+  } catch (e) {}
+
+  if (!MAC) {
+    // No MAC — just go to portal
+    showState('no-package');
+    return;
+  }
+
+  // Check for randomized MAC
+  if (isRandomizedMAC(MAC)) {
+    showState('mac-warning');
+    return;
+  }
+
+  // Check if MAC is known and has active package
+  try {
+    const r = await fetch(`${API}/radius/mac-cookie`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mac: MAC, isp_id: ISP_ID })
+    });
+    const d = await r.json();
+
+    if (d.valid) {
+      // Device is known and authorized!
+      showState('known');
+      let secs = 3;
+      const interval = setInterval(() => {
+        secs--;
+        const el = document.getElementById('countdown');
+        if (el) el.textContent = `Redirecting in ${secs} second${secs !== 1 ? 's' : ''}…`;
+        if (secs <= 0) {
+          clearInterval(interval);
+          // MikroTik will handle the actual redirect via RADIUS
+          // We just need to close this page or redirect to success
+          window.location.href = 'http://detectportal.firefox.com/success.txt' in window
+            ? 'about:blank'
+            : `${API.replace('/api', '')}/captive/connected`;
+        }
+      }, 1000);
+    } else {
+      showState('no-package');
+    }
+  } catch (e) {
+    showState('no-package');
+  }
+}
+
+init();
+</script>
+</body>
+</html>
