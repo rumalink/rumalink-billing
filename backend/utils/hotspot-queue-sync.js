@@ -98,7 +98,7 @@ async function syncDeviceQueues(dev) {
           logger.info(`[queue-sync] ${dev.wireguard_ip} ${queueName}: target=${target} max-limit=${rate} (was target=${existing.target} limit=${existing['max-limit']})`);
         }
       } else {
-        await mtCall(dev, 'PUT', '/queue/simple', { name: queueName, target, 'max-limit': rate, comment: 'RumaLink rate-limit (synced)' });
+        if (!/^K[0-9]+@/i.test(String(user)) && !/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/i.test(String(user).trim()) /* RL_NO_DUP_MAC */) await mtCall(dev, 'PUT', '/queue/simple', { name: queueName, target, 'max-limit': rate, comment: 'RumaLink rate-limit (synced)' }); /* RL_NO_DUP_QUEUE: RADIUS reply already rate-limits hotspot logins dynamically */
         created++;
         logger.info(`[queue-sync] ${dev.wireguard_ip} created ${queueName} target=${target} max-limit=${rate}`);
       }

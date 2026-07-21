@@ -1,0 +1,207 @@
+// utils/strand-heal.js — RL_STRAND_HEAL v2
+// Every minute, keep the purchase chain true to policy:
+//  A) paid payment with NO voucher -> REUSE the buyer's own voucher (even expired: refresh package+expiry);
+//     create new ONLY if none exists. TV matches by tv_mac, phone by phone (never cross).
+//  B) active TV voucher <-> bound device kept in sync (voucher id, expiry, is_bound)
+//  C) dangling voucher refs cleared
+//  D) EXPIRED/unbound TVs: remove the router ip-binding AND the rl-tv-* rate-limit queue
+//  E) after changes, trigger a tv-reconcile pass so bindings/queues apply immediately (not next tick)
+const { query } = require('../config/database');
+const logger = require('./logger');
+const axios = require('axios');
+
+function kNext(cur) { return 'K' + (parseInt(String(cur).replace(/[^0-9]/g, ''), 10) + 1); }
+async function globalNextCode() {
+  const r = await query("SELECT COALESCE(MAX((substring(code from 2))::int),0) AS m FROM hotspot_vouchers WHERE code ~ '^K[0-9]+$'");
+  return 'K' + (Number(r.rows[0].m || 0) + 1);
+}
+async function currentRouter() {
+  const r = await query("SELECT id, wireguard_ip, mikrotik_api_user, mikrotik_api_password FROM nas_devices WHERE is_online=true AND wireguard_ip IS NOT NULL ORDER BY last_seen DESC NULLS LAST LIMIT 1");
+  return r.rows[0] || null;
+}
+
+async function pass(onlyPaymentId) { /* RL_HEAL_ONE: when given, heal just that payment (inline, fast) */
+  const DS = String.fromCharCode(36); /* RL_HEAL_MARK */
+  let touchedTv = false;
+
+  // ---- RL_PPPOE_HEAL: a paid PPPoE payment whose subscriber is still walled -> reactivate (missed callback safety net) ----
+  try {
+    const pend = await query(
+      "SELECT p.id, p.transaction_id FROM payments p JOIN pppoe_subscribers ps ON ps.id=p.subscriber_id " +
+      "WHERE p.status='paid' AND p.subscriber_id IS NOT NULL AND p.created_at > NOW() - interval '3 days' " +
+      "AND (ps.status <> 'active' OR ps.next_billing_date IS NULL OR ps.next_billing_date <= NOW()) LIMIT 10");
+    if (pend.rows.length) {
+      const portal = require('../routes/pppoePortal');
+      for (const p of pend.rows) {
+        try { if (portal.onPaid) { await portal.onPaid(p.id, p.transaction_id || null); logger.info('[strand-heal] PPPoE reactivated payment ' + p.id); } }
+        catch (e) { logger.warn('[strand-heal] pppoe onPaid ' + p.id + ': ' + e.message); }
+      }
+    }
+  } catch (e) { logger.warn('[strand-heal] pppoe heal: ' + e.message); }
+
+
+  // ---- A) stranded paid payments: reuse-first ----
+  const strays = onlyPaymentId
+    ? await query("SELECT p.* FROM payments p WHERE p.id = " + String.fromCharCode(36) + "1::uuid AND p.status='paid' AND NOT EXISTS (SELECT 1 FROM hotspot_vouchers v WHERE v.payment_id = p.id)", [onlyPaymentId])
+    : await query(
+      "SELECT p.* FROM payments p WHERE p.status='paid' AND p.created_at > NOW() - interval '7 days' " +
+      "AND (p.metadata->>'rl_healed') IS NULL " + /* RL_HEAL_MARK: each payment healed exactly once */
+      "AND NOT EXISTS (SELECT 1 FROM hotspot_vouchers v WHERE v.payment_id = p.id) LIMIT 20");
+  for (const p of strays.rows) {
+    try {
+      let md = {};
+      try { md = typeof p.metadata === 'string' ? JSON.parse(p.metadata) : (p.metadata || {}); } catch (e) {}
+      const desc = String(p.description || '');
+      if (desc.indexOf('Platform charge') === 0 || desc.indexOf('SMS topup') === 0) { await query("UPDATE payments SET metadata = COALESCE(metadata,'{}'::jsonb) || jsonb_build_object('rl_healed','skip') WHERE id="+DS+"1::uuid",[p.id]).catch(function(e){}); continue; }
+      if (String(p.payment_method || '') === 'admin_charge') { await query("UPDATE payments SET metadata = COALESCE(metadata,'{}'::jsonb) || jsonb_build_object('rl_healed','skip') WHERE id="+DS+"1::uuid",[p.id]).catch(function(e){}); continue; }
+      const pkg = await query(
+        "SELECT id, duration_hours FROM hotspot_packages WHERE isp_id=$1::uuid AND price = $2 ORDER BY duration_hours ASC LIMIT 1",
+        [p.isp_id, p.amount]);
+      if (!pkg.rows[0]) { await query("UPDATE payments SET metadata = COALESCE(metadata,'{}'::jsonb) || jsonb_build_object('rl_healed','no_pkg') WHERE id="+DS+"1::uuid",[p.id]).catch(function(e){}); continue; } // not a hotspot purchase
+      const durH = Number(pkg.rows[0].duration_hours || 24);
+      const phone = p.phone || p.phone_number || p.msisdn || null;
+      const isTv = !!md.is_tv; const tvMac = md.tv_mac ? String(md.tv_mac).toUpperCase() : null;
+
+      // policy: reuse the buyer's own voucher if it exists (even expired)
+      let ex;
+      if (isTv && tvMac) {
+        ex = await query("SELECT id, code FROM hotspot_vouchers WHERE isp_id=$1::uuid AND is_tv=true AND UPPER(tv_mac)=UPPER($2) ORDER BY (payment_id IS NOT NULL) DESC, updated_at DESC NULLS LAST, created_at DESC, LENGTH(code) DESC, code DESC LIMIT 1 /* RL_REUSE_STICKY */", [p.isp_id, tvMac]);
+      } else if (phone) {
+        ex = await query("SELECT id, code FROM hotspot_vouchers WHERE isp_id=$1::uuid AND buyer_phone=$2 AND (is_tv IS NOT TRUE) ORDER BY (payment_id IS NOT NULL) DESC, updated_at DESC NULLS LAST, created_at DESC, LENGTH(code) DESC, code DESC LIMIT 1 /* RL_REUSE_STICKY */", [p.isp_id, phone]);
+      } else { ex = { rows: [] }; }
+
+      let vid, code;
+      if (ex.rows[0]) {
+        vid = ex.rows[0].id; code = ex.rows[0].code;
+        await query(
+          "UPDATE hotspot_vouchers SET payment_id=$1::uuid, package_id=$2::uuid, status='active', " +
+          "expires_at = COALESCE($3::timestamptz, NOW()) + ($4 || ' hours')::interval, " +
+          "used_by_mac = COALESCE($5, used_by_mac), is_tv = COALESCE($6, is_tv), tv_mac = COALESCE($7, tv_mac), updated_at=NOW() WHERE id=$8::uuid",
+          [p.id, pkg.rows[0].id, p.paid_at || p.created_at || null, String(durH), (isTv && tvMac) ? tvMac : null, (isTv ? true : null), tvMac, vid]);
+        logger.info('[strand-heal] payment ' + p.id + ' -> REUSED voucher ' + code + (isTv ? ' (TV ' + tvMac + ')' : ''));
+      } else {
+        code = await globalNextCode();
+        for (let t = 0; t < 40; t++) {
+          try {
+            const ins = await query(
+              "INSERT INTO hotspot_vouchers (isp_id, package_id, code, status, buyer_phone, payment_id, used_by_mac, is_tv, tv_mac, expires_at) " +
+              "VALUES ($1::uuid,$2::uuid,$3,'active',$4,$5::uuid,$6,$7,$8, COALESCE($9::timestamptz, NOW()) + ($10 || ' hours')::interval) RETURNING id",
+              [p.isp_id, pkg.rows[0].id, code, phone, p.id, (isTv && tvMac) ? tvMac : null, isTv, tvMac, p.paid_at || p.created_at || null, String(durH)]);
+            vid = ins.rows[0].id;
+            logger.info('[strand-heal] payment ' + p.id + ' -> NEW voucher ' + code + (isTv ? ' (TV ' + tvMac + ')' : ''));
+            break;
+          } catch (ce) {
+            if (ce && ce.code === '23505' && t < 39) { code = kNext(code); continue; }
+            throw ce;
+          }
+        }
+      }
+      if (!vid) continue;
+      await query("UPDATE payments SET metadata = COALESCE(metadata,'{}'::jsonb) || jsonb_build_object('rl_healed', "+DS+"2::text) WHERE id="+DS+"1::uuid",[p.id, code]).catch(function(e){}); /* RL_HEAL_MARK */
+      try {
+        const cap = require('../routes/captive');
+        if (cap.syncRadiusForVoucher) await cap.syncRadiusForVoucher(vid);
+      } catch (e) { logger.warn('[strand-heal] radius sync: ' + e.message); }
+      if (isTv && tvMac) {
+        await query(
+          "UPDATE hotspot_bound_devices SET active_voucher_id=$1::uuid, expires_at=(SELECT expires_at FROM hotspot_vouchers WHERE id=$1::uuid), is_bound=true WHERE isp_id=$2::uuid AND UPPER(mac_address)=UPPER($3)",
+          [vid, p.isp_id, tvMac]).catch(function (e) { logger.warn('[strand-heal] tv link: ' + e.message); });
+        touchedTv = true;
+      }
+    } catch (e) { logger.error('[strand-heal] payment ' + p.id + ': ' + e.message); }
+  }
+
+  // ---- B) TV voucher <-> bound device sync ----
+  const b = await query(
+    "UPDATE hotspot_bound_devices bd SET active_voucher_id = v.id, expires_at = v.expires_at, is_bound = true " +
+    "FROM hotspot_vouchers v WHERE v.is_tv = true AND v.status='active' AND v.expires_at > NOW() " +
+    "AND UPPER(v.tv_mac) = UPPER(bd.mac_address) AND v.isp_id = bd.isp_id " +
+    "AND (bd.active_voucher_id IS DISTINCT FROM v.id OR bd.expires_at IS DISTINCT FROM v.expires_at OR bd.is_bound = false)"
+  ).catch(function (e) { logger.warn('[strand-heal] tv sweep: ' + e.message); return { rowCount: 0 }; });
+  if (b && b.rowCount) touchedTv = true;
+
+  // ---- C) dangling refs ----
+  await query(
+    "UPDATE hotspot_bound_devices SET active_voucher_id = NULL, is_bound=false WHERE active_voucher_id IS NOT NULL " +
+    "AND NOT EXISTS (SELECT 1 FROM hotspot_vouchers v WHERE v.id = hotspot_bound_devices.active_voucher_id)"
+  ).catch(function (e) { logger.warn('[strand-heal] dangle: ' + e.message); });
+
+  // ---- D) expired/unbound TVs: remove router binding + rl-tv queue (rate limit off at expiry) ----
+  try {
+    const deadTvs = await query(
+      "SELECT mac_address FROM hotspot_bound_devices WHERE is_bound=false OR expires_at IS NULL OR expires_at <= NOW()");
+    if (deadTvs.rows.length) {
+      const nas = await currentRouter();
+      if (nas) {
+        const base = 'http://' + nas.wireguard_ip + '/rest';
+        const auth = { username: nas.mikrotik_api_user, password: nas.mikrotik_api_password };
+        let binds = [], queues = [];
+        try { binds = (await axios.get(base + '/ip/hotspot/ip-binding', { auth, timeout: 8000 })).data || []; } catch (e) {}
+        try { queues = (await axios.get(base + '/queue/simple', { auth, timeout: 8000 })).data || []; } catch (e) {}
+        for (const tv of deadTvs.rows) {
+          const mac = String(tv.mac_address).toUpperCase();
+          const macNc = mac.replace(/:/g, '');
+          const bind = binds.find(function (x) { return String(x['mac-address'] || '').toUpperCase() === mac; });
+          if (bind && bind['.id']) {
+            try { await axios.delete(base + '/ip/hotspot/ip-binding/' + encodeURIComponent(bind['.id']), { auth, timeout: 8000 }); logger.info('[strand-heal] removed expired TV binding ' + mac); } catch (e) {}
+          }
+          const qu = queues.find(function (x) { return String(x.name || '') === 'rl-tv-' + macNc; });
+          if (qu && qu['.id']) {
+            try { await axios.delete(base + '/queue/simple/' + encodeURIComponent(qu['.id']), { auth, timeout: 8000 }); logger.info('[strand-heal] removed expired TV queue rl-tv-' + macNc); } catch (e) {}
+          }
+        }
+      }
+    }
+  } catch (e) { logger.warn('[strand-heal] tv cleanup: ' + e.message); }
+
+  // ---- E2) RL_RELEASE_EXPIRED: an expired voucher must stop owning a device MAC (your rule) ----
+  try {
+    const macReR = '^([0-9A-F]{2}:){5}[0-9A-F]{2}' + String.fromCharCode(36);
+    await query("UPDATE hotspot_vouchers SET used_by_mac=NULL WHERE used_by_mac IS NOT NULL AND (is_tv IS NOT TRUE) AND used_by_mac ~ '" + macReR + "' AND (status<>'active' OR expires_at IS NULL OR expires_at<=NOW())");
+  } catch (e) { logger.warn('[strand-heal] release expired: ' + e.message); }
+
+  // ---- F) RL_MAC_CREDS: MAC auto-login credentials for returning users ----
+  // Router mac-auth sends username=<MAC>, password=RLMACAUTH (profile mac-auth-password).
+  // Maintain radcheck/radreply for every ACTIVE non-TV voucher's device; remove at expiry.
+  try {
+    const macRe = '^([0-9A-F]{2}:){5}[0-9A-F]{2}' + String.fromCharCode(36);
+    await query(
+      "DELETE FROM radcheck WHERE username ~ '" + macRe + "' AND NOT EXISTS (" +
+      "SELECT 1 FROM hotspot_vouchers v WHERE UPPER(v.used_by_mac)=radcheck.username AND v.status='active' AND v.expires_at>NOW() AND (v.is_tv IS NOT TRUE))");
+    await query(
+      "DELETE FROM radreply WHERE username ~ '" + macRe + "' AND NOT EXISTS (" +
+      "SELECT 1 FROM hotspot_vouchers v WHERE UPPER(v.used_by_mac)=radreply.username AND v.status='active' AND v.expires_at>NOW() AND (v.is_tv IS NOT TRUE))");
+    await query(
+      "INSERT INTO radcheck (username, attribute, op, value) " +
+      "SELECT UPPER(v.used_by_mac), 'Cleartext-Password', ':=', 'RLMACAUTH' FROM hotspot_vouchers v " +
+      "WHERE v.status='active' AND v.expires_at>NOW() AND v.used_by_mac IS NOT NULL AND (v.is_tv IS NOT TRUE) " +
+      "AND v.used_by_mac ~ '" + macRe + "' " +
+      "AND NOT EXISTS (SELECT 1 FROM radcheck rc WHERE rc.username=UPPER(v.used_by_mac) AND rc.attribute='Cleartext-Password')");
+    await query("DELETE FROM radreply WHERE username ~ '" + macRe + "' AND attribute IN ('Session-Timeout','Mikrotik-Rate-Limit')");
+    await query(
+      "INSERT INTO radreply (username, attribute, op, value) " +
+      "SELECT DISTINCT ON (UPPER(v.used_by_mac)) UPPER(v.used_by_mac), 'Session-Timeout', ':=', GREATEST(60, EXTRACT(EPOCH FROM (v.expires_at - NOW()))::int)::text FROM hotspot_vouchers v " +
+      "WHERE v.status='active' AND v.expires_at>NOW() AND v.used_by_mac IS NOT NULL AND (v.is_tv IS NOT TRUE) AND v.used_by_mac ~ '" + macRe + "' " +
+      "ORDER BY UPPER(v.used_by_mac), (v.payment_id IS NOT NULL) DESC, v.updated_at DESC NULLS LAST, v.created_at DESC" /* RL_MAC_STICKY */);
+    await query(
+      "INSERT INTO radreply (username, attribute, op, value) " +
+      "SELECT DISTINCT ON (UPPER(v.used_by_mac)) UPPER(v.used_by_mac), 'Mikrotik-Rate-Limit', ':=', COALESCE(hp.bandwidth_up_mbps,5)::text || 'M/' || COALESCE(hp.bandwidth_down_mbps,5)::text || 'M' /* RL_MAC_RATE_REAL */ " +
+      "FROM hotspot_vouchers v LEFT JOIN hotspot_packages hp ON hp.id=v.package_id " +
+      "WHERE v.status='active' AND v.expires_at>NOW() AND v.used_by_mac IS NOT NULL AND (v.is_tv IS NOT TRUE) AND v.used_by_mac ~ '" + macRe + "' " +
+      "ORDER BY UPPER(v.used_by_mac), (hp.bandwidth_down_mbps IS NOT NULL) DESC, (v.payment_id IS NOT NULL) DESC, v.updated_at DESC NULLS LAST, v.created_at DESC" /* RL_MAC_STICKY */);
+  } catch (e) { logger.warn('[strand-heal] mac creds: ' + e.message); }
+
+  // ---- E) immediate apply: if TV state changed, run a reconcile pass right now ----
+  if (touchedTv) {
+    try { await require('./tv-reconcile').pass(); logger.info('[strand-heal] tv-reconcile pass triggered (immediate apply)'); } catch (e) { logger.warn('[strand-heal] tv pass: ' + e.message); }
+  }
+}
+
+function start() {
+  setInterval(function () { pass().catch(function (e) { logger.warn('[strand-heal] ' + e.message); }); }, 60000);
+  pass().catch(function (e) { logger.warn('[strand-heal] first pass: ' + e.message); });
+  logger.info('[strand-heal] v2 started (60s)');
+}
+
+async function healPayment(paymentId) { return pass(paymentId); } /* RL_HEAL_ONE */
+module.exports = { start: start, pass: pass, healPayment: healPayment };

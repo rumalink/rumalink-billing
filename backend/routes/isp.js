@@ -1076,19 +1076,24 @@ router.get('/users', async (req, res) => {
 // Edit one user (update expires_at, status, etc.)
 router.put('/users/:id', async (req, res) => {
   try {
-    const { type, expires_at, status, mac } = req.body;
+    let { type, expires_at, status, mac, package_id } = req.body; /* RL_EDIT_SANITIZE RL_HS_PKG_EDIT */
+    if (status === '' || status === null) status = undefined;
+    if (expires_at === '' || expires_at === null) expires_at = undefined;
+    if (mac === '') mac = undefined;
     if (type === 'hotspot') {
       const updates = [];
       const params = [req.params.id, req.user.ispId];
       let idx = 3;
       if (expires_at !== undefined) { updates.push(`expires_at = $${idx++}`); params.push(expires_at || null); }
       if (status !== undefined) { updates.push(`status = $${idx++}`); params.push(status); }
-      if (mac !== undefined) { updates.push(`used_by_mac = $${idx++}`); params.push(mac); }
+      if (mac !== undefined) { updates.push(`used_by_mac = ${idx++}`); params.push(mac); }
+      if (package_id !== undefined && package_id) { updates.push(`package_id = ${idx++}::uuid`.replace('${D}', String.fromCharCode(36))); params.push(package_id); } /* RL_HS_PKG_EDIT */
       updates.push('updated_at = NOW()');
       await query(
         `UPDATE hotspot_vouchers SET ${updates.join(', ')} WHERE id = $1::uuid AND isp_id = $2::uuid`,
         params
       );
+      try { const cap = require('./captive'); if (package_id && cap.syncRadiusForVoucher) await cap.syncRadiusForVoucher(req.params.id); } catch(e){} /* RL_HS_PKG_EDIT: re-sync rate */
 
       // v52: if status was set to 'expired', clean up router-side: kick session + remove queue
       if (status === 'expired' || expires_at && new Date(expires_at) < new Date()) {
@@ -1485,7 +1490,7 @@ router.get('/:ispId/user/:identifier', async (req, res) => {
       LEFT JOIN hotspot_packages p ON p.id = v.package_id
       WHERE v.isp_id = $1::uuid
         AND (v.buyer_phone = $2 OR v.buyer_phone = $3 OR v.code = $4)
-      ORDER BY v.created_at DESC
+      ORDER BY (v.payment_id IS NOT NULL) DESC, v.updated_at DESC NULLS LAST, v.created_at DESC /* RL_CURRENT_FIRST: the customer's LIVING voucher leads (has a payment, most recently renewed) */
       LIMIT 100
     `, [ispId, normPhone, ident, ident]);
     
@@ -2088,7 +2093,7 @@ router.get('/:ispId/pppoe-user/:identifier', async (req, res) => {
 router.patch('/:ispId/pppoe-subscriber/:subscriberId', async (req, res) => {
   try {
     const { ispId, subscriberId } = req.params;
-    const { phone, full_name, email, status, next_billing_date, password } = req.body || {};
+    const { phone, full_name, email, status, next_billing_date, password, package_id } = req.body || {}; /* RL_PPPOE_PKG_EDIT */
     
     // Build dynamic update
     const fields = [];
@@ -2136,6 +2141,23 @@ router.patch('/:ispId/pppoe-subscriber/:subscriberId', async (req, res) => {
       } catch (pwErr) { require('../utils/logger').warn('[pppoe-pw-update] ' + pwErr.message); }
     }
     
+    // RL_PPPOE_PKG_EDIT: change plan/speed — update package_id + rewrite RADIUS reply attributes
+    if (package_id !== undefined && package_id) {
+      try {
+        const uname = r.rows[0].username;
+        const np = (await query("SELECT id, name, bandwidth_down_mbps, bandwidth_up_mbps, mikrotik_profile, address_pool FROM pppoe_packages WHERE id="+String.fromCharCode(36)+"1::uuid AND isp_id="+String.fromCharCode(36)+"2::uuid AND is_active=true LIMIT 1", [package_id, ispId])).rows[0];
+        if (np) {
+          await query("UPDATE pppoe_subscribers SET package_id="+String.fromCharCode(36)+"1::uuid, updated_at=NOW() WHERE id="+String.fromCharCode(36)+"2::uuid", [np.id, subscriberId]);
+          await query("DELETE FROM radreply WHERE username="+String.fromCharCode(36)+"1 AND attribute IN ('Mikrotik-Rate-Limit','Mikrotik-Group','Framed-Pool')", [uname]).catch(function(){});
+          const down = np.bandwidth_down_mbps, up = np.bandwidth_up_mbps;
+          if (down || up) { const rate = (up||down)+'M/'+(down||up)+'M'; await query("INSERT INTO radreply (username, attribute, op, value) VALUES ("+String.fromCharCode(36)+"1,'Mikrotik-Rate-Limit','=',"+String.fromCharCode(36)+"2)", [uname, rate]).catch(function(){}); }
+          if (np.mikrotik_profile) { await query("INSERT INTO radreply (username, attribute, op, value) VALUES ("+String.fromCharCode(36)+"1,'Mikrotik-Group','=',"+String.fromCharCode(36)+"2)", [uname, np.mikrotik_profile]).catch(function(){}); }
+          if (np.address_pool) { await query("INSERT INTO radreply (username, attribute, op, value) VALUES ("+String.fromCharCode(36)+"1,'Framed-Pool','=',"+String.fromCharCode(36)+"2)", [uname, np.address_pool]).catch(function(){}); }
+          require('../utils/logger').info('[pppoe-edit] '+uname+' plan -> '+np.name+' (reconnect to apply)');
+        }
+      } catch (e) { require('../utils/logger').warn('[pppoe-pkg-edit] '+e.message); }
+    }
+
     // v62.49: expiry-driven walled garden — if the expiry date is set in the past, wall the
     // subscriber immediately (don't wait for the overdue cron). If pushed to the future and they
     // were expired, restore them. Only acts when next_billing_date is explicitly provided.

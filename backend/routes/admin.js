@@ -1035,4 +1035,40 @@ router.post('/system/reset', async (req, res, next) => {
   }
 });
 
+
+// RL_OPS_ENDPOINTS: system save/backup/restore (super-admin only via router.use above).
+// Only invokes the 3 fixed scripts — no user input reaches the shell.
+router.post('/ops/save', async (req, res) => {
+  const { execFile } = require('child_process');
+  const msg = String((req.body && req.body.message) || 'manual save').replace(/[^a-zA-Z0-9 _.\-]/g,'').slice(0,80);
+  execFile('sudo', ['/usr/local/bin/rumalink-save', msg], { timeout: 60000 }, (err, stdout, stderr) => {
+    if (err) return res.status(500).json({ ok:false, error: (stderr||err.message||'').slice(0,300) });
+    res.json({ ok:true, output: String(stdout||'').slice(0,500) });
+  });
+});
+router.post('/ops/backup', async (req, res) => {
+  const { execFile } = require('child_process');
+  execFile('sudo', ['/usr/local/bin/rumalink-backup-to-pc'], { timeout: 180000, maxBuffer: 1024*1024*4 }, (err, stdout, stderr) => {
+    if (err) return res.status(500).json({ ok:false, error: (stderr||err.message||'').slice(0,300) });
+    res.json({ ok:true, output: String(stdout||'').slice(0,800) });
+  });
+});
+router.post('/ops/restore', async (req, res) => {
+  const { execFile } = require('child_process');
+  // destructive — require explicit confirm flag
+  if (!req.body || req.body.confirm !== 'RESTORE') return res.status(400).json({ ok:false, error:'Confirmation required' });
+  const target = String((req.body && req.body.target) || '').replace(/[^a-f0-9]/g,'').slice(0,40);
+  const args = ['/usr/local/bin/rumalink-restore']; if (target) args.push(target);
+  execFile('sudo', args, { timeout: 120000 }, (err, stdout, stderr) => {
+    if (err) return res.status(500).json({ ok:false, error: (stderr||err.message||'').slice(0,300) });
+    res.json({ ok:true, output: String(stdout||'').slice(0,500) });
+  });
+});
+router.get('/ops/saves', async (req, res) => {
+  const { execFile } = require('child_process');
+  execFile('sudo', ['/usr/local/bin/rumalink-restore', 'list'], { timeout: 30000 }, (err, stdout) => {
+    res.json({ ok:true, output: String(stdout||'').slice(0,2000) });
+  });
+});
+
 module.exports = router;

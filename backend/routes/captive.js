@@ -405,21 +405,33 @@ router.post('/:ispId/pay', require('../middleware/auth').requireActiveLicense, a
         await query("UPDATE payments SET intasend_invoice=COALESCE(intasend_invoice,$1), clearing_status=COALESCE(NULLIF(clearing_status,''),'CLEARING') WHERE id=$2::uuid", [String(stk.invoiceId||''), paymentId]).catch(()=>{});
         try {
           let code, voucherId;
+          /* RL_REUSE_SCOPED: reuse the buyer's OWN voucher (even if expired) — TV matches by tv_mac, phone by phone (non-TV). New voucher only if none exists (e.g. deleted). */
           const existing = await query(
-            `SELECT code, id FROM hotspot_vouchers WHERE isp_id=$1::uuid AND buyer_phone=$2 AND payment_id IS NOT NULL ORDER BY created_at ASC LIMIT 1`,
-            [req.params.ispId, normalizedPhone]
+            (is_tv && tv_mac)
+              ? `SELECT code, id FROM hotspot_vouchers WHERE isp_id=$1::uuid AND is_tv=true AND UPPER(tv_mac)=UPPER($2) ORDER BY (payment_id IS NOT NULL) DESC, updated_at DESC NULLS LAST, created_at DESC, LENGTH(code) DESC, code DESC LIMIT 1 /* RL_REUSE_STICKY */`
+              : `SELECT code, id FROM hotspot_vouchers WHERE isp_id=$1::uuid AND buyer_phone=$2 AND (is_tv IS NOT TRUE) ORDER BY (payment_id IS NOT NULL) DESC, updated_at DESC NULLS LAST, created_at DESC, LENGTH(code) DESC, code DESC LIMIT 1 /* RL_REUSE_STICKY */`,
+            [req.params.ispId, (is_tv && tv_mac) ? String(tv_mac).toUpperCase() : normalizedPhone]
           );
           if (existing.rows[0]) {
             voucherId = existing.rows[0].id; code = existing.rows[0].code;
-            await query(`UPDATE hotspot_vouchers SET payment_id=$1::uuid, package_id=$2::uuid, used_by_mac=COALESCE($4, used_by_mac), updated_at=NOW() WHERE id=$3::uuid`,
-              [paymentId, package_id, voucherId, mac || null]);
+            await query(`UPDATE hotspot_vouchers SET payment_id=$1::uuid, package_id=$2::uuid, used_by_mac=COALESCE($4, used_by_mac), is_tv=COALESCE($5, is_tv), tv_mac=COALESCE($6, tv_mac), updated_at=NOW() WHERE id=$3::uuid`, /* RL_REUSE_SCOPED */
+              [paymentId, package_id, voucherId, (is_tv && effectiveMac ? effectiveMac : (mac || null)), (is_tv ? true : null), (is_tv && tv_mac ? effectiveMac : null)]);
           } else {
             code = await generateIspUsername(req.params.ispId);
-            await query(`INSERT INTO hotspot_vouchers (isp_id, package_id, code, status, buyer_phone, payment_id, used_by_mac, is_tv, tv_mac) VALUES ($1::uuid,$2::uuid,$3,'unused',$4,$5::uuid,$6,$7,$8)`,
-              [req.params.ispId, package_id, code, normalizedPhone, paymentId, (is_tv && effectiveMac ? effectiveMac : (mac || null)), !!(is_tv && tv_mac), (is_tv && tv_mac ? effectiveMac : null)]); /* RL_TV_VOUCHER_SCOPE */
+            /* RL_CODE_RETRY: code unique-constraint is global; on collision bump the K-number and retry so a purchase ALWAYS gets a voucher */
+            for (let _try = 0; _try < 40; _try++) {
+              try {
+                await query(`INSERT INTO hotspot_vouchers (isp_id, package_id, code, status, buyer_phone, payment_id, used_by_mac, is_tv, tv_mac) VALUES ($1::uuid,$2::uuid,$3,'unused',$4,$5::uuid,$6,$7,$8)`,
+                  [req.params.ispId, package_id, code, normalizedPhone, paymentId, (is_tv && effectiveMac ? effectiveMac : (mac || null)), !!(is_tv && tv_mac), (is_tv && tv_mac ? effectiveMac : null)]); /* RL_TV_VOUCHER_SCOPE */
+                break;
+              } catch (ce) {
+                if (ce && ce.code === '23505' && _try < 39) { code = 'K' + (parseInt(String(code).replace(/[^0-9]/g, ''), 10) + 1); continue; }
+                throw ce;
+              }
+            }
           }
           logger.info(`Captive(IntaSend): voucher ${code} reserved for ${normalizedPhone}`);
-        } catch (ve) { logger.warn('IntaSend voucher reserve: ' + ve.message); }
+        } catch (ve) { logger.error('IntaSend voucher reserve FAILED (payment ' + paymentId + '): ' + ve.message); }
         return res.json({ success: true, payment_id: paymentId, amount, checkout_request_id: ref, message: `M-Pesa prompt sent to ${normalizedPhone}.` });
       }
     } catch (ipathErr) {
@@ -475,18 +487,30 @@ router.post('/:ispId/pay', require('../middleware/auth').requireActiveLicense, a
           });
         try {
           let code, voucherId;
+          /* RL_REUSE_SCOPED: reuse the buyer's OWN voucher (even if expired) — TV matches by tv_mac, phone by phone (non-TV). New voucher only if none exists (e.g. deleted). */
           const existing = await query(
-            `SELECT code, id FROM hotspot_vouchers WHERE isp_id=$1::uuid AND buyer_phone=$2 AND payment_id IS NOT NULL ORDER BY created_at ASC LIMIT 1`,
-            [req.params.ispId, normalizedPhone]
+            (is_tv && tv_mac)
+              ? `SELECT code, id FROM hotspot_vouchers WHERE isp_id=$1::uuid AND is_tv=true AND UPPER(tv_mac)=UPPER($2) ORDER BY (payment_id IS NOT NULL) DESC, updated_at DESC NULLS LAST, created_at DESC, LENGTH(code) DESC, code DESC LIMIT 1 /* RL_REUSE_STICKY */`
+              : `SELECT code, id FROM hotspot_vouchers WHERE isp_id=$1::uuid AND buyer_phone=$2 AND (is_tv IS NOT TRUE) ORDER BY (payment_id IS NOT NULL) DESC, updated_at DESC NULLS LAST, created_at DESC, LENGTH(code) DESC, code DESC LIMIT 1 /* RL_REUSE_STICKY */`,
+            [req.params.ispId, (is_tv && tv_mac) ? String(tv_mac).toUpperCase() : normalizedPhone]
           );
           if (existing.rows[0]) {
             voucherId = existing.rows[0].id; code = existing.rows[0].code;
-            await query(`UPDATE hotspot_vouchers SET payment_id=$1::uuid, package_id=$2::uuid, used_by_mac=COALESCE($4, used_by_mac), updated_at=NOW() WHERE id=$3::uuid`,
-              [paymentId, package_id, voucherId, mac || null]);
+            await query(`UPDATE hotspot_vouchers SET payment_id=$1::uuid, package_id=$2::uuid, used_by_mac=COALESCE($4, used_by_mac), is_tv=COALESCE($5, is_tv), tv_mac=COALESCE($6, tv_mac), updated_at=NOW() WHERE id=$3::uuid`, /* RL_REUSE_SCOPED */
+              [paymentId, package_id, voucherId, (is_tv && effectiveMac ? effectiveMac : (mac || null)), (is_tv ? true : null), (is_tv && tv_mac ? effectiveMac : null)]);
           } else {
             code = await generateIspUsername(req.params.ispId);
-            await query(`INSERT INTO hotspot_vouchers (isp_id, package_id, code, status, buyer_phone, payment_id, used_by_mac, is_tv, tv_mac) VALUES ($1::uuid,$2::uuid,$3,'unused',$4,$5::uuid,$6,$7,$8)`,
-              [req.params.ispId, package_id, code, normalizedPhone, paymentId, (is_tv && effectiveMac ? effectiveMac : (mac || null)), !!(is_tv && tv_mac), (is_tv && tv_mac ? effectiveMac : null)]); /* RL_TV_VOUCHER_SCOPE */
+            /* RL_CODE_RETRY: code unique-constraint is global; on collision bump the K-number and retry so a purchase ALWAYS gets a voucher */
+            for (let _try = 0; _try < 40; _try++) {
+              try {
+                await query(`INSERT INTO hotspot_vouchers (isp_id, package_id, code, status, buyer_phone, payment_id, used_by_mac, is_tv, tv_mac) VALUES ($1::uuid,$2::uuid,$3,'unused',$4,$5::uuid,$6,$7,$8)`,
+                  [req.params.ispId, package_id, code, normalizedPhone, paymentId, (is_tv && effectiveMac ? effectiveMac : (mac || null)), !!(is_tv && tv_mac), (is_tv && tv_mac ? effectiveMac : null)]); /* RL_TV_VOUCHER_SCOPE */
+                break;
+              } catch (ce) {
+                if (ce && ce.code === '23505' && _try < 39) { code = 'K' + (parseInt(String(code).replace(/[^0-9]/g, ''), 10) + 1); continue; }
+                throw ce;
+              }
+            }
           }
           logger.info(`Captive(Jenga): voucher ${code} reserved for ${normalizedPhone}`);
         } catch (ve) { logger.warn('Jenga voucher reserve:', ve.message); }
@@ -748,6 +772,8 @@ router.get('/:ispId/payment-status/:paymentId', async (req, res) => {
     // If paid, fetch the voucher code
     let voucher_code = null;
     if (r.rows[0].status === 'paid') {
+      /* RL_INLINE_HEAL: guarantee voucher + RADIUS creds before the overlay learns 'paid' */
+      try { await require('../utils/strand-heal').healPayment(req.params.paymentId); } catch (e) {}
       try {
         const v = await query(
           `SELECT code FROM hotspot_vouchers
@@ -1139,7 +1165,7 @@ router.post('/:ispId/activate-payment/:paymentId', async (req, res) => {
 async function syncRadiusForVoucher(voucherId) {
   try {
     const v = await query(
-      `SELECT v.code, v.expires_at, v.payment_id, v.password, v.isp_id, hp.bandwidth_up_mbps, hp.bandwidth_down_mbps /* RL_SYNC2_FIX */
+      `SELECT v.code, v.expires_at, v.payment_id, v.password, v.isp_id, v.created_by_isp, v.is_test, hp.bandwidth_up_mbps, hp.bandwidth_down_mbps /* RL_SYNC2_FIX RL_TEST_COLS */
        FROM hotspot_vouchers v
        LEFT JOIN hotspot_packages hp ON hp.id = v.package_id
        WHERE v.id = $1::uuid LIMIT 1`,
@@ -1147,7 +1173,7 @@ async function syncRadiusForVoucher(voucherId) {
     );
     if (!v.rows[0]) return;
     const r = v.rows[0];
-    if (!r.payment_id) return; // only sync captive-paid vouchers
+    if (!r.payment_id && !r.created_by_isp && !r.is_test) return; /* RL_TEST_CREDS */ // only sync captive-paid vouchers
 
     // Clear any stale entries for this code
     await query(`DELETE FROM radcheck WHERE username = $1`, [radiusUsername(r.code, r.isp_id)]);
@@ -1160,7 +1186,7 @@ async function syncRadiusForVoucher(voucherId) {
     await query(
       `INSERT INTO radcheck (username, attribute, op, value)
        VALUES ($1, 'Cleartext-Password', ':=', $2)`,
-      [radiusUsername(r.code, r.isp_id), r.password || r.code]
+      [radiusUsername(r.code, r.isp_id), r.password || r.code] /* RL_PW_REAL: login flows send the voucher PASSWORD (validate-voucher / SMS); code only as fallback */
     );
 
     // Session-Timeout from expires_at
@@ -1213,16 +1239,38 @@ router.post('/:ispId/validate-voucher', async (req, res) => {
     if (!code) return res.status(400).json({ ok: false, error: 'Voucher code required' });
     const norm = String(code).trim().toUpperCase();
     const v = await query(
-      `SELECT v.code, v.expires_at, v.payment_id, v.password FROM hotspot_vouchers v
-       WHERE v.isp_id = $1::uuid AND UPPER(v.code) = $2 LIMIT 1`,
+      `SELECT v.code, v.expires_at, v.payment_id, v.password, v.created_by_isp, v.is_test FROM hotspot_vouchers v
+       WHERE v.isp_id = $1::uuid AND UPPER(v.code) = $2 LIMIT 1` /* RL_TEST_OK */,
       [req.params.ispId, norm]
     );
     if (!v.rows[0]) return res.status(404).json({ ok: false, error: 'Voucher not found' });
     const voucher = v.rows[0];
-    if (!voucher.payment_id) return res.status(403).json({ ok: false, error: 'Voucher has no payment' });
+    if (!voucher.payment_id && !voucher.created_by_isp && !voucher.is_test) return res.status(403).json({ ok: false, error: 'Voucher has no payment' }); /* RL_TEST_OK: ISP-created/test vouchers connect without payment */
     if (voucher.expires_at && new Date(voucher.expires_at) < new Date()) {
       return res.status(410).json({ ok: false, error: 'Voucher expired' });
     }
+    /* RL_LOGIN_BIND: an explicit code login claims this device — the chosen voucher becomes
+       the device's current one (MAC creds follow it via the sticky sweep), so it wins over
+       whatever the router auto-remembered. */
+    try {
+      const _mac = String((req.body && req.body.mac) || req.query.mac || '').toUpperCase();
+      if (/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/.test(_mac)) {
+        /* RL_MAC_STEAL: release this MAC from any OTHER voucher first, so only the entered code owns the device */
+        await query('UPDATE hotspot_vouchers SET used_by_mac=NULL, updated_at=NOW() WHERE isp_id='+String.fromCharCode(36)+'1::uuid AND UPPER(used_by_mac)='+String.fromCharCode(36)+'2 AND UPPER(code)<>'+String.fromCharCode(36)+'3', [req.params.ispId, _mac, norm]);
+        await query('UPDATE hotspot_vouchers SET used_by_mac='+String.fromCharCode(36)+'1, updated_at=NOW() WHERE isp_id='+String.fromCharCode(36)+'2::uuid AND UPPER(code)='+String.fromCharCode(36)+'3', [_mac, req.params.ispId, norm]);
+        require('../utils/strand-heal').pass().catch(function(){});
+        /* RL_CLAIM_CLEAR: clear the router's remembered cookie/session for this MAC so the chosen voucher wins */
+        (async function(){ try {
+          const { query: q2 } = require('../config/database'); const ax = require('axios');
+          const nas = (await q2("SELECT wireguard_ip, mikrotik_api_user, mikrotik_api_password FROM nas_devices WHERE isp_id="+String.fromCharCode(36)+"1::uuid AND is_online=true ORDER BY last_seen DESC LIMIT 1", [req.params.ispId])).rows[0];
+          if(!nas) return; const auth={username:nas.mikrotik_api_user,password:nas.mikrotik_api_password}; const b='http://'+nas.wireguard_ip+'/rest';
+          const ck=(await ax.get(b+'/ip/hotspot/cookie',{auth,timeout:6000})).data||[];
+          for(const c of ck){ if(String(c['mac-address']||'').toUpperCase()===_mac){ try{ await ax.delete(b+'/ip/hotspot/cookie/'+encodeURIComponent(c['.id']),{auth,timeout:6000}); }catch(e){} } }
+          const acts=(await ax.get(b+'/ip/hotspot/active',{auth,timeout:6000})).data||[];
+          for(const a of acts){ if(String(a['mac-address']||'').toUpperCase()===_mac){ try{ await ax.delete(b+'/ip/hotspot/active/'+encodeURIComponent(a['.id']),{auth,timeout:6000}); }catch(e){} } }
+        } catch(e){} })();
+      }
+    } catch (e) {}
     {
       const ispShort = String(req.params.ispId).replace(/-/g, '').slice(0, 8).toLowerCase();
       const radiusUsername = voucher.code + '@' + ispShort;
@@ -1258,10 +1306,20 @@ router.post('/:ispId/manual-login', async (req, res) => {
     );
     if (!v.rows[0]) return res.status(404).json({ ok: false, error: 'Voucher not found' });
     const voucher = v.rows[0];
-    if (!voucher.payment_id) return res.status(403).json({ ok: false, error: 'Voucher has no payment' });
+    if (!voucher.payment_id && !voucher.created_by_isp && !voucher.is_test) return res.status(403).json({ ok: false, error: 'Voucher has no payment' }); /* RL_TEST_OK: ISP-created/test vouchers connect without payment */
     if (voucher.expires_at && new Date(voucher.expires_at) < new Date()) {
       return res.status(410).json({ ok: false, error: 'Voucher expired' });
     }
+    /* RL_LOGIN_BIND: an explicit code login claims this device — the chosen voucher becomes
+       the device's current one (MAC creds follow it via the sticky sweep), so it wins over
+       whatever the router auto-remembered. */
+    try {
+      const _mac = String((req.body && req.body.mac) || req.query.mac || '').toUpperCase();
+      if (/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/.test(_mac)) {
+        await query('UPDATE hotspot_vouchers SET used_by_mac='+String.fromCharCode(36)+'1, updated_at=NOW() WHERE isp_id='+String.fromCharCode(36)+'2::uuid AND UPPER(code)='+String.fromCharCode(36)+'3', [_mac, req.params.ispId, norm]);
+        require('../utils/strand-heal').pass().catch(function(){});
+      }
+    } catch (e) {}
 
     // 2. Get NAS device for this ISP
     const nasRes = await query(

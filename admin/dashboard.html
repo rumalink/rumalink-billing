@@ -249,7 +249,7 @@ body{background:var(--ink);color:var(--white);font-family:var(--font-body);displ
       <div class="topbar-title" id="page-title">Dashboard</div>
     </div>
     <div class="topbar-right">
-      <button class="notif-btn" onclick="showPage('notifications')" title="Notifications">🔔<span class="notif-dot" id="notif-dot" style="display:none"></span></button>
+      <button onclick="rlOpsSave()" title="Save a snapshot of the current system" style="background:rgba(0,212,170,.15);color:#00d4aa;border:1px solid rgba(0,212,170,.35);border-radius:8px;padding:7px 12px;cursor:pointer;margin-right:6px;font-size:.85rem">💾 Save</button><button onclick="rlOpsBackup()" title="Make a backup zip to download to your PC" style="background:rgba(180,123,255,.15);color:#b47bff;border:1px solid rgba(180,123,255,.35);border-radius:8px;padding:7px 12px;cursor:pointer;margin-right:6px;font-size:.85rem">📦 Backup</button><button onclick="rlOpsRestore()" title="Roll back to a previous save (careful)" style="background:rgba(231,76,60,.12);color:#e74c3c;border:1px solid rgba(231,76,60,.35);border-radius:8px;padding:7px 12px;cursor:pointer;margin-right:10px;font-size:.85rem">↩ Restore</button> <!-- RL_OPS_BUTTONS --><button class="notif-btn" onclick="showPage('notifications')" title="Notifications">🔔<span class="notif-dot" id="notif-dot" style="display:none"></span></button>
       <div class="admin-av" id="admin-av">A</div>
     </div>
   </div>
@@ -2567,5 +2567,85 @@ async function rlDoRestore(){var file=document.getElementById('rl-restore-file')
 async function rlDoReset(){if(!confirm('This will DELETE ALL TEST DATA. A backup is saved first. Cannot be undone except from that backup. Continue?'))return;if(!confirm('Final confirmation: wipe all ISPs, payments, vouchers and sessions now?'))return;var st=document.getElementById('rl-reset-status');st.textContent='Backing up, then wiping… (do not close this page)';st.style.color='var(--muted)';var btn=document.getElementById('rl-reset-btn');btn.disabled=true;btn.style.opacity='.5';try{var r=await fetch((window.API||'/api')+'/admin/system/reset',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem('rl_admin_token')||'')},body:JSON.stringify({confirm:'RESET TO PRODUCTION'})});var d=await r.json();if(!r.ok)throw new Error(d.error||'failed');st.innerHTML='✓ '+(d.message||'Reset complete')+'<br>Backup: '+d.backup+' ('+Math.round((d.backup_size||0)/1024)+' KB)';st.style.color='#2ecc71';(window.toast||alert)('System reset complete','success');document.getElementById('rl-reset-phrase').value='';rlResetPhraseCheck();setTimeout(function(){location.reload();},4000);}catch(e){st.textContent='✗ '+e.message;st.style.color='#e74c3c';(window.toast||alert)(e.message,'error');}}
 </script>
 <script>/* RL_RESTORE_AUTOLOAD */document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){if(typeof rlLoadBackups==='function')rlLoadBackups();},1200);});</script>
+
+
+
+<div id="rl-ops-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2147483000;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)">
+  <div style="background:#0d1530;border:1px solid rgba(255,255,255,.14);border-radius:16px;max-width:460px;width:100%;padding:22px;box-shadow:0 30px 80px rgba(0,0,0,.6);font-family:inherit">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <span id="rl-ops-icon" style="font-size:1.5rem"></span>
+      <h3 id="rl-ops-title" style="margin:0;color:#fff;font-size:1.12rem">Title</h3>
+    </div>
+    <div id="rl-ops-body" style="color:#aab4d4;font-size:.9rem;line-height:1.5;margin:10px 0"></div>
+    <div id="rl-ops-actions" style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end"></div>
+  </div>
+</div>
+<script>/* RL_OPS_MODAL: styled system ops modals */
+function rlOpsHdr(){ var t=null; try{t=localStorage.getItem('token')||localStorage.getItem('adminToken')||localStorage.getItem('rl_token');}catch(e){} var h={'Content-Type':'application/json'}; if(t)h['Authorization']='Bearer '+t; return h; }
+function rlOps(o){
+  var m=document.getElementById('rl-ops-modal');
+  document.getElementById('rl-ops-icon').textContent=o.icon||'';
+  document.getElementById('rl-ops-title').textContent=o.title||'';
+  document.getElementById('rl-ops-body').innerHTML=o.body||'';
+  var act=document.getElementById('rl-ops-actions'); act.innerHTML='';
+  (o.actions||[]).forEach(function(b){
+    var btn=document.createElement('button');
+    btn.textContent=b.label;
+    btn.style.cssText='padding:9px 16px;border-radius:8px;cursor:pointer;font-size:.88rem;font-weight:600;border:'+(b.primary?'0':'1px solid rgba(255,255,255,.2)')+';background:'+(b.primary?(b.danger?'#e74c3c':'#00d4aa'):'transparent')+';color:'+(b.primary?(b.danger?'#fff':'#04121b'):'#fff');
+    btn.onclick=b.onClick; act.appendChild(btn);
+  });
+  m.style.display='flex';
+}
+function rlOpsClose(){ document.getElementById('rl-ops-modal').style.display='none'; }
+function rlOpsBusy(txt){ document.getElementById('rl-ops-body').innerHTML='<div style="display:flex;align-items:center;gap:10px"><div style="width:22px;height:22px;border:3px solid rgba(255,255,255,.15);border-top-color:#00d4aa;border-radius:50%;animation:rlspin 1s linear infinite"></div>'+txt+'</div>'; document.getElementById('rl-ops-actions').innerHTML=''; if(!document.getElementById('rl-ops-spin-kf')){var st=document.createElement('style');st.id='rl-ops-spin-kf';st.textContent='@keyframes rlspin{to{transform:rotate(360deg)}}';document.head.appendChild(st);} }
+
+function rlOpsSave(){
+  rlOps({icon:'💾',title:'Save a snapshot',
+    body:'Describe what you changed (helps you find this save later):<br><input id="rl-ops-save-msg" placeholder="e.g. fixed TV expiry" style="width:100%;margin-top:8px;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:#0a1024;color:#fff;font-size:.9rem">',
+    actions:[
+      {label:'Cancel',onClick:rlOpsClose},
+      {label:'Save',primary:true,onClick:async function(){
+        var msg=(document.getElementById('rl-ops-save-msg')||{}).value||'manual save';
+        rlOpsBusy('Saving snapshot…');
+        try{ var r=await fetch('/api/admin/ops/save',{method:'POST',headers:rlOpsHdr(),credentials:'include',body:JSON.stringify({message:msg})}); var d=await r.json();
+          rlOps({icon:d.ok?'✅':'⚠️',title:d.ok?'Saved':'Error',body:'<pre style="white-space:pre-wrap;color:#cfe;font-size:.82rem">'+((d.output||d.error||'').replace(/</g,'&lt;'))+'</pre>',actions:[{label:'Done',primary:true,onClick:rlOpsClose}]});
+        }catch(e){ rlOps({icon:'⚠️',title:'Error',body:e.message,actions:[{label:'Close',primary:true,onClick:rlOpsClose}]}); }
+      }}
+    ]});
+}
+function rlOpsBackup(){
+  rlOps({icon:'📦',title:'Backup to your PC',body:'This creates a code backup zip on the server, then gives you a command to download it to your Windows PC.',
+    actions:[{label:'Cancel',onClick:rlOpsClose},{label:'Create backup',primary:true,onClick:async function(){
+      rlOpsBusy('Creating backup zip… (may take up to a minute)');
+      try{ var r=await fetch('/api/admin/ops/backup',{method:'POST',headers:rlOpsHdr(),credentials:'include',body:'{}'}); var d=await r.json();
+        if(d.ok){
+          var scp=(d.output||'').split('\n').filter(function(l){return l.indexOf('scp ')>-1;})[0]||'';
+          rlOps({icon:'✅',title:'Backup ready',
+            body:'Run this in <b>PowerShell on your PC</b> to download it (replace the key path with your .pem file):<br><textarea readonly id="rl-ops-scp" style="width:100%;margin-top:8px;height:70px;padding:10px;border-radius:8px;border:1px solid rgba(0,212,170,.3);background:#0a1024;color:#00d4aa;font-family:monospace;font-size:.78rem">'+scp+'</textarea>',
+            actions:[{label:'Copy command',onClick:function(){var t=document.getElementById('rl-ops-scp');t.select();document.execCommand('copy');}},{label:'Done',primary:true,onClick:rlOpsClose}]});
+        } else rlOps({icon:'⚠️',title:'Error',body:d.error||'failed',actions:[{label:'Close',primary:true,onClick:rlOpsClose}]});
+      }catch(e){ rlOps({icon:'⚠️',title:'Error',body:e.message,actions:[{label:'Close',primary:true,onClick:rlOpsClose}]}); }
+    }}]});
+}
+async function rlOpsRestore(){
+  rlOpsBusy&&0;
+  rlOps({icon:'↩',title:'Restore a previous save',body:'Loading your saves…',actions:[]});
+  var saves='';
+  try{ var r=await fetch('/api/admin/ops/saves',{headers:rlOpsHdr(),credentials:'include'}); var d=await r.json(); saves=(d.output||'').replace(/</g,'&lt;'); }catch(e){}
+  rlOps({icon:'↩',title:'Restore a previous save',
+    body:'<div style="color:#e74c3c;background:rgba(231,76,60,.1);border-left:3px solid #e74c3c;padding:8px 10px;border-radius:6px;margin-bottom:10px;font-size:.83rem">⚠ This rolls the ENTIRE system back and restarts the backend. Customers may briefly disconnect.</div>'
+      +'<div style="font-size:.8rem;color:#889;margin-bottom:6px">Your recent saves:</div><pre style="white-space:pre-wrap;color:#cfe;font-size:.76rem;max-height:120px;overflow:auto;background:#0a1024;padding:8px;border-radius:6px">'+saves+'</pre>'
+      +'<div style="margin-top:10px;font-size:.85rem">Type <b>RESTORE</b> to roll back to the previous save, or paste a save code to restore that one:</div>'
+      +'<input id="rl-ops-restore-c" placeholder="RESTORE  (or a save code)" style="width:100%;margin-top:6px;padding:10px;border-radius:8px;border:1px solid rgba(231,76,60,.4);background:#0a1024;color:#fff;font-size:.9rem">',
+    actions:[{label:'Cancel',onClick:rlOpsClose},{label:'Restore',primary:true,danger:true,onClick:async function(){
+      var c=(document.getElementById('rl-ops-restore-c')||{}).value||''; var target='';
+      if(c!=='RESTORE'){ target=c.replace(/[^a-f0-9]/g,''); if(!target){ return; } }
+      rlOpsBusy('Restoring and restarting…');
+      try{ var r=await fetch('/api/admin/ops/restore',{method:'POST',headers:rlOpsHdr(),credentials:'include',body:JSON.stringify({confirm:'RESTORE',target:target})}); var d=await r.json();
+        rlOps({icon:d.ok?'✅':'⚠️',title:d.ok?'Restored':'Error',body:'<pre style="white-space:pre-wrap;color:#cfe;font-size:.82rem">'+((d.output||d.error||'').replace(/</g,'&lt;'))+'</pre>',actions:[{label:'Done',primary:true,onClick:rlOpsClose}]});
+      }catch(e){ rlOps({icon:'⚠️',title:'Error',body:e.message,actions:[{label:'Close',primary:true,onClick:rlOpsClose}]}); }
+    }}]});
+}
+</script>
 </body>
 </html>

@@ -814,11 +814,25 @@ router.put('/:id/multi-wan', async (req, res) => {
       }
     }
 
+    /* RL_POLICY_POS: links are saved above, so resolve policy targets AFTER — by real uuid,
+       or by position ("pos:N") for links that had no id when the policy was created in the UI.
+       Also hard-validate uuids so strings like "null"/"undefined" can never reach ::uuid. */
+    const _lr = await query('SELECT id, position FROM nas_wan_links WHERE nas_id = $1::uuid ORDER BY position', [req.params.id]);
+    const _posToId = {}; _lr.rows.forEach(r => { _posToId[r.position] = r.id; });
+    const _isUuid = v => typeof v === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(v);
+    const _resolve = v => {
+      if (!v || typeof v !== 'string') return null;
+      if (v.startsWith('pos:')) return _posToId[parseInt(v.slice(4), 10)] || null;
+      return _isUuid(v) ? v : null;
+    };
     const policies = Array.isArray(b.policies) ? b.policies : [];
+    let savedPolicies = 0;
     for (let i = 0; i < policies.length; i++) {
       const p = policies[i];
-      if (p.action_type === 'use_link' && !p.target_link_id) continue;
-      if (p.action_type === 'load_balance_pool' && (!Array.isArray(p.target_link_ids) || !p.target_link_ids.length)) continue;
+      const tid = _resolve(p.target_link_id);
+      const tids = (Array.isArray(p.target_link_ids) ? p.target_link_ids : []).map(_resolve).filter(Boolean);
+      if (p.action_type === 'use_link' && !tid) continue;
+      if (p.action_type === 'load_balance_pool' && !tids.length) continue;
       await query(
         `INSERT INTO nas_wan_policies (nas_id, priority, name, match_type, match_value, action_type, target_link_id, target_link_ids, enabled)
          VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8::uuid[], $9)`,
@@ -829,14 +843,15 @@ router.put('/:id/multi-wan', async (req, res) => {
           p.match_type,
           p.match_value || null,
           p.action_type,
-          p.target_link_id || null,
-          Array.isArray(p.target_link_ids) ? p.target_link_ids : [],
+          tid,
+          tids,
           p.enabled !== false
         ]
       );
+      savedPolicies++;
     }
 
-    res.json({ ok: true, mode: b.mode, link_count: links.length, policy_count: policies.length });
+    res.json({ ok: true, mode: b.mode, link_count: links.length, policy_count: savedPolicies, dropped_policies: policies.length - savedPolicies }); /* RL_POLICY_POS */
   } catch (err) {
     require('../utils/logger').error('[multi-wan PUT] ' + err.message);
     res.status(500).json({ error: err.message });

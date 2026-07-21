@@ -2160,7 +2160,7 @@ async function loadVouchers(){
   try{
     const d=await api(`/vouchers?page=${vPage}&limit=50${status?'&status='+status:''}`);
     tbody.innerHTML=(d.vouchers||[]).map(v=>`
-      <tr style="cursor:pointer" onclick="window.location.href='user.html?identifier='+encodeURIComponent(v.buyer_phone||v.code)+'&source=hotspot'"><td class="name" style="font-family:monospace;letter-spacing:1px">${v.code}${v.is_test ? ' <span style="background:rgba(243,156,18,.2);color:#f39c12;padding:1px 6px;border-radius:4px;font-size:.7rem;font-weight:600">🧪 TEST</span>' : ''}</td>
+      <tr style="cursor:pointer" onclick="window.location.href='user.html?identifier='+encodeURIComponent(v.code||v.buyer_phone)+'&source=hotspot' /* RL_CODE_CLICK */"><td class="name" style="font-family:monospace;letter-spacing:1px">${v.code}${v.is_test ? ' <span style="background:rgba(243,156,18,.2);color:#f39c12;padding:1px 6px;border-radius:4px;font-size:.7rem;font-weight:600">🧪 TEST</span>' : ''}</td>
       <td>${v.package_name}</td>
       <td><span class="badge ${v.status==='unused'?'bg':v.status==='active'?'ba':v.status==='used'?'bm':'br'}">${v.status}</span></td>
       <td>${v.buyer_phone||'—'}</td>

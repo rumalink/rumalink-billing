@@ -1,3 +1,5 @@
+// RL_NO_MACCOOKIE: mac-cookie fights RADIUS mac-auth (causes ~90s session churn). Keep 'mac', drop 'mac-cookie'.
+// RL_MAC_LOGIN: hotspot profiles include MAC auto-login (returning users reconnect with no credentials)
 /**
  * RumaLink — MikroTik RouterOS v7 Provisioning
  *
@@ -198,14 +200,24 @@ ${bridgePortsBlock}
 :do { /ip dhcp-server network remove [find comment="RumaLink-net"] } on-error={}
 :do { /ip dhcp-server network add address=${network} gateway=${gateway} dns-server=8.8.8.8,8.8.4.4 comment="RumaLink-net" } on-error={}
 :do { /ip hotspot profile remove [find name="rl-hsprof"] } on-error={}
-:do { /ip hotspot profile add name="rl-hsprof" hotspot-address=${gateway} dns-name="wifi.rumalink" html-directory=hotspot login-by=http-chap,http-pap } on-error={}
+:do { /ip hotspot profile add name="rl-hsprof" hotspot-address=${gateway} dns-name="wifi.rumalink" html-directory=hotspot login-by=mac,cookie,http-chap,http-pap mac-auth-password="RLMACAUTH" } on-error={}
 :do { /ip hotspot remove [find name="rl-hotspot"] } on-error={}
 :do { /ip hotspot add name="rl-hotspot" interface=bridge-hotspot address-pool=rl-pool profile="rl-hsprof" addresses-per-mac=2 disabled=no } on-error={}
 :do { /ip firewall nat add chain=srcnat src-address=${network} action=masquerade comment="RumaLink-hs" } on-error={}
 :do { /ip hotspot user remove [find name="rumalink"] } on-error={}
 :do { /ip hotspot user add name="rumalink" password="rumalink" profile=default comment="RumaLink-generic" } on-error={}
 :do { /ip dns set allow-remote-requests=yes } on-error={}
-:do { /ip hotspot profile set [find name="rl-hsprof"] login-by=http-chap,http-pap } on-error={}
+:do { /ip hotspot profile set [find name="rl-hsprof"] login-by=mac,cookie,http-chap,http-pap mac-auth-password="RLMACAUTH" } on-error={}
+# RL-FASTTRACK + MSS clamp + PCQ (RL_PERF: recover throughput on low-power routers; hotspot is unmarked so safe to fasttrack)
+:do { /ip firewall filter remove [find comment~"RL-FASTTRACK"] } on-error={}
+:do { /ip firewall filter add chain=forward action=fasttrack-connection connection-state=established,related place-before=0 comment="RL-FASTTRACK est" } on-error={}
+:do { /ip firewall filter add chain=forward action=accept connection-state=established,related place-before=1 comment="RL-FASTTRACK accept" } on-error={}
+:do { /ip firewall mangle remove [find comment~"RL-MSS"] } on-error={}
+:do { /ip firewall mangle add chain=forward action=change-mss new-mss=clamp-to-pmtu protocol=tcp tcp-flags=syn out-interface=rl-wan-pppoe comment="RL-MSS clamp pppoe out" } on-error={}
+:do { /ip firewall mangle add chain=forward action=change-mss new-mss=clamp-to-pmtu protocol=tcp tcp-flags=syn in-interface=rl-wan-pppoe comment="RL-MSS clamp pppoe in" } on-error={}
+:do { /queue type set [find name="pcq-download-default"] kind=pcq pcq-rate=0 pcq-classifier=dst-address pcq-limit=50 pcq-total-limit=2000 } on-error={}
+:do { /queue type set [find name="pcq-upload-default"] kind=pcq pcq-rate=0 pcq-classifier=src-address pcq-limit=50 pcq-total-limit=2000 } on-error={}
+:do { /ip hotspot user profile set [find name="default"] queue-type=pcq-upload-default/pcq-download-default } on-error={}
 :do { /ip hotspot walled-garden remove [find comment="RumaLink-portal"] } on-error={}
 :do { /ip hotspot walled-garden add dst-host="${serverDomain}" comment="RumaLink-portal" } on-error={}
 :do { /ip hotspot walled-garden add dst-host="*.safaricom.co.ke" comment="RumaLink-portal" } on-error={}
@@ -974,7 +986,7 @@ async function rumalinkRadiusProvisionV61(nas_id) {
           'radius-interim-update': '2m',
           'radius-mac-format': 'XX:XX:XX:XX:XX:XX',
           'nas-port-type': 'wireless-802.11',
-          'login-by': 'http-chap,http-pap'
+          'login-by': 'mac,cookie,http-chap,http-pap', 'mac-auth-password': 'RLMACAUTH'
         }, { auth, timeout: 5000 });
         log.info(`[RADIUS-PROVISION-V61] rl-hsprof RADIUS settings applied on ${nas.name}`);
       } else {

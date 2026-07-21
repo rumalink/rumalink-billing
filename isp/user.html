@@ -201,11 +201,7 @@
     </label>
     <label>
       <span class="lbl">Status</span>
-      <select id="editStatus">
-        <option value="unused">Unused (available)</option>
-        <option value="used">Used (in service)</option>
-        <option value="expired">Expired</option>
-      </select>
+      <select id="editStatus"><!-- RL_STATUS_DD: matches the current flow; blank = keep as-is (backend ignores empty) --><option value="">— keep current status —</option><option value="active">Active (valid / in service)</option><option value="unused">Unused (created, not started)</option><option value="expired">Expired</option></select>
     </label>
     <div class="modal-actions">
       <button class="btn-del" id="editDelBtn">🗑 Delete</button>
@@ -376,7 +372,7 @@ function render(d) {
   const revenue = Math.max(Number(s.total_revenue_kes || 0), computedRevenue);
   
   const activeVouchers = (d.vouchers || []).filter(v => v.expires_at && new Date(v.expires_at) > new Date());
-  const mostRecentActive = activeVouchers.sort((a,b) => new Date(b.expires_at) - new Date(a.expires_at))[0];
+  const mostRecentActive = ((activeVouchers.find && activeVouchers.find(function(v){ return String(v.code||'').toUpperCase() === String(identifier||'').toUpperCase(); })) || (activeVouchers.find && activeVouchers.find(function(v){ return v.status === 'active'; })) || activeVouchers[0] || null); /* RL_HDR_CURRENT: clicked code first, else active, else the customer's living voucher (backend orders current-first) */
   
   // Aggregate data from live sessions (real-time bytes from Mikrotik)
   const liveBytesIn = live.reduce((s, x) => s + Number(x.bytes_in || 0), 0);

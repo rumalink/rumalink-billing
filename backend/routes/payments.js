@@ -571,6 +571,8 @@ router.get('/public-status/:paymentId', async (req, res) => {
     }
     // If marked paid but voucher not yet activated (callback never fired), activate now
     if (r.rows[0].status === 'paid') {
+      /* RL_INLINE_HEAL: never report 'paid' before the voucher + RADIUS creds exist. Idempotent + fast. */
+      try { await require('../utils/strand-heal').healPayment(req.params.paymentId); } catch (e) { require('../utils/logger').warn('[inline-heal] ' + e.message); }
       try {
         const vCheck = await query("SELECT id, expires_at FROM hotspot_vouchers WHERE payment_id = $1::uuid LIMIT 1", [req.params.paymentId]);
         if (vCheck.rows[0] && !vCheck.rows[0].expires_at) {

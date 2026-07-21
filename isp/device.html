@@ -1541,7 +1541,8 @@ async function editPolicy(idx) {
   modal.id = 'policy-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9998;display:flex;align-items:center;justify-content:center;padding:20px';
 
-  const linkOpts = mwanLinks.map(l => `<option value="${l.id}">${esc(l.name || l.interface)} (${esc(l.interface)})</option>`).join('');
+  /* RL_POLICY_POSFE: unsaved links have no id yet — reference them by position (pos:N); backend resolves at save. */
+  const linkOpts = mwanLinks.map((l, _i) => `<option value="${l.id || ('pos:' + (_i + 1))}">${esc(l.name || ('Link ' + (_i + 1)))} (${esc(l.interface)})</option>`).join('');
   const pppoePkgOpts = mwanPppoePackages.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
   const hsPkgOpts = mwanHotspotPackages.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
   const subOpts = mwanPppoeSubscribers.map(s => `<option value="${s.id}">${esc(s.username)} - ${esc(s.full_name || '')}</option>`).join('');

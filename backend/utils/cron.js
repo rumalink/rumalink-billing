@@ -790,3 +790,10 @@ cron.schedule('*/2 * * * *', async () => {
 
 // RL_TV_RECONCILE boot
 try { require('./tv-reconcile').start(); } catch (e) { require('./logger').warn('[tv-reconcile] start: ' + e.message); }
+
+// RL_STRAND_HEAL: paid-but-voucherless payments are healed every minute; TV voucher<->device kept in sync.
+try { require('./strand-heal').start(); } catch (e) { require('./logger').warn('[strand-heal] start: ' + e.message); }
+
+// RL_ROUTER_HARDEN: every online router keeps fasttrack + MSS clamp + pcq + mac-auth (no mac-cookie).
+// Makes a delete/re-add (or a pre-fix router) self-heal to the current performance+auth baseline.
+try { require('./router-harden').start(); } catch (e) { require('./logger').warn('[router-harden] start: ' + e.message); }
