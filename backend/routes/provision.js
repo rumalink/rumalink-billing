@@ -210,8 +210,17 @@ ${bridgePortsBlock}
 :do { /ip hotspot profile set [find name="rl-hsprof"] login-by=mac,cookie,http-chap,http-pap mac-auth-password="RLMACAUTH" } on-error={}
 # RL-FASTTRACK + MSS clamp + PCQ (RL_PERF: recover throughput on low-power routers; hotspot is unmarked so safe to fasttrack)
 :do { /ip firewall filter remove [find comment~"RL-FASTTRACK"] } on-error={}
+# RL_NOFT_SAFE: PPPoE must NOT be fasttracked (fasttrack bypasses per-user queues -> uncapped speed).
+# These are added BEFORE the fasttrack rules so natural append order puts them above it — no fragile
+# place-before=[find ...] expression (which fails silently under on-error and mis-orders the chain).
+# router-harden also verifies/repairs the ordering with an explicit move within 2 minutes.
+:do { /ip firewall filter remove [find comment~"RL-PPPOE-NOFT"] } on-error={}
 :do { /ip firewall filter add chain=forward action=fasttrack-connection connection-state=established,related place-before=0 comment="RL-FASTTRACK est" } on-error={}
 :do { /ip firewall filter add chain=forward action=accept connection-state=established,related place-before=1 comment="RL-FASTTRACK accept" } on-error={}
+# RL_NOFT_ORDER2: fasttrack uses place-before=0/1 (jumps to the top), so NOFT must be inserted AFTER it
+# with place-before=0 to sit ABOVE it. Adding dst first then src leaves order: src, dst, fasttrack...
+:do { /ip firewall filter add chain=forward action=accept connection-state=established,related dst-address=100.64.0.0/24 comment="RL-PPPOE-NOFT dst" place-before=0 } on-error={}
+:do { /ip firewall filter add chain=forward action=accept connection-state=established,related src-address=100.64.0.0/24 comment="RL-PPPOE-NOFT src" place-before=0 } on-error={}
 :do { /ip firewall mangle remove [find comment~"RL-MSS"] } on-error={}
 :do { /ip firewall mangle add chain=forward action=change-mss new-mss=clamp-to-pmtu protocol=tcp tcp-flags=syn out-interface=rl-wan-pppoe comment="RL-MSS clamp pppoe out" } on-error={}
 :do { /ip firewall mangle add chain=forward action=change-mss new-mss=clamp-to-pmtu protocol=tcp tcp-flags=syn in-interface=rl-wan-pppoe comment="RL-MSS clamp pppoe in" } on-error={}
@@ -244,8 +253,6 @@ ${bridgePortsBlock}
 :do { /ip firewall filter add chain=forward src-address=100.64.0.0/24 src-address-list="rl-expired" action=drop comment="RL-PPPOE-WALL drop" } on-error={}
 # RL-PPPOE-NOFT: keep pppoe OUT of fasttrack so per-user queues actually cap speed (placed above fasttrack).
 :do { /ip firewall filter remove [find comment~"RL-PPPOE-NOFT"] } on-error={}
-:do { /ip firewall filter add chain=forward action=accept connection-state=established,related src-address=100.64.0.0/24 comment="RL-PPPOE-NOFT src" place-before=[find action=fasttrack-connection] } on-error={}
-:do { /ip firewall filter add chain=forward action=accept connection-state=established,related dst-address=100.64.0.0/24 comment="RL-PPPOE-NOFT dst" place-before=[find action=fasttrack-connection] } on-error={}
 # RL-PPPOE-CAPTIVE: expired pppoe port-80 -> nginx responder over WG (triggers the 'Sign in' popup).
 :do { /ip firewall nat remove [find comment~"RL-PPPOE-CAPTIVE"] } on-error={}
 :do { /ip firewall nat add chain=dstnat src-address=100.64.0.0/24 src-address-list="rl-expired" protocol=tcp dst-port=80 action=dst-nat to-addresses=10.8.0.1 to-ports=80 comment="RL-PPPOE-CAPTIVE redirect" } on-error={}
