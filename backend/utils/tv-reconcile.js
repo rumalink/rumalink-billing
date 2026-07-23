@@ -91,4 +91,41 @@ function start() {
   setTimeout(() => pass().catch(()=>{}), 8000); // first pass shortly after boot
   logger.info('[tv-reconcile] Registered (every 60s) — TV binding/queue/usage/lockout self-healing');
 }
-module.exports = { start, pass };
+// RL_TV_FAST: activate ONE TV immediately after purchase (binding + queue), with short retries
+// because the TV's IP may not be in the lease table for a second or two after it connects.
+async function applyOne(ispId, mac, attempts) {
+  const tries = attempts || 6;
+  for (let i = 0; i < tries; i++) {
+    try {
+      const tv = (await query(
+        "SELECT bd.*, hp.bandwidth_down_mbps, hp.bandwidth_up_mbps FROM hotspot_bound_devices bd " +
+        "LEFT JOIN hotspot_packages hp ON hp.id=bd.package_id " +
+        "WHERE bd.isp_id=$1::uuid AND UPPER(bd.mac_address)=UPPER($2) LIMIT 1", [ispId, mac])).rows[0];
+      if (!tv) return { ok:false, note:'no bound device row' };
+      const dev = (await query(
+        "SELECT id FROM nas_devices WHERE isp_id=$1::uuid AND wireguard_ip IS NOT NULL ORDER BY last_seen DESC NULLS LAST LIMIT 1",
+        [tv.isp_id])).rows[0];
+      if (!dev) return { ok:false, note:'no device' };
+      // 1) binding first — this is what lets the TV bypass the login page (the part that must be instant)
+      try { await mt.addIpBindingBypass(dev.id, { mac_address: tv.mac_address, comment: 'RumaLink-TV ' + tv.mac_address }); } catch (e) {}
+      // 2) queue once we can resolve the IP
+      let ip = null;
+      try { ip = await mt.findIpForMac(dev.id, tv.mac_address); } catch (e) {}
+      if (ip) {
+        if (ip !== tv.bound_ip) await query("UPDATE hotspot_bound_devices SET bound_ip=$1 WHERE id=$2::uuid", [ip, tv.id]).catch(function(){});
+        const cap = ((tv.bandwidth_up_mbps || tv.bandwidth_down_mbps || 0) + 'M/' + (tv.bandwidth_down_mbps || 0) + 'M');
+        if (cap !== '0M/0M') {
+          try { await mt.applyQueueRateLimit(dev.id, { username: 'tv-' + String(tv.mac_address).replace(/:/g, ''), ip: ip, max_limit: cap }); } catch (e) {}
+        }
+        logger.info('[tv-reconcile] FAST activate ' + mac + ' bound+queued @ ' + ip + ' (try ' + (i+1) + ')');
+        return { ok:true, ip:ip };
+      }
+      // binding is done; IP not yet known -> wait briefly and retry the queue
+      await new Promise(function(r){ setTimeout(r, 2500); });
+    } catch (e) { logger.warn('[tv-reconcile] applyOne ' + mac + ': ' + e.message); return { ok:false, error:e.message }; }
+  }
+  logger.info('[tv-reconcile] FAST activate ' + mac + ' bound (queue deferred to next pass — no IP yet)');
+  return { ok:true, note:'bound, queue deferred' };
+}
+
+module.exports = { start, pass, applyOne }; /* RL_TV_FAST */

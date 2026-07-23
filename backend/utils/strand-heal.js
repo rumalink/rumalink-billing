@@ -195,6 +195,17 @@ async function pass(onlyPaymentId) { /* RL_HEAL_ONE: when given, heal just that 
 
   // ---- E) immediate apply: if TV state changed, run a reconcile pass right now ----
   if (touchedTv) {
+    /* RL_TV_FAST_HOOK: fast-path the TVs whose vouchers were just (re)activated, then do the full pass. */
+    try {
+      const tvr = require('./tv-reconcile');
+      const fresh = await query(
+        "SELECT DISTINCT v.isp_id, UPPER(v.tv_mac) AS mac FROM hotspot_vouchers v " +
+        "WHERE v.is_tv = true AND v.tv_mac IS NOT NULL AND v.status='active' AND v.expires_at > NOW() " +
+        "AND v.updated_at > NOW() - interval '3 minutes' LIMIT 5");
+      for (const t of fresh.rows) {
+        if (tvr.applyOne) { try { await tvr.applyOne(t.isp_id, t.mac); } catch (e) {} }
+      }
+    } catch (e) { logger.warn('[strand-heal] tv fast: ' + e.message); }
     try { await require('./tv-reconcile').pass(); logger.info('[strand-heal] tv-reconcile pass triggered (immediate apply)'); } catch (e) { logger.warn('[strand-heal] tv pass: ' + e.message); }
   }
 }

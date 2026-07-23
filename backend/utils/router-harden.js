@@ -58,12 +58,10 @@ async function harden(d) {
   };
   await ensureType('pcq-download-default','dst-address');
   await ensureType('pcq-upload-default','src-address');
-  const ups = await get('/ip/hotspot/user/profile');
-  for (const u of ups) {
-    if (String(u['queue-type']||'') !== 'pcq-upload-default/pcq-download-default') {
-      try { await patch('/ip/hotspot/user/profile/'+encodeURIComponent(u['.id']), { 'queue-type':'pcq-upload-default/pcq-download-default' }); } catch(e){}
-    }
-  }
+  /* RL_PCQ_DROPPED: RouterOS 7.19 rejects 'pcq-upload-default/pcq-download-default' on HOTSPOT
+     user profiles (that combined form is PPP-profile syntax) — it failed on every pass and logged
+     a warning every 2 minutes. Hotspot speed is enforced by the RADIUS Mikrotik-Rate-Limit reply,
+     which is verified working, so pcq on the user profile is unnecessary. Step removed. */
 
   // 5) RL-PPPOE-WALL (SAFE): expired-PPPoE walled garden. Scoped to the PPPoE pool (100.64.0.0/24)
   //    AND the rl-expired list, so hotspot (192.168.100.x) can NEVER match. Allow DNS + portal, drop rest.
