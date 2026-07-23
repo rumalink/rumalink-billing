@@ -24,10 +24,14 @@ async function findSub(username){
       -- their phone but not their PPPoE username could not pay at all before this.
       -- The phone is normalised both sides so 0712..., +254712... and 254712... all match.
       WHERE LOWER(ps.username) = LOWER($1)
-         OR regexp_replace(COALESCE(ps.phone,''), '[^0-9]', '', 'g')
-            = regexp_replace($1, '[^0-9]', '', 'g')
-         OR regexp_replace(COALESCE(ps.phone,''), '^(0|254|\\+254)', '254', 'g')
-            = regexp_replace(regexp_replace($1, '[^0-9]', '', 'g'), '^0', '254', 'g')
+         OR ( /* RL_FINDSUB_GUARD: only match by phone when input has >=9 digits and subscriber has a phone */
+              LENGTH(regexp_replace($1, '[^0-9]', '', 'g')) >= 9
+              AND COALESCE(ps.phone,'') <> ''
+              AND (
+                regexp_replace(COALESCE(ps.phone,''), '[^0-9]', '', 'g') = regexp_replace($1, '[^0-9]', '', 'g')
+                OR regexp_replace(COALESCE(ps.phone,''), '^(0|254|\+254)', '254', 'g') = regexp_replace(regexp_replace($1, '[^0-9]', '', 'g'), '^0', '254', 'g')
+              )
+            )
       LIMIT 1`,
     [username]
   );
@@ -276,6 +280,22 @@ async function onPaid(paymentId, receipt){
     [pay.subscriber_id]
   );
   let sub = subRes.rows[0];
+  // RL_CONSUMED_ONCE: a payment activates a subscriber exactly ONCE. If it was already consumed
+  // (paid_at set) and the subscriber is now expired with updated_at NEWER than paid_at, that means
+  // an admin (or the expiry cron) expired them AFTER this payment did its job -> respect the expiry,
+  // do NOT reactivate. Only a FRESH, not-yet-consumed payment may reactivate an expired subscriber.
+  if (sub && pay.paid_at && sub.status === 'expired') {
+    let consumedAt = null;
+    try { const md0 = pay.metadata && (typeof pay.metadata==='string' ? JSON.parse(pay.metadata) : pay.metadata); consumedAt = md0 && md0.rl_consumed; } catch(e){}
+    // consumed if we have a marker, OR (fallback) if paid_at is set and updated_at is clearly after it
+    const paidMs = new Date(pay.paid_at).getTime();
+    const updMs = sub.updated_at ? new Date(sub.updated_at).getTime() : 0;
+    const wasConsumed = !!consumedAt || (paidMs && updMs && updMs > paidMs + 2000);
+    if (wasConsumed) {
+      logger.info(`[PPPoE-portal] ${sub.username} expired after payment ${paymentId} already consumed -> NOT reactivating (respecting expiry)`);
+      return;
+    }
+  }
   // RL_ONPAID_IDEMPOTENT: if this subscriber is already active AND already paid past now for
   // this same payment, a prior onPaid run already did the work — avoid extending the billing
   // date twice. We detect a prior run via the payment's paid_at being set on a PREVIOUS call
@@ -315,6 +335,8 @@ async function onPaid(paymentId, receipt){
     else if (cycle === 'daily') nb.setDate(nb.getDate()+1);
     else { nb.setMonth(nb.getMonth()+1); }
     await query("UPDATE pppoe_subscribers SET next_billing_date=$1, last_payment_date=CURRENT_DATE, status='active', updated_at=NOW() WHERE id=$2::uuid", [nb.toISOString(), sub.id]);
+    /* RL_CONSUMED_ONCE: mark this payment consumed so it can never reactivate again after a future expiry */
+    await query("UPDATE payments SET metadata = COALESCE(metadata,'{}'::jsonb) || jsonb_build_object('rl_consumed', NOW()::text) WHERE id=$1::uuid", [paymentId]).catch(function(){});
     try { await walledGarden.restore(sub, sub.mikrotik_profile || null); } catch(e){ logger.warn('[PPPoE-portal] restore: '+e.message); }
     logger.info(`[PPPoE-portal] ${sub.username} paid -> extended to ${nb.toISOString()} + restored`);
     // RL_ONPAID_CREDIT: credit the ISP wallet for this PPPoE payment (idempotent).
@@ -352,7 +374,12 @@ router.get('/pay-status/:paymentId', async (req, res) => {
     // If paid but subscriber still expired (callback missed), heal here.
     if (r.rows[0].status === 'paid') {
       const s = await query("SELECT status FROM pppoe_subscribers WHERE id=$1::uuid",[r.rows[0].subscriber_id]);
-      if (s.rows[0] && s.rows[0].status !== 'active') { await onPaid(req.params.paymentId, r.rows[0].transaction_id); }
+      /* RL_ONPAID_RESPECT_EXPIRY: only auto-heal from a poll if this payment is recent (<30 min).
+         An old payment must not perpetually un-expire a subscriber an admin just expired. */
+      if (s.rows[0] && s.rows[0].status !== 'active') {
+        const fresh = await query("SELECT 1 FROM payments WHERE id=$1::uuid AND created_at > NOW() - interval '30 minutes'", [req.params.paymentId]);
+        if (fresh.rows[0]) { await onPaid(req.params.paymentId, r.rows[0].transaction_id); }
+      }
     }
     res.json({ status: r.rows[0].status, failure_reason: r.rows[0].failure_reason });
   } catch (e) { res.status(500).json({ error:'error' }); }

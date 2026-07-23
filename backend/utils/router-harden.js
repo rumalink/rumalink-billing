@@ -21,6 +21,8 @@ async function harden(d) {
   const get = async p => (await axios.get(b + p, { auth, timeout: 8000 })).data || [];
   const put = async (p, body) => axios.put(b + p, body, { auth, timeout: 8000 });
   const patch = async (p, body) => axios.patch(b + p, body, { auth, timeout: 8000 });
+  const del = async (p, id) => axios.delete(b + p + '/' + encodeURIComponent(id), { auth, timeout: 8000 });
+  const move = async (p, id, dest) => axios.post(b + p + '/move', { numbers: id, destination: dest }, { auth, timeout: 8000 });
 
   // 1) fasttrack pair
   const filter = await get('/ip/firewall/filter');
@@ -62,6 +64,62 @@ async function harden(d) {
       try { await patch('/ip/hotspot/user/profile/'+encodeURIComponent(u['.id']), { 'queue-type':'pcq-upload-default/pcq-download-default' }); } catch(e){}
     }
   }
+
+  // 5) RL-PPPOE-WALL (SAFE): expired-PPPoE walled garden. Scoped to the PPPoE pool (100.64.0.0/24)
+  //    AND the rl-expired list, so hotspot (192.168.100.x) can NEVER match. Allow DNS + portal, drop rest.
+  //    NO dst-nat redirect (portal is username-based; the redirect broke hotspot before).
+  try {
+    const fw = await get('/ip/firewall/filter');
+    const hasWall = fw.some(function(x){ return /RL-PPPOE-WALL/.test(String(x.comment||'')); });
+    if (!hasWall) {
+      var W = { chain:'forward', 'src-address':'100.64.0.0/24', 'src-address-list':'rl-expired' };
+      await put('/ip/firewall/filter', Object.assign({}, W, { protocol:'udp', 'dst-port':'53', action:'accept', comment:'RL-PPPOE-WALL dns' }));
+      await put('/ip/firewall/filter', Object.assign({}, W, { protocol:'tcp', 'dst-port':'53', action:'accept', comment:'RL-PPPOE-WALL dns2' }));
+      await put('/ip/firewall/filter', Object.assign({}, W, { 'dst-address-list':'rl-portal', action:'accept', comment:'RL-PPPOE-WALL portal' }));
+      await put('/ip/firewall/filter', Object.assign({}, W, { action:'drop', comment:'RL-PPPOE-WALL drop' }));
+      logger.info('[router-harden] ' + d.name + ' RL-PPPOE-WALL (scoped) added');
+    }
+  } catch (e) { logger.warn('[router-harden] wall: ' + e.message); }
+
+  // 6) RL_PPPOE_FULL — RL-PPPOE-NOFT: exclude the PPPoE pool from fasttrack so per-user queues
+  //    actually cap the speed (fasttracked conns bypass queues -> uncapped bursts + instability).
+  //    Must sit ABOVE the fasttrack rule. Scoped to 100.64.0.0/24 so hotspot keeps fasttrack.
+  try {
+    const fw2 = await get('/ip/firewall/filter');
+    const haveNoft = fw2.filter(function(x){ return /RL-PPPOE-NOFT/.test(String(x.comment||'')); });
+    const ftRule = fw2.find(function(x){ return x.action === 'fasttrack-connection'; });
+    if (ftRule && haveNoft.length < 2) {
+      for (const x of haveNoft) { try { await del('/ip/firewall/filter', x['.id']); } catch(e){} }
+      const a1 = await put('/ip/firewall/filter', { chain:'forward', action:'accept', 'connection-state':'established,related', 'src-address':'100.64.0.0/24', comment:'RL-PPPOE-NOFT src' });
+      const a2 = await put('/ip/firewall/filter', { chain:'forward', action:'accept', 'connection-state':'established,related', 'dst-address':'100.64.0.0/24', comment:'RL-PPPOE-NOFT dst' });
+      for (const id of [a1.data['.id'], a2.data['.id']]) { try { await move('/ip/firewall/filter', id, ftRule['.id']); } catch(e){} }
+      logger.info('[router-harden] ' + d.name + ' RL-PPPOE-NOFT added above fasttrack');
+    }
+  } catch (e) { logger.warn('[router-harden] noft: ' + e.message); }
+
+  // 7) RL-PPPOE-CAPTIVE: dst-nat expired-PPPoE port-80 to the nginx responder so the phone shows
+  //    'Sign in to network' and opens the pay portal. Scoped to 100.64.0.0/24 + rl-expired list.
+  try {
+    const nat = await get('/ip/firewall/nat');
+    const haveCap = nat.some(function(x){ return /RL-PPPOE-CAPTIVE/.test(String(x.comment||'')); });
+    if (!haveCap) {
+      await put('/ip/firewall/nat', { chain:'dstnat', 'src-address':'100.64.0.0/24', 'src-address-list':'rl-expired', protocol:'tcp', 'dst-port':'80', action:'dst-nat', 'to-addresses':'10.8.0.1', 'to-ports':'80', comment:'RL-PPPOE-CAPTIVE redirect' });
+      logger.info('[router-harden] ' + d.name + ' RL-PPPOE-CAPTIVE added');
+    }
+  } catch (e) { logger.warn('[router-harden] captive: ' + e.message); }
+
+  // 8) DEDUPE: keep exactly one of each RL-PPPOE-WALL rule (repeated passes can double them).
+  try {
+    const fw3 = await get('/ip/firewall/filter');
+    const seen = {};
+    for (const x of fw3) {
+      const c = String(x.comment||'');
+      if (/RL-PPPOE-WALL|RL-PPPOE-NOFT/.test(c)) {
+        if (seen[c]) { try { await del('/ip/firewall/filter', x['.id']); logger.info('[router-harden] deduped ' + c); } catch(e){} }
+        else seen[c] = true;
+      }
+    }
+  } catch (e) { logger.warn('[router-harden] dedupe: ' + e.message); }
 
   // 4) hotspot profiles: mac yes, mac-cookie no, mac-auth-password set
   const profs = await get('/ip/hotspot/profile');

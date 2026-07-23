@@ -236,6 +236,19 @@ ${bridgePortsBlock}
 :do { /ppp aaa set use-radius=yes accounting=yes interim-update=5m } on-error={}
 # --- Walled-garden + auto-redirect for EXPIRED PPPoE (v62.47) ---
 :do { /ppp profile add name="rl-expired" local-address="100.64.0.1" remote-address="rl-pppoe-pool" dns-server="8.8.8.8,1.1.1.1" address-list="rl-expired" } on-error={}
+# RL-PPPOE-WALL: scoped walled garden for EXPIRED pppoe (pool + rl-expired list only; hotspot can never match).
+:do { /ip firewall filter remove [find comment~"RL-PPPOE-WALL"] } on-error={}
+:do { /ip firewall filter add chain=forward src-address=100.64.0.0/24 src-address-list="rl-expired" protocol=udp dst-port=53 action=accept comment="RL-PPPOE-WALL dns" } on-error={}
+:do { /ip firewall filter add chain=forward src-address=100.64.0.0/24 src-address-list="rl-expired" protocol=tcp dst-port=53 action=accept comment="RL-PPPOE-WALL dns2" } on-error={}
+:do { /ip firewall filter add chain=forward src-address=100.64.0.0/24 src-address-list="rl-expired" dst-address-list="rl-portal" action=accept comment="RL-PPPOE-WALL portal" } on-error={}
+:do { /ip firewall filter add chain=forward src-address=100.64.0.0/24 src-address-list="rl-expired" action=drop comment="RL-PPPOE-WALL drop" } on-error={}
+# RL-PPPOE-NOFT: keep pppoe OUT of fasttrack so per-user queues actually cap speed (placed above fasttrack).
+:do { /ip firewall filter remove [find comment~"RL-PPPOE-NOFT"] } on-error={}
+:do { /ip firewall filter add chain=forward action=accept connection-state=established,related src-address=100.64.0.0/24 comment="RL-PPPOE-NOFT src" place-before=[find action=fasttrack-connection] } on-error={}
+:do { /ip firewall filter add chain=forward action=accept connection-state=established,related dst-address=100.64.0.0/24 comment="RL-PPPOE-NOFT dst" place-before=[find action=fasttrack-connection] } on-error={}
+# RL-PPPOE-CAPTIVE: expired pppoe port-80 -> nginx responder over WG (triggers the 'Sign in' popup).
+:do { /ip firewall nat remove [find comment~"RL-PPPOE-CAPTIVE"] } on-error={}
+:do { /ip firewall nat add chain=dstnat src-address=100.64.0.0/24 src-address-list="rl-expired" protocol=tcp dst-port=80 action=dst-nat to-addresses=10.8.0.1 to-ports=80 comment="RL-PPPOE-CAPTIVE redirect" } on-error={}
 # Resolve the portal's PUBLIC IP into an address-list (so the pay page is reachable over the internet).
 :do { /ip firewall address-list remove [find comment="RumaLink-portal-ip"] } on-error={}
 :do { :local pip [:resolve ${serverDomain}]; /ip firewall address-list add list="rl-portal" address=$pip comment="RumaLink-portal-ip" } on-error={}

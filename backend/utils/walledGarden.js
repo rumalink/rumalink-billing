@@ -31,6 +31,37 @@ async function bounce(deviceId, username) {
   catch (e) { return { ok: false, error: e.message }; }
 }
 
+// RL_RESTRICT_IP: add a subscriber's CURRENT session IP to the rl-expired address-list on the router,
+// so walling applies immediately even to an already-connected user (who never re-auths into rl-expired).
+async function listExpiredIp(sub, add) {
+  try {
+    const axios = require('axios');
+    const deviceId = await resolveDeviceId(sub);
+    const dev = (await query(`SELECT wireguard_ip, mikrotik_api_user, mikrotik_api_password FROM nas_devices WHERE id=$1::uuid LIMIT 1`, [deviceId])).rows[0];
+    if (!dev) return { ok:false, note:'no device' };
+    const auth = { username:dev.mikrotik_api_user, password:dev.mikrotik_api_password }; const b='http://'+dev.wireguard_ip+'/rest';
+    const act = (await axios.get(b+'/ppp/active?name='+encodeURIComponent(sub.username),{auth,timeout:8000}).catch(function(){return {data:[]};})).data||[];
+    const ip = act[0] && act[0].address;
+    const existing = (await axios.get(b+'/ip/firewall/address-list',{auth,timeout:8000}).catch(function(){return {data:[]};})).data||[];
+    if (add) {
+      if (!ip) return { ok:false, note:'no active ip' };
+      const already = existing.find(function(a){ return a.list==='rl-expired' && String(a.address).split('/')[0]===ip; });
+      if (!already) { await axios.put(b+'/ip/firewall/address-list',{ list:'rl-expired', address:ip, comment:'RL-EXPIRED '+sub.username },{auth,timeout:8000}); }
+      logger.info('[WG] listExpiredIp ADD '+sub.username+' '+ip);
+      return { ok:true, ip:ip };
+    } else {
+      // remove ALL rl-expired entries tagged for this user (by comment) or matching current ip
+      for (const a of existing) {
+        if (a.list==='rl-expired' && (String(a.comment||'').indexOf(sub.username)>=0 || (ip && String(a.address).split('/')[0]===ip))) {
+          try { await axios.delete(b+'/ip/firewall/address-list/'+encodeURIComponent(a['.id']),{auth,timeout:8000}); } catch(e){}
+        }
+      }
+      logger.info('[WG] listExpiredIp REMOVE '+sub.username);
+      return { ok:true };
+    }
+  } catch (e) { logger.warn('[WG] listExpiredIp '+sub.username+': '+e.message); return { ok:false, error:e.message }; }
+}
+
 async function setGroup(username, groupValue) {
   const existing = await query(`SELECT id FROM radreply WHERE username=$1 AND attribute='Mikrotik-Group' LIMIT 1`, [username]);
   if (existing.rows[0]) await query(`UPDATE radreply SET value=$2, op='=' WHERE username=$1 AND attribute='Mikrotik-Group'`, [username, groupValue]);
@@ -43,6 +74,7 @@ async function restrict(sub) {
     await query(`DELETE FROM radcheck WHERE username=$1 AND attribute='Auth-Type' AND value='Reject'`, [sub.username]).catch(() => {});
     await setGroup(sub.username, EXPIRED_PROFILE);
     await query(`UPDATE pppoe_subscribers SET status='expired', updated_at=NOW() WHERE id=$1`, [sub.id]);
+    await listExpiredIp(sub, true); /* RL_RESTRICT_IP: wall the live IP immediately */
     const deviceId = await resolveDeviceId(sub);
     const b = await bounce(deviceId, sub.username);
     logger.info(`[WG] restrict ${sub.username} -> ${EXPIRED_PROFILE} (bounce ${b.via||'none'} ok=${b.ok})`);
@@ -57,11 +89,57 @@ async function restore(sub, packageProfile) {
     if (packageProfile) await setGroup(sub.username, packageProfile);
     else await query(`DELETE FROM radreply WHERE username=$1 AND attribute='Mikrotik-Group'`, [sub.username]).catch(() => {});
     await query(`UPDATE pppoe_subscribers SET status='active', updated_at=NOW() WHERE id=$1`, [sub.id]);
+    await listExpiredIp(sub, false); /* RL_RESTRICT_IP: unlist on restore */
+    /* RL_RESTORE_RATE: always (re)apply the package rate-limit so a renewed subscriber is speed-capped.
+       Previously only set on a package-switch, so same-package renewals ran unlimited. */
+    try {
+      const pk = await query(
+        `SELECT pp.bandwidth_down_mbps AS down, pp.bandwidth_up_mbps AS up
+           FROM pppoe_subscribers ps JOIN pppoe_packages pp ON pp.id = ps.package_id
+          WHERE ps.id = $1 LIMIT 1`, [sub.id]);
+      const row = pk.rows[0];
+      if (row && (row.down || row.up)) {
+        const rate = (row.up || row.down) + 'M/' + (row.down || row.up) + 'M';
+        await query(`DELETE FROM radreply WHERE username=$1 AND attribute='Mikrotik-Rate-Limit'`, [sub.username]).catch(() => {});
+        await query(`INSERT INTO radreply (username, attribute, op, value) VALUES ($1,'Mikrotik-Rate-Limit','=',$2)`, [sub.username, rate]).catch(() => {});
+        logger.info(`[WG] restore rate ${sub.username} -> ${rate}`);
+      }
+    } catch (e) { logger.warn(`[WG] restore rate ${sub.username}: ${e.message}`); }
     const deviceId = await resolveDeviceId(sub);
     const b = await bounce(deviceId, sub.username);
     logger.info(`[WG] restore ${sub.username} -> ${packageProfile || 'default'} (bounce ${b.via||'none'} ok=${b.ok})`);
+    /* RL_QUEUE_RATE: after the bounce, give the session a moment then queue its IP so speed applies now */
+    setTimeout(function(){ applyQueueRate(sub).catch(function(){}); }, 6000);
     return { ok: true, bounce: b };
   } catch (e) { logger.error(`[WG] restore failed ${sub.username}: ${e.message}`); return { ok: false, error: e.message }; }
 }
 
-module.exports = { restrict, restore, setGroup, resolveDeviceId, bounce, EXPIRED_PROFILE };
+// RL_QUEUE_RATE: apply a simple queue on the router for a subscriber's live IP so the package
+// rate takes effect immediately (PPPoE RADIUS rate-limit only applies on a full re-auth, which a
+// WiFi off/on does not force). Queue is keyed by the active session address.
+async function applyQueueRate(sub) {
+  try {
+    const mikrotik = require('./mikrotik');
+    const axios = require('axios');
+    const pk = await query(`SELECT pp.bandwidth_down_mbps AS down, pp.bandwidth_up_mbps AS up FROM pppoe_subscribers ps JOIN pppoe_packages pp ON pp.id=ps.package_id WHERE ps.id=$1 LIMIT 1`, [sub.id]);
+    const row = pk.rows[0]; if (!row || !(row.down||row.up)) return { ok:false, note:'no rate' };
+    const deviceId = await resolveDeviceId(sub);
+    const dev = await query(`SELECT wireguard_ip, mikrotik_api_user, mikrotik_api_password FROM nas_devices WHERE id=$1::uuid LIMIT 1`, [deviceId]);
+    const d = dev.rows[0]; if (!d) return { ok:false, note:'no device' };
+    const auth = { username:d.mikrotik_api_user, password:d.mikrotik_api_password }; const b='http://'+d.wireguard_ip+'/rest';
+    // find the subscriber's live IP
+    const act = (await axios.get(b+'/ppp/active?name='+encodeURIComponent(sub.username),{auth,timeout:8000}).catch(function(){return {data:[]};})).data||[];
+    const ip = act[0] && act[0].address; if (!ip) return { ok:false, note:'no active session' };
+    const maxLimit = (row.up||row.down)+'M/'+(row.down||row.up)+'M';
+    const qname = 'rl-pppoe-'+sub.username;
+    const existing = (await axios.get(b+'/queue/simple',{auth,timeout:8000}).catch(function(){return {data:[]};})).data||[];
+    const found = existing.find(function(q){ return q.name===qname; });
+    const body = { name:qname, target:ip+'/32', 'max-limit':maxLimit, comment:'RL-PPPOE-RATE' };
+    if (found) { await axios.patch(b+'/queue/simple/'+encodeURIComponent(found['.id']), body, {auth,timeout:8000}); }
+    else { await axios.put(b+'/queue/simple', body, {auth,timeout:8000}); }
+    logger.info('[WG] queue rate '+sub.username+' -> '+maxLimit+' @ '+ip);
+    return { ok:true, rate:maxLimit, ip:ip };
+  } catch (e) { logger.warn('[WG] applyQueueRate '+sub.username+': '+e.message); return { ok:false, error:e.message }; }
+}
+
+module.exports = { restrict, restore, setGroup, resolveDeviceId, bounce, applyQueueRate, listExpiredIp, EXPIRED_PROFILE }; /* RL_QUEUE_RATE */

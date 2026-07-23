@@ -78,6 +78,10 @@
   .modal label{display:block;margin-bottom:14px}
   .modal label .lbl{font-size:.78rem;color:#aaa;margin-bottom:5px;display:block}
   .modal input, .modal select{width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;font-family:inherit;font-size:.9rem}
+  /* RL_OPTION_FIX: native <option> lists inherit white text but keep a white default bg -> invisible until hover. Force dark bg. */
+  .modal select option{background:#0d1530;color:#f0f4ff}
+  .modal select:focus{outline:none;border-color:#00d4aa}
+  .modal select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='%238899bb' d='M6 8L2 4h8z'/></svg>");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
   .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
   .modal-actions button{padding:10px 18px;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:600;font-size:.85rem}
   .toast{position:fixed;bottom:20px;right:20px;background:#0d1530;border:1px solid #00d4aa;border-radius:8px;padding:12px 18px;color:#00d4aa;z-index:2000;display:none;font-size:.88rem}
@@ -178,6 +182,7 @@
     <label>
       <span class="lbl">Full Name</span>
       <input id="editPppoeName" type="text">
+      <label style="display:block;margin-top:10px;color:#8899bb;font-size:.8rem">Package / Speed</label><select id="editPppoePkg" style="width:100%"><!-- RL_PKG_DROPDOWN --><option value="">— keep current package —</option></select>
     </label>
     <label>
       <span class="lbl">Email</span>
@@ -202,6 +207,7 @@
     <label>
       <span class="lbl">Status</span>
       <select id="editStatus"><!-- RL_STATUS_DD: matches the current flow; blank = keep as-is (backend ignores empty) --><option value="">— keep current status —</option><option value="active">Active (valid / in service)</option><option value="unused">Unused (created, not started)</option><option value="expired">Expired</option></select>
+      <label style="display:block;margin-top:10px;color:#8899bb;font-size:.8rem">Package / Speed</label><select id="editPkg" style="width:100%"><!-- RL_PKG_DROPDOWN --><option value="">— keep current package —</option></select>
     </label>
     <div class="modal-actions">
       <button class="btn-del" id="editDelBtn">🗑 Delete</button>
@@ -635,6 +641,17 @@ function openEditVoucher(voucherId) {
   document.getElementById('editSub').textContent = `Phone: ${v.buyer_phone} · Package: ${v.package_name || '—'}`;
   document.getElementById('editExp').value = fmtDateTimeLocal(v.expires_at);
   document.getElementById('editStatus').value = v.status || 'unused';
+  (async function(){ try {
+    var _sel=document.getElementById('editPkg'); if(!_sel) return;
+    if(!_sel.dataset.loaded){
+      var _t=getAuthToken();
+      var _r=await fetch('/api/hotspot/packages',{headers:{'Authorization':'Bearer '+_t}});
+      var _j=await _r.json(); var _pk=(_j.packages||[]);
+      _pk.forEach(function(p){ var o=document.createElement('option'); o.value=p.id; o.textContent=p.name+' — '+(p.bandwidth_down_mbps||'?')+'M/'+(p.duration_hours||'?')+'h'; _sel.appendChild(o); });
+      _sel.dataset.loaded='1';
+    }
+    _sel.value='';
+  } catch(e){} })();
   document.getElementById('editModal').classList.add('open');
 }
 function closeEdit() {
@@ -654,7 +671,7 @@ document.getElementById('editSaveBtn').addEventListener('click', async () => {
     const res = await fetch(`/api/isp/${ispId}/voucher/${EDIT_ID}`, {
       method: 'PATCH',
       headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ expires_at: fromNairobiDatetimeLocal(expDate), status })
+      body: JSON.stringify({ expires_at: fromNairobiDatetimeLocal(expDate), status, package_id: (document.getElementById('editPkg')||{}).value || undefined })
     });
     const j = await res.json();
     if (res.ok && j.ok) {
@@ -728,6 +745,17 @@ function openEditPppoeSub(subId, phone, name, email) {
   document.getElementById('editPppoePhone').value = phone || '';
   document.getElementById('editPppoeName').value = name || '';
   document.getElementById('editPppoeEmail').value = email || '';
+  (async function(){ try {
+    var _sel=document.getElementById('editPppoePkg'); if(!_sel) return;
+    if(!_sel.dataset.loaded){
+      var _t=getAuthToken();
+      var _r=await fetch('/api/pppoe/packages',{headers:{'Authorization':'Bearer '+_t}});
+      var _j=await _r.json(); var _pk=(_j.packages||[]);
+      _pk.forEach(function(p){ var o=document.createElement('option'); o.value=p.id; o.textContent=p.name+' — '+(p.bandwidth_down_mbps||'?')+'M'; _sel.appendChild(o); });
+      _sel.dataset.loaded='1';
+    }
+    _sel.value='';
+  } catch(e){} })();
   document.getElementById('editPppoeModal').classList.add('open');
 }
 function closeEditPppoe() {
@@ -747,7 +775,7 @@ document.getElementById('editPppoeSaveBtn').addEventListener('click', async () =
     const res = await fetch(`/api/isp/${ispId}/pppoe-subscriber/${EDIT_SUB_ID}`, {
       method: 'PATCH',
       headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ phone, full_name: name, email })
+      body: JSON.stringify({ phone, full_name: name, email, package_id: (document.getElementById('editPppoePkg')||{}).value || undefined })
     });
     const j = await res.json();
     if (res.ok && j.ok) {

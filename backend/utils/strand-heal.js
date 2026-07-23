@@ -29,11 +29,13 @@ async function pass(onlyPaymentId) { /* RL_HEAL_ONE: when given, heal just that 
     const pend = await query(
       "SELECT p.id, p.transaction_id FROM payments p JOIN pppoe_subscribers ps ON ps.id=p.subscriber_id " +
       "WHERE p.status='paid' AND p.subscriber_id IS NOT NULL AND p.created_at > NOW() - interval '3 days' " +
+      /* RL_PPPOE_HEAL_ONCE: skip payments already healed, so a manual expiry is not instantly undone */
+      "AND COALESCE(p.metadata->>'rl_pppoe_healed','') <> 'yes' " +
       "AND (ps.status <> 'active' OR ps.next_billing_date IS NULL OR ps.next_billing_date <= NOW()) LIMIT 10");
     if (pend.rows.length) {
       const portal = require('../routes/pppoePortal');
       for (const p of pend.rows) {
-        try { if (portal.onPaid) { await portal.onPaid(p.id, p.transaction_id || null); logger.info('[strand-heal] PPPoE reactivated payment ' + p.id); } }
+        try { if (portal.onPaid) { await portal.onPaid(p.id, p.transaction_id || null); await query("UPDATE payments SET metadata = COALESCE(metadata,'{}'::jsonb) || '{\"rl_pppoe_healed\":\"yes\"}'::jsonb WHERE id=$1::uuid", [p.id]).catch(function(){}); logger.info('[strand-heal] PPPoE reactivated payment ' + p.id + ' (marked healed)'); } }
         catch (e) { logger.warn('[strand-heal] pppoe onPaid ' + p.id + ': ' + e.message); }
       }
     }

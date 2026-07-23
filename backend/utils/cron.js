@@ -797,3 +797,7 @@ try { require('./strand-heal').start(); } catch (e) { require('./logger').warn('
 // RL_ROUTER_HARDEN: every online router keeps fasttrack + MSS clamp + pcq + mac-auth (no mac-cookie).
 // Makes a delete/re-add (or a pre-fix router) self-heal to the current performance+auth baseline.
 try { require('./router-harden').start(); } catch (e) { require('./logger').warn('[router-harden] start: ' + e.message); }
+
+// RL_ACTIVE_HEARTBEAT: probe each router every minute; is_online reflects real reachability so
+// reconcilers (harden/walling/strand-heal) never skip a live router after a reboot or re-add.
+try { require('./router-heartbeat').start(); } catch (e) { require('./logger').warn('[heartbeat] start: ' + e.message); }
