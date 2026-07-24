@@ -691,6 +691,22 @@ function startPaymentPolling() {
         clearInterval(pollTimer);
         clearInterval(countdown);
         document.getElementById('pay-status').style.display = 'none';
+        /* RL_AUTOLOGIN_BRIDGE: connect the phone instead of just announcing the voucher. */
+        var _ru = json.radius_username, _rp = json.radius_password;
+        if (window.rlHotspotLogin && window.rlHasLoginUrl && _ru && _rp) {
+          showMsg('✅ Payment received! Connecting this phone to the internet…', 'success');
+          document.getElementById('pay-section').style.display = 'none';
+          setLoading(false);
+          setTimeout(function () { window.rlHotspotLogin(_ru, _rp); }, 1200);
+          return;
+        }
+        if (window.rlRealmedLogin && json.voucher_code) {
+          showMsg('✅ Payment received! Connecting…', 'success');
+          document.getElementById('pay-section').style.display = 'none';
+          setLoading(false);
+          setTimeout(function () { window.rlRealmedLogin(json.voucher_code); }, 1200);
+          return;
+        }
         showMsg(`✅ Payment confirmed! Your voucher has been sent via SMS.\n${json.mpesa_receipt ? 'M-Pesa Receipt: ' + json.mpesa_receipt : ''}`, 'success');
         document.getElementById('pay-section').style.display = 'none';
         setLoading(false);
@@ -912,6 +928,15 @@ function rumalinkShowHotspotUnavailable(){
     window.location.href = fullUrl;
     return true;
   }
+
+  /* RL_AUTOLOGIN_BRIDGE: classic.html has TWO payment flows in SEPARATE <script> blocks.
+     startPaymentPolling() (script @397) showed 'Payment confirmed' and stopped, because
+     navigateToHotspotLogin/loginUrl live in THIS block (@879) and were out of its scope —
+     so a purchase never triggered the hotspot login. Publish them on window so either flow
+     can connect the phone. */
+  window.rlHotspotLogin = navigateToHotspotLogin;
+  window.rlRealmedLogin = (typeof realmedRadiusLogin === 'function') ? realmedRadiusLogin : null;
+  window.rlHasLoginUrl  = !!loginUrl;
 
   // RUMALINK step4b: RADIUS login using realmed username + voucher password.
   async function realmedRadiusLogin(code) {
