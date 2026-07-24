@@ -684,7 +684,7 @@ function startPaymentPolling() {
   pollTimer = setInterval(async () => {
     pollCount++;
     try {
-      const res = await fetch(`${API}/captive/${ISP_ID}/payment-status/${paymentId}`);
+      const res = await fetch(`${API}/captive/${ISP_ID}/payment-status/${paymentId}?_=${Date.now()}`, { cache: 'no-store' }); /* RL_CACHE_BUST: never reuse a stale body — it would lack radius creds */
       const json = await res.json();
 
       if (json.status === 'paid') {

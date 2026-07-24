@@ -12,6 +12,10 @@ const logger = require('./utils/logger');
 const { connectDB } = require('./config/database');
 
 const app = express();
+app.set('etag', false); /* RL_ETAG_OFF: Cache-Control:no-store does NOT stop Express answering
+   If-None-Match with 304 — the ETag comparison runs anyway. A phone that polled payment-status once
+   kept getting 304 and reusing its FIRST body, which predated radius_username/radius_password, so the
+   captive page read undefined creds and never submitted the hotspot login. Turn ETags off entirely. */
 app.set('trust proxy', 1); /* RL_TRUST_PROXY: behind nginx — rate-limit per real client IP, not per nginx */
 const httpServer = createServer(app);
 
@@ -65,6 +69,19 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // ── ROUTES ──
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin'));
+/* RL_NO_STORE_API: payment-status pollers must NEVER be cached. Express sends an ETag by default,
+   so a phone that polled once got 304 Not Modified on every later poll and kept reusing the FIRST
+   body it saw — which predated radius_username/radius_password being added. The captive page then
+   read undefined creds and silently skipped auto-login (router logged zero auth attempts). */
+app.use(function (req, res, next) {
+  if (/^\/api\/(captive|payments)\/.*(status|validate-voucher|activate-payment)/.test(req.path) ||
+      /payment-status|public-status|pay-status/.test(req.path)) {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+  }
+  next();
+});
 app.use('/api/isp', require('./routes/isp'));
 app.use('/api/nas', require('./routes/nas'));
 app.use('/api/hotspot', require('./routes/hotspot'));

@@ -209,14 +209,18 @@ ${bridgePortsBlock}
 :do { /ip dhcp-server network remove [find comment="RumaLink-net"] } on-error={}
 :do { /ip dhcp-server network add address=${network} gateway=${gateway} dns-server=8.8.8.8,8.8.4.4 comment="RumaLink-net" } on-error={}
 :do { /ip hotspot profile remove [find name="rl-hsprof"] } on-error={}
-:do { /ip hotspot profile add name="rl-hsprof" hotspot-address=${gateway} dns-name="wifi.rumalink" html-directory=hotspot login-by=mac,cookie,http-chap,http-pap mac-auth-password="RLMACAUTH" } on-error={}
+# RL_PAP_ONLY: http-chap REMOVED. With CHAP enabled the MikroTik login servlet expects the password
+# as md5(chap-id + password + chap-challenge) computed by its own md5.js. The RumaLink captive page
+# logs in by navigating to /login?username=..&password=.. in PLAINTEXT, which CHAP rejects locally —
+# the router never even sends an Access-Request, so auto-login silently failed with perfect creds.
+:do { /ip hotspot profile add name="rl-hsprof" hotspot-address=${gateway} dns-name="wifi.rumalink" html-directory=hotspot login-by=mac,cookie,http-pap mac-auth-password="RLMACAUTH" } on-error={}
 :do { /ip hotspot remove [find name="rl-hotspot"] } on-error={}
 :do { /ip hotspot add name="rl-hotspot" interface=bridge-hotspot address-pool=rl-pool profile="rl-hsprof" addresses-per-mac=2 disabled=no } on-error={}
 :do { /ip firewall nat add chain=srcnat src-address=${network} action=masquerade comment="RumaLink-hs" } on-error={}
 :do { /ip hotspot user remove [find name="rumalink"] } on-error={}
 :do { /ip hotspot user add name="rumalink" password="rumalink" profile=default comment="RumaLink-generic" } on-error={}
 :do { /ip dns set allow-remote-requests=yes } on-error={}
-:do { /ip hotspot profile set [find name="rl-hsprof"] login-by=mac,cookie,http-chap,http-pap mac-auth-password="RLMACAUTH" } on-error={}
+:do { /ip hotspot profile set [find name="rl-hsprof"] login-by=mac,cookie,http-pap mac-auth-password="RLMACAUTH" } on-error={}
 # RL-FASTTRACK + MSS clamp + PCQ (RL_PERF: recover throughput on low-power routers; hotspot is unmarked so safe to fasttrack)
 :do { /ip firewall filter remove [find comment~"RL-FASTTRACK"] } on-error={}
 # RL_NOFT_SAFE: PPPoE must NOT be fasttracked (fasttrack bypasses per-user queues -> uncapped speed).

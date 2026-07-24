@@ -123,8 +123,10 @@ async function harden(d) {
   const profs = await get('/ip/hotspot/profile');
   for (const p of profs) {
     const lb = String(p['login-by']||'');
-    if (/mac-cookie/.test(lb) || !/(^|,)mac(,|$)/.test(lb)) {
-      const cleaned = lb.split(',').filter(x => x && x !== 'mac-cookie');
+    if (/mac-cookie/.test(lb) || /http-chap/.test(lb) || !/(^|,)mac(,|$)/.test(lb)) {
+      /* RL_PAP_ONLY: strip http-chap too — the captive page submits a PLAINTEXT password via
+         /login?username=..&password=.., which a CHAP-enabled servlet rejects before contacting RADIUS. */
+      const cleaned = lb.split(',').filter(x => x && x !== 'mac-cookie' && x !== 'http-chap');
       if (!cleaned.includes('mac')) cleaned.unshift('mac');
       try { await patch('/ip/hotspot/profile/'+encodeURIComponent(p['.id']), { 'login-by': cleaned.join(','), 'mac-auth-password':'RLMACAUTH' }); logger.info('[router-harden] ' + d.name + ' profile ' + p.name + ' login-by normalized'); } catch(e){}
     }

@@ -792,13 +792,34 @@ router.get('/:ispId/payment-status/:paymentId', async (req, res) => {
       }
     }
 
+    /* RL_CAPTIVE_CREDS: the captive page polls THIS endpoint (classic.html line ~687) and its
+       autologin reads d.radius_username / d.radius_password. This response used to omit both, so
+       autologin fell through to navigateToHotspotLogin(code, code) -> RADIUS expects
+       'R1@<isp8>' / '<voucher password>' and rejects 'R1'/'R1'. Return the real creds, exactly
+       like /api/payments/public-status already does. */
+    let radius_username = null, radius_password = null;
+    if (r.rows[0].status === 'paid') {
+      try {
+        const vc = await query(
+          "SELECT code, password, isp_id FROM hotspot_vouchers WHERE payment_id = "+String.fromCharCode(36)+"1::uuid LIMIT 1",
+          [req.params.paymentId]);
+        if (vc.rows[0]) {
+          const _short = String(vc.rows[0].isp_id).replace(/-/g,'').slice(0,8).toLowerCase();
+          radius_username = vc.rows[0].code + '@' + _short;
+          radius_password = vc.rows[0].password || vc.rows[0].code;
+          if (!voucher_code) voucher_code = vc.rows[0].code;
+        }
+      } catch (e) {}
+    }
     res.json({
       payment_id: r.rows[0].id,
       status: r.rows[0].status,
       transaction_id: r.rows[0].transaction_id,
       amount: r.rows[0].amount,
       failure_reason: r.rows[0].failure_reason,
-      voucher_code
+      voucher_code,
+      radius_username,
+      radius_password
     });
   } catch (err) {
     res.json({ status: 'pending' });
@@ -1044,7 +1065,9 @@ router.post('/:ispId/callback/:paymentId', async (req, res) => {
 router.post('/:ispId/activate-payment/:paymentId', async (req, res) => {
   try {
     logger.info(`[MANUAL-ACTIVATE] Activating voucher for payment ${req.params.paymentId}`);
-      await syncRadiusForVoucher(voucher.id).catch(()=>{});
+    /* RL_TDZ_FIX: a syncRadiusForVoucher(voucher.id) call used to sit here — BEFORE `const voucher`
+       was declared below — throwing "Cannot access 'voucher' before initialization" on every request
+       (HTTP 500). RADIUS creds were therefore never written and autologin silently failed. */
 
     const expRes = await query(`
       UPDATE hotspot_vouchers v
