@@ -60,7 +60,20 @@ async function detectLinkType(dev, link, caches) {
   try {
     const pppoes = c.pppoe || await mtCall(dev, 'GET', '/interface/pppoe-client');
     const pc = (pppoes||[]).find(p => p.interface === link.interface);
-    if (pc) return { type: 'pppoe', routeIface: pc.name, gateway: pc.name };
+    if (pc) {
+      /* RL_PPPOE_PEER_GW: a PPPoE route gateway given as the INTERFACE NAME works in the main
+         table but goes inactive inside a custom routing-table (rl_via_wanN) on RouterOS 7 —
+         which silently sent all wan1-marked traffic back to main (observed 97/3 split on a
+         50/50 config). The peer/next-hop IP resolves correctly in every table. RouterOS stores
+         it as the `network` of the pppoe /32 address (local=172.31.0.33/32 network=172.31.0.1). */
+      let peerIp = null;
+      try {
+        const addrs = c.addr || await mtCall(dev, 'GET', '/ip/address');
+        const pa = (addrs||[]).find(a => a.interface === pc.name);
+        if (pa && pa.network && pa.network !== '0.0.0.0') peerIp = String(pa.network).split('/')[0];
+      } catch(e) {}
+      return { type: 'pppoe', routeIface: pc.name, gateway: peerIp || pc.name, peerIp: peerIp };
+    }
   } catch(e) {}
   try {
     const dhcps = c.dhcp || await mtCall(dev, 'GET', '/ip/dhcp-client');
@@ -77,7 +90,10 @@ async function resolveLinkGateway(dev, link, dhcpsCache, caches) {
   // RL_TYPE_AWARE: detect type; PPPoE's "gateway" is the pppoe interface name.
   try {
     const t = await detectLinkType(dev, link, caches || (dhcpsCache ? { dhcp: dhcpsCache } : null));
-    if (t.type === 'pppoe') return t.routeIface;           // e.g. rl-wan-pppoe
+    /* RL_RESOLVE_PEER_GW: prefer the PEER IP (t.gateway) over the interface name. An interface-name
+       gateway goes inactive inside custom routing tables (rl_via_wanN) on RouterOS 7, which silently
+       dumped all wan1-marked traffic back to the main table (97/3 split on a 50/50 config). */
+    if (t.type === 'pppoe') return t.gateway || t.routeIface;
     if (t.type === 'dhcp' && t.gateway) return t.gateway;   // lease gw
     if (t.type === 'static' && t.gateway) return t.gateway; // configured gw
   } catch(e) {}
@@ -708,8 +724,21 @@ async function pingProbeOnce(dev, target) {
       const recv = parseInt(last.received || ok || 0);
       const lossPct = sent > 0 ? Math.round(((sent - recv) / sent) * 100) : 100;
       const latencyMs = rlRttToMs(last['avg-rtt'] || rtt);
-      const jitterMs = (last['max-rtt'] && last['min-rtt'])
-        ? Math.max(0, (rlRttToMs(last['max-rtt']) || 0) - (rlRttToMs(last['min-rtt']) || 0)) : null;
+      /* RL_JITTER_RFC3550: jitter is the mean deviation between CONSECUTIVE packets, not the
+         max-min RANGE. Range is inflated by a single outlier: a healthy link measured
+         samples 54,55,71,43,37,8,42,35,36,34,79,8,8,8,8 -> range 71.9ms but true jitter 17.3ms.
+         The old range-based value tripped the quality threshold constantly on good links
+         (which is why RL_JITTER_SOLO exists to suppress the false positives). */
+      let jitterMs = null;
+      const _times = resp.map(function(p){ return rlRttToMs(p.time); }).filter(function(n){ return n !== null && n !== undefined && !isNaN(n) && n > 0; });
+      if (_times.length > 1) {
+        let _d = 0;
+        for (let _i = 1; _i < _times.length; _i++) _d += Math.abs(_times[_i] - _times[_i - 1]);
+        jitterMs = Math.round((_d / (_times.length - 1)) * 10) / 10;
+      } else if (last['max-rtt'] && last['min-rtt']) {
+        /* fallback only if per-packet times are unavailable */
+        jitterMs = Math.max(0, (rlRttToMs(last['max-rtt']) || 0) - (rlRttToMs(last['min-rtt']) || 0));
+      }
       return { ok: ok > 0, rtt, latencyMs, jitterMs, lossPct };
     }
   } catch (e) { return { ok: false, err: e.message, lossPct: 100 }; }
@@ -1306,6 +1335,31 @@ async function monitorDevice(deviceId) {
       }
     }
   } catch (e) { logger.warn('[mwan-quality] eval error: ' + e.message); }
+
+  /* RL_MWAN_REPAIR: if the DB says this device HAS multi-wan applied but the router has ZERO
+     RL-MWAN objects, the router config was wiped (reboot into a bad state, manual clear,
+     re-provision). Re-apply so failover/load-balancing comes back on its own.
+     Guards: only when config exists in DB; only on a COMPLETE absence (partial states are
+     normal mid-change); rate-limited to once per 10 min so a persistent failure cannot loop. */
+  try {
+    let mangles = [];
+    try { mangles = await mtCall(dev, 'GET', '/ip/firewall/mangle'); } catch(e) { mangles = null; }
+    if (Array.isArray(mangles)) {
+      const tagged = mangles.filter(function(m){ return String(m.comment||'').indexOf(RL_TAG) === 0; }).length;
+      const taggedRoutes = (routes||[]).filter(function(r){ return String(r.comment||'').indexOf(RL_TAG) === 0; }).length;
+      if (tagged === 0 && taggedRoutes === 0) {
+        const lastTry = _mwanRepairAt[deviceId] || 0;
+        if (Date.now() - lastTry > 600000) {
+          _mwanRepairAt[deviceId] = Date.now();
+          logger.warn('[mwan-repair] ' + (dev.name||deviceId) + ': RL-MWAN objects missing on router but config exists in DB -> re-applying');
+          try {
+            const r = await applyPlan(deviceId, dev.isp_id);
+            logger.info('[mwan-repair] ' + (dev.name||deviceId) + ': re-applied (' + ((r&&r.results&&r.results.length)||0) + ' ops, ' + ((r&&r.errors&&r.errors.length)||0) + ' errors)');
+          } catch (e) { logger.error('[mwan-repair] ' + (dev.name||deviceId) + ': re-apply failed: ' + e.message); }
+        }
+      }
+    }
+  } catch (e) { logger.warn('[mwan-repair] check: ' + e.message); }
 
   return { ok: true, links: linkState.length };
 }
