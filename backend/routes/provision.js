@@ -41,18 +41,27 @@ async function buildDeviceConfig(nas, isp) {
 
   let network = nas.hotspot_network;
   if (!network) {
-    let octet = 100;
+    /* RL_SUBNET_10_100: hotspot subnets moved OFF 192.168.x. That space is where consumer
+       routers and GPON ONTs live (192.168.0/1/8/100/254 are all common defaults), so a customer
+       plugging their own router into the hotspot creates an overlapping-subnet routing conflict
+       (symptom: device intermittently loses internet here but works on another network).
+       10.100.x.0/24 gives the same 256 per-router subnets and is effectively unused by CPE. */
+    let octet = 0;
     try {
       const existing = await query(
         "SELECT hotspot_network FROM nas_devices WHERE hotspot_network IS NOT NULL AND id <> $1::uuid",
         [nas.id]
       );
       const used = new Set(existing.rows.map(r => r.hotspot_network).filter(Boolean));
-      while (used.has(`192.168.${octet}.0/24`)) octet++;
+      while (used.has(`10.100.${octet}.0/24`) && octet < 255) octet++;
     } catch (e) {}
-    network = `192.168.${octet}.0/24`;
+    network = `10.100.${octet}.0/24`;
   }
-  const octet = network.split('.')[2];
+  /* RL_SUBNET_10_100: derive the FULL prefix from `network` so gateway/pool always match it,
+     whatever range it is (existing routers on 192.168.x keep working untouched). */
+  const _np = network.split('/')[0].split('.');
+  const _prefix = _np[0] + '.' + _np[1] + '.' + _np[2];
+  const octet = _np[2];
 
   // WireGuard: assign next available 10.8.0.x and generate keypair if missing
   let wgIp = nas.wireguard_ip;
@@ -79,9 +88,9 @@ async function buildDeviceConfig(nas, isp) {
 
   return {
     radiusSecret, apiUser, apiPass, network,
-    gateway:   `192.168.${octet}.1`,
-    poolStart: `192.168.${octet}.10`,
-    poolEnd:   `192.168.${octet}.250`,
+    gateway:   `${_prefix}.1`,
+    poolStart: `${_prefix}.10`,
+    poolEnd:   `${_prefix}.250`,
     doHotspot: ['hotspot', 'both'].includes(isp.plan_type),
     doPPPoE:   ['pppoe', 'both'].includes(isp.plan_type),
     wgIp, wgPriv, wgPub
