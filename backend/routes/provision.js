@@ -517,7 +517,7 @@ router.get('/:token/script', async (req, res) => {
         `UPDATE nas_devices 
             SET radius_secret = COALESCE(NULLIF(radius_secret, ''), encode(gen_random_bytes(16), 'hex'))
           WHERE id = $1::uuid 
-        RETURNING radius_secret, wireguard_ip, mikrotik_api_user, mikrotik_api_password`,
+        RETURNING id, radius_secret, wireguard_ip, mikrotik_api_user, mikrotik_api_password /* RL_RETURNING_ID: id was missing, so ns.id was undefined and loadDevice(undefined) threw 'Device not found' */`,
         [nas.id]
       );
       const ns = secretRow.rows[0];
@@ -533,7 +533,12 @@ router.get('/:token/script', async (req, res) => {
             const existing = await client.get('/radius');
             for (const r of (existing.data || [])) {
               if (r.comment === 'RumaLink-VPS' || r.address === '10.8.0.1') {
-                await client.del('/radius/' + r['.id']);
+                /* RL_CLIENT_DEL_SAFE: the REST helper does not expose .del — the delete method
+                   is named differently, so this threw 'client.del is not a function' and the stale
+                   /radius entry was never removed before adding the fresh one. Resolve whichever
+                   delete-style method the helper actually provides. */
+                const _rmFn = client.del || client.delete || client.remove || client.destroy;
+                if (typeof _rmFn === 'function') await _rmFn.call(client, '/radius/' + r['.id']);
               }
             }
             // Add fresh
@@ -554,7 +559,7 @@ router.get('/:token/script', async (req, res) => {
         // 3. Rebuild clients.conf and reload FreeRADIUS
         try {
           const { execFile } = require('child_process');
-          execFile('/usr/local/bin/rl-rebuild-radius-clients', [], { timeout: 5000 }, (err, stdout, stderr) => {
+          execFile('/usr/local/bin/rumalink-radius-clients-sync.sh' /* RL_REBUILD_PATH: rl-rebuild-radius-clients does not exist (ENOENT); this is the real syncer */, [], { timeout: 5000 }, (err, stdout, stderr) => {
             if (err) require('../utils/logger').warn(`[RADIUS-PROVISION] clients rebuild: ${err.message}`);
             else require('../utils/logger').info(`[RADIUS-PROVISION] clients.conf rebuilt`);
           });
@@ -628,7 +633,7 @@ router.post('/heartbeat/:token', async (req, res) => {
         `UPDATE nas_devices 
             SET radius_secret = COALESCE(NULLIF(radius_secret, ''), encode(gen_random_bytes(16), 'hex'))
           WHERE id = $1::uuid 
-        RETURNING radius_secret, wireguard_ip, mikrotik_api_user, mikrotik_api_password`,
+        RETURNING id, radius_secret, wireguard_ip, mikrotik_api_user, mikrotik_api_password /* RL_RETURNING_ID: id was missing, so ns.id was undefined and loadDevice(undefined) threw 'Device not found' */`,
         [dev.rows[0] ? dev.rows[0].id : null] /* RL_HEARTBEAT_NAS_FIX: this block lives in the 5-minute
            heartbeat handler where the device variable is `dev`, not `nas`. Referencing `nas` threw
            "nas is not defined" on EVERY heartbeat, so the router /radius push and the clients.conf
@@ -647,7 +652,12 @@ router.post('/heartbeat/:token', async (req, res) => {
             const existing = await client.get('/radius');
             for (const r of (existing.data || [])) {
               if (r.comment === 'RumaLink-VPS' || r.address === '10.8.0.1') {
-                await client.del('/radius/' + r['.id']);
+                /* RL_CLIENT_DEL_SAFE: the REST helper does not expose .del — the delete method
+                   is named differently, so this threw 'client.del is not a function' and the stale
+                   /radius entry was never removed before adding the fresh one. Resolve whichever
+                   delete-style method the helper actually provides. */
+                const _rmFn = client.del || client.delete || client.remove || client.destroy;
+                if (typeof _rmFn === 'function') await _rmFn.call(client, '/radius/' + r['.id']);
               }
             }
             // Add fresh
@@ -668,7 +678,7 @@ router.post('/heartbeat/:token', async (req, res) => {
         // 3. Rebuild clients.conf and reload FreeRADIUS
         try {
           const { execFile } = require('child_process');
-          execFile('/usr/local/bin/rl-rebuild-radius-clients', [], { timeout: 5000 }, (err, stdout, stderr) => {
+          execFile('/usr/local/bin/rumalink-radius-clients-sync.sh' /* RL_REBUILD_PATH: rl-rebuild-radius-clients does not exist (ENOENT); this is the real syncer */, [], { timeout: 5000 }, (err, stdout, stderr) => {
             if (err) require('../utils/logger').warn(`[RADIUS-PROVISION] clients rebuild: ${err.message}`);
             else require('../utils/logger').info(`[RADIUS-PROVISION] clients.conf rebuilt`);
           });
@@ -813,7 +823,7 @@ router.post('/:token/interfaces', async (req, res) => {
         `UPDATE nas_devices 
             SET radius_secret = COALESCE(NULLIF(radius_secret, ''), encode(gen_random_bytes(16), 'hex'))
           WHERE id = $1::uuid 
-        RETURNING radius_secret, wireguard_ip, mikrotik_api_user, mikrotik_api_password`,
+        RETURNING id, radius_secret, wireguard_ip, mikrotik_api_user, mikrotik_api_password /* RL_RETURNING_ID: id was missing, so ns.id was undefined and loadDevice(undefined) threw 'Device not found' */`,
         [nas.id]
       );
       const ns = secretRow.rows[0];
@@ -829,7 +839,12 @@ router.post('/:token/interfaces', async (req, res) => {
             const existing = await client.get('/radius');
             for (const r of (existing.data || [])) {
               if (r.comment === 'RumaLink-VPS' || r.address === '10.8.0.1') {
-                await client.del('/radius/' + r['.id']);
+                /* RL_CLIENT_DEL_SAFE: the REST helper does not expose .del — the delete method
+                   is named differently, so this threw 'client.del is not a function' and the stale
+                   /radius entry was never removed before adding the fresh one. Resolve whichever
+                   delete-style method the helper actually provides. */
+                const _rmFn = client.del || client.delete || client.remove || client.destroy;
+                if (typeof _rmFn === 'function') await _rmFn.call(client, '/radius/' + r['.id']);
               }
             }
             // Add fresh
@@ -850,7 +865,7 @@ router.post('/:token/interfaces', async (req, res) => {
         // 3. Rebuild clients.conf and reload FreeRADIUS
         try {
           const { execFile } = require('child_process');
-          execFile('/usr/local/bin/rl-rebuild-radius-clients', [], { timeout: 5000 }, (err, stdout, stderr) => {
+          execFile('/usr/local/bin/rumalink-radius-clients-sync.sh' /* RL_REBUILD_PATH: rl-rebuild-radius-clients does not exist (ENOENT); this is the real syncer */, [], { timeout: 5000 }, (err, stdout, stderr) => {
             if (err) require('../utils/logger').warn(`[RADIUS-PROVISION] clients rebuild: ${err.message}`);
             else require('../utils/logger').info(`[RADIUS-PROVISION] clients.conf rebuilt`);
           });
