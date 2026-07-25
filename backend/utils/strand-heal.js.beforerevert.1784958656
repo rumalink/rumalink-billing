@@ -187,10 +187,12 @@ async function pass(onlyPaymentId) { /* RL_HEAL_ONE: when given, heal just that 
     const macRe = '^([0-9A-F]{2}:){5}[0-9A-F]{2}' + String.fromCharCode(36);
     await query(
       "DELETE FROM radcheck WHERE username ~ '" + macRe + "' AND NOT EXISTS (" +
-      "SELECT 1 FROM hotspot_vouchers v WHERE UPPER(v.used_by_mac)=radcheck.username AND v.status='active' AND v.expires_at>NOW() AND (v.is_tv IS NOT TRUE))");
+      "SELECT 1 FROM hotspot_vouchers v WHERE UPPER(v.used_by_mac)=radcheck.username AND v.status='active' AND v.expires_at>NOW() AND (v.is_tv IS NOT TRUE))" +
+      "AND NOT EXISTS (SELECT 1 FROM radacct ra JOIN hotspot_vouchers v2 ON ra.username = v2.code || '@' || LOWER(SUBSTRING(REPLACE(v2.isp_id::text,'-','') FROM 1 FOR 8)) WHERE UPPER(ra.callingstationid)=radcheck.username AND v2.status='active' AND v2.expires_at>NOW() AND (v2.is_tv IS NOT TRUE))");
     await query(
       "DELETE FROM radreply WHERE username ~ '" + macRe + "' AND NOT EXISTS (" +
-      "SELECT 1 FROM hotspot_vouchers v WHERE UPPER(v.used_by_mac)=radreply.username AND v.status='active' AND v.expires_at>NOW() AND (v.is_tv IS NOT TRUE))");
+      "SELECT 1 FROM hotspot_vouchers v WHERE UPPER(v.used_by_mac)=radreply.username AND v.status='active' AND v.expires_at>NOW() AND (v.is_tv IS NOT TRUE))" +
+      "AND NOT EXISTS (SELECT 1 FROM radacct ra JOIN hotspot_vouchers v2 ON ra.username = v2.code || '@' || LOWER(SUBSTRING(REPLACE(v2.isp_id::text,'-','') FROM 1 FOR 8)) WHERE UPPER(ra.callingstationid)=radreply.username AND v2.status='active' AND v2.expires_at>NOW() AND (v2.is_tv IS NOT TRUE))");
     await query(
       "INSERT INTO radcheck (username, attribute, op, value) " +
       "SELECT UPPER(v.used_by_mac), 'Cleartext-Password', ':=', 'RLMACAUTH' FROM hotspot_vouchers v " +
@@ -209,6 +211,27 @@ async function pass(onlyPaymentId) { /* RL_HEAL_ONE: when given, heal just that 
       "FROM hotspot_vouchers v LEFT JOIN hotspot_packages hp ON hp.id=v.package_id " +
       "WHERE v.status='active' AND v.expires_at>NOW() AND v.used_by_mac IS NOT NULL AND (v.is_tv IS NOT TRUE) AND v.used_by_mac ~ '" + macRe + "' " +
       "ORDER BY UPPER(v.used_by_mac), (hp.bandwidth_down_mbps IS NOT NULL) DESC, (v.payment_id IS NOT NULL) DESC, v.updated_at DESC NULLS LAST, v.created_at DESC" /* RL_MAC_STICKY */);
+
+    /* RL_MAC_MULTI: a voucher can legitimately be used from more than one device (phone reconnects,
+       phone + laptop). used_by_mac holds only the LATEST one, so any earlier device lost its mac-auth
+       credentials and got 'invalid username or password' on reconnect. Grant mac-auth to every device
+       that actually authenticated with a still-valid voucher; the hotspot shared-users limit already
+       caps how many can be online at once. */
+    const vRealmM = "v.code || '@' || LOWER(SUBSTRING(REPLACE(v.isp_id::text,'-','') FROM 1 FOR 8))";
+    const srcM = "(SELECT DISTINCT UPPER(ra.callingstationid) AS mac, v.expires_at, hp.bandwidth_up_mbps AS up, hp.bandwidth_down_mbps AS down " +
+      "FROM radacct ra JOIN hotspot_vouchers v ON ra.username = " + vRealmM + " " +
+      "LEFT JOIN hotspot_packages hp ON hp.id = v.package_id " +
+      "WHERE v.status='active' AND v.expires_at > NOW() AND (v.is_tv IS NOT TRUE) " +
+      "AND ra.callingstationid ~* '" + macRe + "') m";
+    await query("INSERT INTO radcheck (username, attribute, op, value) " +
+      "SELECT DISTINCT m.mac, 'Cleartext-Password', ':=', 'RLMACAUTH' FROM " + srcM + " " +
+      "WHERE NOT EXISTS (SELECT 1 FROM radcheck rc WHERE rc.username=m.mac AND rc.attribute='Cleartext-Password')");
+    await query("INSERT INTO radreply (username, attribute, op, value) " +
+      "SELECT DISTINCT ON (m.mac) m.mac, 'Session-Timeout', ':=', GREATEST(60, EXTRACT(EPOCH FROM (m.expires_at - NOW()))::int)::text FROM " + srcM + " " +
+      "WHERE NOT EXISTS (SELECT 1 FROM radreply rr WHERE rr.username=m.mac AND rr.attribute='Session-Timeout') ORDER BY m.mac, m.expires_at DESC");
+    await query("INSERT INTO radreply (username, attribute, op, value) " +
+      "SELECT DISTINCT ON (m.mac) m.mac, 'Mikrotik-Rate-Limit', ':=', COALESCE(m.up, m.down, 5)::text || 'M/' || COALESCE(m.down, m.up, 5)::text || 'M' FROM " + srcM + " " +
+      "WHERE (m.up IS NOT NULL OR m.down IS NOT NULL) AND NOT EXISTS (SELECT 1 FROM radreply rr WHERE rr.username=m.mac AND rr.attribute='Mikrotik-Rate-Limit') ORDER BY m.mac, m.expires_at DESC");
   } catch (e) { logger.warn('[strand-heal] mac creds: ' + e.message); }
 
   // ---- E) immediate apply: if TV state changed, run a reconcile pass right now ----

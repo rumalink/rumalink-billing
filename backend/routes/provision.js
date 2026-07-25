@@ -107,6 +107,24 @@ async function persistConfig(nas, cfg) {
   // v62.46: keep FreeRADIUS clients.conf in sync
   triggerRadiusClientsSync();
 
+  /* RL_NAS_ROW_ON_PROVISION: FreeRADIUS sources its client list from SQL (read_clients=yes).
+     Without a row here a freshly provisioned router cannot authenticate ANYONE until the
+     per-minute clients cron catches up. After a production reset — which truncates `nas` — that
+     gap was total: every RADIUS request was silently discarded as coming from an unknown client,
+     the router logged "RADIUS server is not responding", and both hotspot and PPPoE auth failed. */
+  try {
+    const P1 = String.fromCharCode(36) + '1';
+    await query(
+      "INSERT INTO nas (nasname, shortname, type, secret, description) " +
+      "SELECT d.wireguard_ip, COALESCE(d.name,'router'), 'mikrotik', d.secret, 'RumaLink provision' " +
+      "FROM nas_devices d WHERE d.id=" + P1 + "::uuid AND d.wireguard_ip IS NOT NULL AND d.secret IS NOT NULL " +
+      "AND NOT EXISTS (SELECT 1 FROM nas n WHERE n.nasname = d.wireguard_ip)", [nas.id]);
+    await query(
+      "UPDATE nas n SET secret = d.secret, shortname = COALESCE(d.name, n.shortname) " +
+      "FROM nas_devices d WHERE d.id=" + P1 + "::uuid AND n.nasname = d.wireguard_ip " +
+      "AND d.secret IS NOT NULL AND n.secret <> d.secret", [nas.id]);
+  } catch (e) { require('../utils/logger').warn('[provision] nas row: ' + e.message); }
+
   const extras = {
     hotspot_network: cfg.network, hotspot_gateway: cfg.gateway,
     hotspot_pool_start: cfg.poolStart, hotspot_pool_end: cfg.poolEnd,
@@ -611,7 +629,10 @@ router.post('/heartbeat/:token', async (req, res) => {
             SET radius_secret = COALESCE(NULLIF(radius_secret, ''), encode(gen_random_bytes(16), 'hex'))
           WHERE id = $1::uuid 
         RETURNING radius_secret, wireguard_ip, mikrotik_api_user, mikrotik_api_password`,
-        [nas.id]
+        [dev.rows[0] ? dev.rows[0].id : null] /* RL_HEARTBEAT_NAS_FIX: this block lives in the 5-minute
+           heartbeat handler where the device variable is `dev`, not `nas`. Referencing `nas` threw
+           "nas is not defined" on EVERY heartbeat, so the router /radius push and the clients.conf
+           rebuild silently never ran. */
       );
       const ns = secretRow.rows[0];
       if (ns && ns.wireguard_ip) {
