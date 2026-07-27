@@ -121,8 +121,13 @@ router.post('/isp/register', [
       plan: isp.plan_type
     });
 
+    /* RL_SIGNUP_VERIFY: the email code sends automatically (free). The SMS code is sent on
+       request from the verification screen, because every SMS costs real credits and an
+       auto-send here would let a bot drain the platform balance from the signup form. */
+    try { await require('../utils/verification').issueEmailLink(isp.id, email, req.ip); } catch (e) { logger.error('signup email link: ' + e.message); }
     res.status(201).json({
-      message: 'Registration successful',
+      message: 'Registration successful. Verify your email and phone to continue.',
+      verification_required: ['phone','email'],
       isp: {
         id: isp.id,
         company_name: isp.company_name,
@@ -176,9 +181,15 @@ router.post('/isp/login', [
       plan: isp.plan_type
     });
 
+    /* RL_LOGIN_VERIFY: the token is still issued so the client can reach /api/isp/verify/*,
+       but requireISP blocks everything else until both channels are verified. */
+    const _miss = [];
+    if (!isp.phone_verified) _miss.push('phone');
+    if (!isp.email_verified) _miss.push('email');
     res.json({
       token,
       refreshToken,
+      verification_required: _miss.length ? _miss : null,
       isp: {
         id: isp.id,
         company_name: isp.company_name,

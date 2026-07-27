@@ -191,6 +191,10 @@ tr:hover td{background:rgba(255,255,255,.015)}
   .topbar{padding:10px 12px}
 }
 </style>
+<!-- RL_FAVICON -->
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 </head>
 <body>
 <!-- v62.19: robust row click + search -->
@@ -1429,6 +1433,11 @@ let pollInterval = null;
 let currentDeviceToken = null;
 
 if (!token) window.location.href = '/isp/login.html';
+/* RL_VERIFY_REDIRECT: one guard here beats patching login.html and index.html separately —
+   every way into the dashboard (login, signup, a bookmark, a stale session) passes through this
+   file, so a single check cannot be routed around. The backend blocks unverified ISPs anyway;
+   this just sends them somewhere useful instead of a wall of 403s. */
+(async function(){ try{ var r = await fetch('/api/isp/verify/status', { headers:{ Authorization:'Bearer '+token }, cache:'no-store' }); if(r.ok){ var j = await r.json(); if(j && j.fully_verified === false) window.location.href = '/isp/verify.html'; } }catch(e){} })();
 
 // ── PORTAL TEMPLATES ──────────────────────────────────────────
 const PORTAL_TEMPLATES = [

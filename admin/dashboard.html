@@ -189,6 +189,10 @@ body{background:var(--ink);color:var(--white);font-family:var(--font-body);displ
   .topbar{padding:10px 12px}
 }
 </style>
+<!-- RL_FAVICON -->
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 </head>
 <body>
 
@@ -563,7 +567,56 @@ body{background:var(--ink);color:var(--white);font-family:var(--font-body);displ
         <button class="btn btn-sm set-tab active" data-stab="platform" onclick="setTab('platform')">⚙️ Platform</button>
         <button class="btn btn-sm set-tab" data-stab="jenga" onclick="setTab('jenga')">🏦 Equity (Jenga)</button>
         <button class="btn btn-sm set-tab" data-stab="daraja" onclick="setTab('daraja')">📱 Daraja</button>
-        <button class="btn btn-sm set-tab" data-stab="intasend" onclick="setTab('intasend')">💸 IntaSend</button>
+        <button class="btn btn-sm set-tab" data-stab="intasend" onclick="setTab('intasend')">💸 IntaSend</button><button class="btn btn-sm set-tab" data-stab="email" onclick="setTab('email');loadEmailConfig()">📧 Email</button>
+      </div>
+
+      <!-- RL_EMAIL_TAB -->
+      <div class="set-stab" id="set-stab-email" style="display:none">
+        <div class="card" style="max-width:620px;margin-bottom:16px">
+          <div class="panel-head"><h3>📧 Email (SMTP)</h3></div>
+          <div style="padding:6px 2px">
+            <p style="color:var(--muted);font-size:.82rem;margin-bottom:14px;line-height:1.55">
+              Used for ISP signup verification, password resets and welcome mail. The password is
+              write-only — leave it blank to keep the stored value.
+            </p>
+            <div class="fg">
+              <label>Provider preset</label>
+              <select id="em-provider" onchange="emailPreset()">
+                <option value="resend">Resend (recommended)</option>
+                <option value="gmail">Gmail / Google Workspace</option>
+                <option value="custom">Custom SMTP</option>
+              </select>
+            </div>
+            <div class="fg"><label>SMTP Host</label><input type="text" id="em-host" placeholder="smtp.resend.com"/></div>
+            <div style="display:flex;gap:10px">
+              <div class="fg" style="flex:1"><label>Port</label><input type="number" id="em-port" placeholder="587"/></div>
+              <div class="fg" style="flex:1"><label style="display:flex;align-items:center;gap:8px;margin-top:26px"><input type="checkbox" id="em-secure" style="width:auto"/> Use TLS (port 465)</label></div>
+            </div>
+            <div class="fg"><label>Username</label><input type="text" id="em-user" placeholder="resend"/></div>
+            <div class="fg"><label>Password / API key <span id="em-haspass" style="font-size:.74rem;color:var(--muted)"></span></label><input type="password" id="em-pass" placeholder="Leave blank to keep stored value" autocomplete="new-password"/></div>
+            <div class="fg"><label>From address</label><input type="email" id="em-from" placeholder="noreply@rumalinkenterprise.online"/>
+              <span style="font-size:.74rem;color:var(--muted)">Must be on a domain you have verified with your provider, or every send is rejected.</span></div>
+            <div class="fg"><label>From name</label><input type="text" id="em-fromname" placeholder="RumaLink Enterprise"/></div>
+            <button class="btn btn-amber btn-sm" onclick="saveEmailConfig()">💾 Save</button>
+            <span id="em-status" style="font-size:.82rem;color:var(--muted);margin-left:10px"></span>
+          </div>
+        </div>
+
+        <div class="card" style="max-width:620px">
+          <div class="panel-head"><h3>🧪 Test</h3></div>
+          <div style="padding:6px 2px">
+            <p style="color:var(--muted);font-size:.82rem;margin-bottom:12px;line-height:1.55">
+              "Check connection" only authenticates against the server — it proves the credentials
+              are right without sending anything. Sending a real message additionally proves delivery.
+            </p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+              <button class="btn btn-sm btn-outline" onclick="testEmailConfig(false)">🔌 Check connection</button>
+            </div>
+            <div class="fg"><label>Send a test email to</label><input type="email" id="em-testto" placeholder="you@example.com"/></div>
+            <button class="btn btn-sm" onclick="testEmailConfig(true)">✉️ Send test email</button>
+            <div id="em-test-status" style="font-size:.82rem;margin-top:10px;line-height:1.5"></div>
+          </div>
+        </div>
       </div>
 
       <div class="set-stab" id="set-stab-platform">
@@ -2418,11 +2471,16 @@ document.querySelector('.nav-item[data-page="shop"]')?.addEventListener('click',
 <script>
 /* RL_SETTINGS_TABS + RL_INTASEND_TRACKING switchers */
 window.setTab = function(t){
-  ['platform','jenga','daraja','intasend'].forEach(function(x){
-    var c=document.getElementById('set-stab-'+x); if(c) c.style.display = (x===t)?'':'none';
-  });
-  document.querySelectorAll('#set-tabs .set-tab').forEach(function(b){ b.classList.toggle('active', b.dataset.stab===t); });
-  if(t==='intasend' && window.loadIntasend) loadIntasend();
+  /* RL_SETTAB_DYNAMIC: this used to iterate a hardcoded list of tab names, so adding a new
+     settings tab hid every known panel and showed nothing — the new panel stayed display:none
+     forever with no error anywhere. shopTab() a few lines below already did it properly by
+     querying the DOM; do the same here so any future tab works without touching this function. */
+  document.querySelectorAll('#page-settings .set-stab').forEach(function(sec){ sec.style.display = 'none'; });
+  var el = document.getElementById('set-stab-' + t);
+  if (el) el.style.display = '';
+  document.querySelectorAll('#set-tabs .set-tab').forEach(function(b){ b.classList.toggle('active', b.dataset.stab === t); });
+  if (t === 'intasend' && window.loadIntasend) loadIntasend();
+  if (t === 'email' && window.loadEmailConfig) loadEmailConfig();
 };
 window.istTab = function(t){
   if(window.isLoadSummary) isLoadSummary();   /* RL_SUMMARY_FE_FIX */
@@ -2647,5 +2705,80 @@ async function rlOpsRestore(){
     }}]});
 }
 </script>
+<script>
+/* RL_EMAIL_TAB: SMTP settings from the dashboard. Previously .env-only, where a placeholder
+   password sat failing silently for weeks — every welcome email swallowed by a try/catch with
+   nobody able to see it. Hence the explicit test buttons: a config you cannot verify is a config
+   you will eventually discover is broken at the worst moment. */
+function emStatus(id, msg, kind) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg || '';
+  el.style.color = kind === 'err' ? '#e74c3c' : (kind === 'ok' ? 'var(--teal)' : 'var(--muted)');
+}
+function emailPreset() {
+  var p = document.getElementById('em-provider').value;
+  if (p === 'resend') {
+    document.getElementById('em-host').value = 'smtp.resend.com';
+    document.getElementById('em-port').value = 587;
+    document.getElementById('em-secure').checked = false;
+    document.getElementById('em-user').value = 'resend';
+  } else if (p === 'gmail') {
+    document.getElementById('em-host').value = 'smtp.gmail.com';
+    document.getElementById('em-port').value = 587;
+    document.getElementById('em-secure').checked = false;
+  }
+}
+async function emApi(path, opts) {
+  var t = localStorage.getItem('rl_admin_token') || '';
+  var r = await fetch((window.API || '/api') + '/admin/email-config' + (path || ''),
+    Object.assign({ headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + t }, cache: 'no-store' }, opts || {}));
+  var j = {}; try { j = await r.json(); } catch (e) {}
+  j._status = r.status;
+  return j;
+}
+async function loadEmailConfig() {
+  emStatus('em-status', 'Loading…');
+  var j = await emApi('');
+  if (!j.ok) { emStatus('em-status', j.error || 'Could not load config', 'err'); return; }
+  var c = j.config || {};
+  document.getElementById('em-host').value = c.smtp_host || '';
+  document.getElementById('em-port').value = c.smtp_port || 587;
+  document.getElementById('em-secure').checked = !!c.smtp_secure;
+  document.getElementById('em-user').value = c.smtp_user || '';
+  document.getElementById('em-from').value = c.from_email || '';
+  document.getElementById('em-fromname').value = c.from_name || 'RumaLink Enterprise';
+  document.getElementById('em-provider').value = c.provider || 'custom';
+  document.getElementById('em-haspass').textContent = c.has_password ? '— a password is stored' : '— none stored yet';
+  emStatus('em-status', c.updated_at ? 'Last saved ' + new Date(c.updated_at).toLocaleString() : '');
+}
+async function saveEmailConfig() {
+  emStatus('em-status', 'Saving…');
+  var body = {
+    provider: document.getElementById('em-provider').value,
+    smtp_host: document.getElementById('em-host').value.trim(),
+    smtp_port: parseInt(document.getElementById('em-port').value) || 587,
+    smtp_secure: document.getElementById('em-secure').checked,
+    smtp_user: document.getElementById('em-user').value.trim(),
+    smtp_pass: document.getElementById('em-pass').value,
+    from_email: document.getElementById('em-from').value.trim(),
+    from_name: document.getElementById('em-fromname').value.trim() || 'RumaLink Enterprise'
+  };
+  var j = await emApi('', { method: 'PUT', body: JSON.stringify(body) });
+  if (!j.ok) { emStatus('em-status', j.error || 'Save failed', 'err'); return; }
+  document.getElementById('em-pass').value = '';
+  emStatus('em-status', 'Saved.', 'ok');
+  loadEmailConfig();
+}
+async function testEmailConfig(send) {
+  var to = (document.getElementById('em-testto').value || '').trim();
+  if (send && !to) { emStatus('em-test-status', 'Enter an address to send to.', 'err'); return; }
+  emStatus('em-test-status', send ? 'Sending…' : 'Checking…');
+  var j = await emApi('/test', { method: 'POST', body: JSON.stringify(send ? { to: to } : {}) });
+  if (j.ok) emStatus('em-test-status', send ? ('Sent to ' + j.sent_to + '. Check the inbox and the spam folder.') : 'Connection verified — credentials accepted.', 'ok');
+  else emStatus('em-test-status', j.error || 'Failed', 'err');
+}
+</script>
 </body>
+
 </html>

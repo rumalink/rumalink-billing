@@ -34,10 +34,20 @@ const requireISP = async (req, res, next) => {
   }
   // Fetch ISP status
   try {
-    const result = await query('SELECT id, status FROM isps WHERE id = $1', [req.user.ispId]);
+    const result = await query('SELECT id, status, COALESCE(email_verified,false) AS email_verified, COALESCE(phone_verified,false) AS phone_verified FROM isps WHERE id = $1', [req.user.ispId]);
     if (!result.rows[0]) return res.status(404).json({ error: 'ISP not found' });
     if (result.rows[0].status === 'suspended') {
       return res.status(403).json({ error: 'Account suspended. Contact support.' });
+    }
+    /* RL_VERIFY_GATE: both email and phone must be verified before an ISP can use the platform.
+       Enforced here because requireISP is the single choke point every ISP-facing mount already
+       passes through — gating each mount separately would eventually miss one, and a missed
+       mount stays reachable with curl even when the UI hides it. */
+    if (!result.rows[0].email_verified || !result.rows[0].phone_verified) {
+      const missing = [];
+      if (!result.rows[0].phone_verified) missing.push('phone');
+      if (!result.rows[0].email_verified) missing.push('email');
+      return res.status(403).json({ error: 'Verify your email address and phone number to access your dashboard.', code: 'VERIFICATION_REQUIRED', verification_required: missing });
     }
     req.isp = result.rows[0];
     next();

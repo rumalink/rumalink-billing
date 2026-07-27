@@ -68,6 +68,8 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ── ROUTES ──
 app.use('/api/auth', require('./routes/auth'));
+/* RL_EMAIL_CONFIG_API: mounted before /api/admin so the specific path wins cleanly. */
+app.use('/api/admin/email-config', require('./routes/adminEmail'));
 app.use('/api/admin', require('./routes/admin'));
 /* RL_NO_STORE_API: payment-status pollers must NEVER be cached. Express sends an ETag by default,
    so a phone that polled once got 304 Not Modified on every later poll and kept reusing the FIRST
@@ -82,6 +84,10 @@ app.use(function (req, res, next) {
   }
   next();
 });
+/* RL_VERIFICATION: mounted BEFORE /api/isp on purpose — Express matches in order, so placing
+   it after would make routes/isp.js middleware (and the verification gate) run first, locking an
+   unverified ISP out of the very endpoints they need to verify with. */
+app.use('/api/isp/verify', require('./routes/verification'));
 app.use('/api/isp', require('./routes/isp'));
 app.use('/api/nas', require('./routes/nas'));
 app.use('/api/hotspot', require('./routes/hotspot'));

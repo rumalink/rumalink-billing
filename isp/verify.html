@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verify your account · RumaLink</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0a0f1e;--navy:#0d1530;--teal:#00d4aa;--amber:#f39c12;--red:#e74c3c;--white:#f0f4ff;--muted:#8899bb;--card:#111d3a;--border:#1e2f52}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--ink);color:var(--white);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.wrap{width:100%;max-width:520px}
+.brand{text-align:center;margin-bottom:20px}
+.brand img{max-width:200px;height:auto;border-radius:10px}
+h1{font-family:'Syne',sans-serif;font-size:1.35rem;margin-bottom:6px}
+.sub{color:var(--muted);font-size:.9rem;margin-bottom:20px;line-height:1.55}
+.steps{display:flex;gap:8px;margin-bottom:18px}
+.step{flex:1;padding:9px 10px;border-radius:9px;border:1px solid var(--border);background:var(--card);font-size:.78rem;color:var(--muted);text-align:center}
+.step.on{border-color:var(--teal);color:var(--teal)}
+.step.done{border-color:rgba(0,212,170,.4);color:var(--teal);background:rgba(0,212,170,.08)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.lbl{font-weight:700;font-size:.95rem}
+.target{color:var(--muted);font-size:.85rem;word-break:break-all;margin-bottom:12px}
+.badge{font-size:.72rem;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.b-ok{background:rgba(0,212,170,.15);color:var(--teal);border:1px solid rgba(0,212,170,.35)}
+.b-pend{background:rgba(243,156,18,.15);color:var(--amber);border:1px solid rgba(243,156,18,.35)}
+input{width:100%;padding:11px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;font-family:inherit;font-size:.95rem}
+input.code{letter-spacing:8px;text-align:center;font-size:1.25rem;font-weight:700}
+button{background:var(--teal);color:#07211c;border:none;border-radius:8px;padding:11px 16px;font-weight:700;font-size:.9rem;cursor:pointer;font-family:inherit}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.actions{display:flex;gap:8px;margin-top:10px}
+.actions>*{flex:1}
+.msg{margin-top:10px;font-size:.84rem;padding:9px 11px;border-radius:8px;display:none;line-height:1.45}
+.msg.err{display:block;background:rgba(231,76,60,.14);color:#ff8a7a}
+.msg.ok{display:block;background:rgba(0,212,170,.14);color:var(--teal)}
+.link{background:none;border:none;color:var(--muted);font-size:.8rem;text-decoration:underline;cursor:pointer;padding:0;margin-top:10px;font-family:inherit}
+.foot{text-align:center;margin-top:16px}
+.foot button{background:none;color:var(--muted);font-size:.82rem;text-decoration:underline;padding:0}
+.big{text-align:center;padding:26px 20px}
+.big .ic{font-size:2.2rem;margin-bottom:10px}
+.hide{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><img src="/logo.png" alt="RumaLink Enterprise"></div>
+
+  <div class="steps">
+    <div class="step" id="st-1">1 · Email</div>
+    <div class="step" id="st-2">2 · Phone</div>
+    <div class="step" id="st-3">3 · Dashboard</div>
+  </div>
+
+  <div id="boot" class="card big"><div class="ic">⏳</div><div id="boot-txt" style="color:var(--muted);font-size:.9rem">Checking…</div></div>
+
+  <!-- email verified by link, but no session on this device -->
+  <div id="needlogin" class="card big hide">
+    <div class="ic">✅</div>
+    <div style="font-weight:700;margin-bottom:6px">Email verified</div>
+    <div style="color:var(--muted);font-size:.88rem;line-height:1.6;margin-bottom:16px">
+      You opened this link on a different device from the one you signed up on. Sign in to confirm your phone number and finish.
+    </div>
+    <button onclick="location.href='/isp/login.html'">Sign in to continue</button>
+  </div>
+
+  <!-- waiting on the email link -->
+  <div id="emailstep" class="card hide">
+    <div class="row"><span class="lbl">📧 Step 1 — Verify your email</span><span class="badge b-pend">Pending</span></div>
+    <div class="target" id="tgt-email">—</div>
+    <div style="color:var(--muted);font-size:.86rem;line-height:1.6;margin-bottom:12px">
+      We sent you a link. Open it on any device and this page will move on automatically.
+      Check spam if it has not arrived in a minute.
+    </div>
+    <div class="actions"><button id="resend-email" class="ghost">Resend the email</button></div>
+    <button class="link" id="edit-email">Wrong address? Change it</button>
+    <div id="editbox-email" class="hide" style="margin-top:10px">
+      <input id="new-email" type="email" placeholder="you@example.com">
+      <div class="actions"><button id="save-email">Save &amp; resend</button><button class="ghost" id="cancel-email">Cancel</button></div>
+    </div>
+    <div class="msg" id="msg-email"></div>
+  </div>
+
+  <!-- phone OTP -->
+  <div id="phonestep" class="card hide">
+    <div class="row"><span class="lbl">📱 Step 2 — Verify your phone</span><span class="badge b-pend" id="badge-phone">Pending</span></div>
+    <div class="target" id="tgt-phone">—</div>
+    <input class="code" id="code-phone" inputmode="numeric" maxlength="6" placeholder="······" autocomplete="one-time-code">
+    <div class="actions">
+      <button id="verify-phone">Verify</button>
+      <button class="ghost" id="send-phone">Send SMS code</button>
+    </div>
+    <button class="link" id="edit-phone">Wrong number? Change it</button>
+    <div id="editbox-phone" class="hide" style="margin-top:10px">
+      <input id="new-phone" type="tel" placeholder="0712345678">
+      <div class="actions"><button id="save-phone">Save &amp; send code</button><button class="ghost" id="cancel-phone">Cancel</button></div>
+    </div>
+    <div class="msg" id="msg-phone"></div>
+  </div>
+
+  <div id="done" class="card big hide">
+    <div class="ic">🎉</div>
+    <div style="font-weight:700;margin-bottom:4px">You're verified</div>
+    <div style="color:var(--muted);font-size:.88rem">Opening your dashboard…</div>
+  </div>
+
+  <div class="foot"><button id="logout">Sign out</button></div>
+</div>
+
+<script>
+var API = '/api/isp/verify';
+var token = localStorage.getItem('rl_token');
+function el(id){ return document.getElementById(id); }
+function show(id){ el(id).classList.remove('hide'); }
+function hide(id){ el(id).classList.add('hide'); }
+function msg(ch, text, kind){ var m = el('msg-'+ch); m.textContent = text; m.className = 'msg ' + (kind||'err'); }
+function clearMsg(ch){ var m = el('msg-'+ch); m.className='msg'; m.textContent=''; }
+function steps(n){ [1,2,3].forEach(function(i){ var s = el('st-'+i); s.className = 'step' + (i < n ? ' done' : (i === n ? ' on' : '')); }); }
+
+async function api(path, method, body, noAuth){
+  var h = { 'Content-Type':'application/json' };
+  if (!noAuth && token) h.Authorization = 'Bearer ' + token;
+  var r = await fetch(API + path, { method: method || 'GET', headers: h, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' });
+  var j = {}; try { j = await r.json(); } catch(e){}
+  j._status = r.status;
+  return j;
+}
+
+/* A visible cooldown. The server enforces its own limit regardless — this just stops people
+   mashing the button and burning SMS credits on codes they have already been sent. */
+function cooldown(btn, secs, label){
+  var left = secs; btn.disabled = true;
+  var t = setInterval(function(){
+    left--; btn.textContent = label + ' (' + left + 's)';
+    if (left <= 0){ clearInterval(t); btn.disabled = false; btn.textContent = label; }
+  }, 1000);
+  btn.textContent = label + ' (' + left + 's)';
+}
+
+function paint(st){
+  hide('boot');
+  if (st.fully_verified){
+    steps(3); hide('emailstep'); hide('phonestep'); show('done');
+    setTimeout(function(){ location.href = '/isp/dashboard.html'; }, 1400);
+    return;
+  }
+  if (!st.email_verified){
+    steps(1); show('emailstep'); hide('phonestep');
+    el('tgt-email').textContent = st.email || '—';
+    return;
+  }
+  steps(2); hide('emailstep'); show('phonestep');
+  el('tgt-phone').textContent = st.phone || '—';
+}
+
+async function sendPhone(){
+  clearMsg('phone');
+  var btn = el('send-phone'); btn.disabled = true; btn.textContent = 'Sending…';
+  var j = await api('/send', 'POST', { channel: 'phone' });
+  if (j.ok){ msg('phone', 'Code sent by SMS. It expires in 10 minutes.', 'ok'); cooldown(btn, 60, 'Send SMS code'); }
+  else {
+    msg('phone', j.error || 'Could not send the code.');
+    if (j.retry_after_sec) cooldown(btn, Math.min(j.retry_after_sec, 300), 'Send SMS code');
+    else { btn.disabled = false; btn.textContent = 'Send SMS code'; }
+  }
+}
+async function verifyPhone(){
+  clearMsg('phone');
+  var code = (el('code-phone').value || '').trim();
+  if (code.length !== 6){ msg('phone', 'Enter the 6-digit code.'); return; }
+  var btn = el('verify-phone'); btn.disabled = true; btn.textContent = 'Checking…';
+  var j = await api('/confirm', 'POST', { channel: 'phone', code: code });
+  btn.disabled = false; btn.textContent = 'Verify';
+  if (j.ok) paint(j); else { msg('phone', j.error || 'That code did not work.'); el('code-phone').value = ''; }
+}
+async function resendEmail(){
+  clearMsg('email');
+  var btn = el('resend-email'); btn.disabled = true; btn.textContent = 'Sending…';
+  var j = await api('/send', 'POST', { channel: 'email' });
+  if (j.ok){ msg('email', 'Sent. Open the link from your inbox.', 'ok'); cooldown(btn, 60, 'Resend the email'); }
+  else {
+    msg('email', j.error || 'Could not send.');
+    if (j.retry_after_sec) cooldown(btn, Math.min(j.retry_after_sec, 300), 'Resend the email');
+    else { btn.disabled = false; btn.textContent = 'Resend the email'; }
+  }
+}
+async function saveContact(ch){
+  clearMsg(ch);
+  var val = (el('new-' + ch).value || '').trim();
+  if (!val){ msg(ch, 'Enter a value first.'); return; }
+  var j = await api('/contact', 'PATCH', { channel: ch, value: val });
+  if (!j.ok){ msg(ch, j.error || 'Could not update.'); return; }
+  el('editbox-' + ch).classList.add('hide');
+  paint(j);
+  if (ch === 'email') await resendEmail(); else await sendPhone();
+}
+
+el('send-phone').onclick   = sendPhone;
+el('verify-phone').onclick = verifyPhone;
+el('resend-email').onclick = resendEmail;
+['email','phone'].forEach(function(ch){
+  el('edit-' + ch).onclick   = function(){ el('editbox-' + ch).classList.toggle('hide'); };
+  el('cancel-' + ch).onclick = function(){ el('editbox-' + ch).classList.add('hide'); };
+  el('save-' + ch).onclick   = function(){ saveContact(ch); };
+});
+el('code-phone').addEventListener('keydown', function(e){ if (e.key === 'Enter') verifyPhone(); });
+el('code-phone').addEventListener('input', function(e){ e.target.value = e.target.value.replace(/[^0-9]/g, ''); });
+el('logout').onclick = function(){ localStorage.clear(); location.href = '/isp/login.html'; };
+
+/* Poll while waiting on the email link so the page advances on its own once the recipient
+   clicks it on their phone — otherwise they come back to this tab and think nothing happened. */
+var poll = null;
+function startPoll(){
+  if (poll) return;
+  poll = setInterval(async function(){
+    if (!token) return;
+    var st = await api('/status');
+    if (st.ok && st.email_verified){ clearInterval(poll); poll = null; paint(st); }
+  }, 6000);
+}
+
+(async function init(){
+  var urlTok = new URLSearchParams(location.search).get('t');
+
+  if (urlTok){
+    el('boot-txt').textContent = 'Verifying your email…';
+    /* Public endpoint: no session needed, because this link is very often opened on a phone
+       while the signup happened on a laptop. */
+    var r = await api('/email-link', 'POST', { token: urlTok }, true);
+    history.replaceState({}, '', location.pathname);
+    if (r.ok){
+      if (token){ paint(r); return; }
+      hide('boot'); steps(2); show('needlogin'); return;
+    }
+    if (!token){ hide('boot'); steps(1); show('needlogin');
+      el('needlogin').querySelector('.ic').textContent = '⚠️';
+      el('needlogin').querySelector('div[style*="font-weight:700"]').textContent = r.already_used ? 'Link already used' : 'Link not valid';
+      el('needlogin').querySelectorAll('div')[1].textContent = (r.error || '') + ' Sign in and request a new one.';
+      return;
+    }
+    var st0 = await api('/status');
+    hide('boot');
+    if (st0.ok){ paint(st0); if (!st0.email_verified){ msg('email', r.error || 'That link was not valid. Request a new one.'); } }
+    return;
+  }
+
+  if (!token){ location.href = '/isp/login.html'; return; }
+  var st = await api('/status');
+  if (!st.ok){ el('boot-txt').textContent = 'Could not load your status. Try refreshing.'; return; }
+  paint(st);
+  if (!st.email_verified) startPoll();
+})();
+</script>
+</body>
+</html>
