@@ -5,12 +5,13 @@
 //   3) usage accumulates durably in the DB (baseline + counter deltas) so expiry/re-provision
 //      never resets a TV's data history
 //   4) any hotspot session using a TV's voucher from a NON-TV MAC is disconnected (phone lockout)
+const axios = require('axios');
 const { query } = require('../config/database');
 const mt = require('./mikrotik');
 const logger = require('./logger');
 let started = false;
 
-async function pass() {
+async function passCore() {
   const tvs = await query(
     "SELECT bd.*, hp.bandwidth_down_mbps, hp.bandwidth_up_mbps FROM hotspot_bound_devices bd " +
     "LEFT JOIN hotspot_packages hp ON hp.id=bd.package_id " +
@@ -47,12 +48,12 @@ async function pass() {
       if (tv.active_voucher_id) {
         try {
           const vv = (await query("SELECT id, status, expires_at FROM hotspot_vouchers WHERE id=$1::uuid", [tv.active_voucher_id])).rows[0];
+          /* RL_TV_SINGLE_OWNER: record the decision, do not touch the router here. Writing the
+             binding directly made this a second writer alongside convergeTvBindings(), and two
+             writers with separately maintained conditions is what made the binding flap. */
           const unbind = async () => {
-            try { await mt.removeIpBinding(dev.id, tv.mac_address); } catch(e){}
-            const qn = 'tv-' + String(tv.mac_address).replace(/:/g,'');
-            try { await mt.removeQueueRateLimit(dev.id, { username: qn }); } catch(e1){ try { await mt.removeQueueRateLimit(dev.id, qn); } catch(e2){} }
             await query("UPDATE hotspot_bound_devices SET is_bound=false, expires_at=NOW() WHERE id=$1::uuid", [tv.id]).catch(()=>{});
-            logger.info('[tv-reconcile] TV ' + tv.name + ' unbound (voucher deleted/expired)');
+            logger.info('[tv-reconcile] TV ' + tv.name + ' marked unbound (voucher gone/expired) — router converges next');
           };
           if (!vv) { await unbind(); continue; }
           if (String(vv.status||'') === 'expired' || (vv.expires_at && new Date(vv.expires_at) <= new Date())) { await unbind(); continue; }
@@ -126,6 +127,62 @@ async function applyOne(ispId, mac, attempts) {
   }
   logger.info('[tv-reconcile] FAST activate ' + mac + ' bound (queue deferred to next pass — no IP yet)');
   return { ok:true, note:'bound, queue deferred' };
+}
+
+
+/* RL_TV_SINGLE_OWNER: the one place that decides what the router should hold for TVs.
+   Desired state comes from the database; anything WE previously created and no longer want is
+   withdrawn. Only entries carrying our own comment are touched — a binding an ISP added by hand
+   for a printer or a camera is never removed by us. */
+async function convergeTvBindings() {
+  const devs = (await query(
+    "SELECT id, isp_id, wireguard_ip, mikrotik_api_user, mikrotik_api_password FROM nas_devices " +
+    "WHERE wireguard_ip IS NOT NULL AND is_online = true")).rows;
+
+  for (const dev of devs) {
+    try {
+      const want = await query(
+        "SELECT UPPER(mac_address) AS mac FROM hotspot_bound_devices " +
+        "WHERE isp_id = $1::uuid AND is_bound = true AND expires_at IS NOT NULL AND expires_at > NOW()",
+        [dev.isp_id]);
+      const wanted = want.rows.map(function (r) { return r.mac; });
+      const auth = { username: dev.mikrotik_api_user, password: dev.mikrotik_api_password };
+      const base = 'http://' + dev.wireguard_ip + '/rest';
+
+      let binds = [], queues = [];
+      try { binds = (await axios.get(base + '/ip/hotspot/ip-binding', { auth, timeout: 8000 })).data || []; } catch (e) { continue; }
+      try { queues = (await axios.get(base + '/queue/simple', { auth, timeout: 8000 })).data || []; } catch (e) {}
+
+      for (const b of binds) {
+        const mac = String(b['mac-address'] || '').toUpperCase();
+        if (!mac || !/RumaLink-TV/i.test(String(b.comment || ''))) continue;
+        if (wanted.indexOf(mac) >= 0) continue;
+        try {
+          await axios.delete(base + '/ip/hotspot/ip-binding/' + encodeURIComponent(b['.id']), { auth, timeout: 8000 });
+          logger.info('[tv-reconcile] withdrew binding ' + mac + ' (no longer entitled)');
+        } catch (e) {}
+      }
+
+      const wantedNc = wanted.map(function (m) { return m.replace(/:/g, ''); });
+      for (const q of queues) {
+        const name = String(q.name || '');
+        if (!/^(rl-)?tv-/i.test(name)) continue;
+        const macNc = name.replace(/^rl-tv-/i, '').replace(/^tv-/i, '').toUpperCase();
+        if (wantedNc.indexOf(macNc) >= 0) continue;
+        try {
+          await axios.delete(base + '/queue/simple/' + encodeURIComponent(q['.id']), { auth, timeout: 8000 });
+          logger.info('[tv-reconcile] withdrew TV queue ' + name);
+        } catch (e) {}
+      }
+    } catch (e) { logger.warn('[tv-reconcile] converge: ' + e.message); }
+  }
+}
+
+/* Wrapping rather than editing inside passCore(): every existing caller — the 60s interval, the
+   module exports, strand-heal's post-change trigger — picks this up with no further changes. */
+async function pass() {
+  await passCore();
+  try { await convergeTvBindings(); } catch (e) { logger.warn('[tv-reconcile] converge: ' + e.message); }
 }
 
 module.exports = { start, pass, applyOne }; /* RL_TV_FAST */

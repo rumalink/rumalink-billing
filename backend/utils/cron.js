@@ -801,3 +801,8 @@ try { require('./router-harden').start(); } catch (e) { require('./logger').warn
 // RL_ACTIVE_HEARTBEAT: probe each router every minute; is_online reflects real reachability so
 // reconcilers (harden/walling/strand-heal) never skip a live router after a reboot or re-add.
 try { require('./router-heartbeat').start(); } catch (e) { require('./logger').warn('[heartbeat] start: ' + e.message); }
+
+// RL_HOTSPOT_EXPIRE: disconnect any live hotspot session whose voucher is no longer valid.
+// Deleting credentials alone never ends a session — the router authorises once at login and does
+// not re-check RADIUS, so an expired customer stayed online until Session-Timeout ran out.
+try { require('./hotspotExpire').start(); } catch (e) { require('./logger').warn('[hotspot-expire] start: ' + e.message); }

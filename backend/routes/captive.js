@@ -409,7 +409,7 @@ router.post('/:ispId/pay', require('../middleware/auth').requireActiveLicense, a
           const existing = await query(
             (is_tv && tv_mac)
               ? `SELECT code, id FROM hotspot_vouchers WHERE isp_id=$1::uuid AND is_tv=true AND UPPER(tv_mac)=UPPER($2) ORDER BY (payment_id IS NOT NULL) DESC, updated_at DESC NULLS LAST, created_at DESC, LENGTH(code) DESC, code DESC LIMIT 1 /* RL_REUSE_STICKY */`
-              : `SELECT code, id FROM hotspot_vouchers WHERE isp_id=$1::uuid AND buyer_phone=$2 AND (is_tv IS NOT TRUE) ORDER BY (payment_id IS NOT NULL) DESC, updated_at DESC NULLS LAST, created_at DESC, LENGTH(code) DESC, code DESC LIMIT 1 /* RL_REUSE_STICKY */`,
+              : `SELECT code, id FROM hotspot_vouchers WHERE isp_id=$1::uuid AND RIGHT(regexp_replace(buyer_phone,'[^0-9]','','g'),9) = RIGHT(regexp_replace($2,'[^0-9]','','g'),9) AND (is_tv IS NOT TRUE) /* RL_PHONE_NORM_MATCH */ ORDER BY (payment_id IS NOT NULL) DESC, updated_at DESC NULLS LAST, created_at DESC, LENGTH(code) DESC, code DESC LIMIT 1 /* RL_REUSE_STICKY */`,
             [req.params.ispId, (is_tv && tv_mac) ? String(tv_mac).toUpperCase() : normalizedPhone]
           );
           if (existing.rows[0]) {
@@ -491,7 +491,7 @@ router.post('/:ispId/pay', require('../middleware/auth').requireActiveLicense, a
           const existing = await query(
             (is_tv && tv_mac)
               ? `SELECT code, id FROM hotspot_vouchers WHERE isp_id=$1::uuid AND is_tv=true AND UPPER(tv_mac)=UPPER($2) ORDER BY (payment_id IS NOT NULL) DESC, updated_at DESC NULLS LAST, created_at DESC, LENGTH(code) DESC, code DESC LIMIT 1 /* RL_REUSE_STICKY */`
-              : `SELECT code, id FROM hotspot_vouchers WHERE isp_id=$1::uuid AND buyer_phone=$2 AND (is_tv IS NOT TRUE) ORDER BY (payment_id IS NOT NULL) DESC, updated_at DESC NULLS LAST, created_at DESC, LENGTH(code) DESC, code DESC LIMIT 1 /* RL_REUSE_STICKY */`,
+              : `SELECT code, id FROM hotspot_vouchers WHERE isp_id=$1::uuid AND RIGHT(regexp_replace(buyer_phone,'[^0-9]','','g'),9) = RIGHT(regexp_replace($2,'[^0-9]','','g'),9) AND (is_tv IS NOT TRUE) /* RL_PHONE_NORM_MATCH */ ORDER BY (payment_id IS NOT NULL) DESC, updated_at DESC NULLS LAST, created_at DESC, LENGTH(code) DESC, code DESC LIMIT 1 /* RL_REUSE_STICKY */`,
             [req.params.ispId, (is_tv && tv_mac) ? String(tv_mac).toUpperCase() : normalizedPhone]
           );
           if (existing.rows[0]) {

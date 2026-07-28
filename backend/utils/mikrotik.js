@@ -349,15 +349,22 @@ async function addIpBindingBypass(deviceId, { mac_address, comment }) {
   const client = clientFor(dev);
   const mac = String(mac_address||'').toUpperCase();
   if (!mac) return { ok:false, error:'no mac' };
-  // remove any existing binding for this MAC first (idempotent)
+  /* RL_BINDING_IDEMPOTENT: this used to delete and recreate the binding on EVERY call. Since a
+     reconciler calls it once a minute, the television lost its bypass and re-acquired it sixty
+     times an hour — visible as the binding "appearing and disappearing", and during each gap the
+     TV fell back to the hotspot and attempted a MAC login it could never pass. Rewriting state to
+     "ensure" it is not the same as ensuring it: check first, and leave a correct entry alone. */
   try {
     const cur = await client.get('/ip/hotspot/ip-binding');
-    if (Array.isArray(cur.data)) {
-      for (const b of cur.data) {
-        if ((b['mac-address']||'').toUpperCase() === mac) {
-          await client.post('/ip/hotspot/ip-binding/remove', { '.id': b['.id'] });
-        }
-      }
+    const mine = Array.isArray(cur.data)
+      ? cur.data.filter(function (b) { return (b['mac-address'] || '').toUpperCase() === mac; })
+      : [];
+    const good = mine.filter(function (b) { return String(b.type || '') === 'bypassed'; });
+    if (good.length === 1 && mine.length === 1) {
+      return { ok: true, unchanged: true, id: good[0]['.id'] };
+    }
+    for (const b of mine) {
+      await client.post('/ip/hotspot/ip-binding/remove', { '.id': b['.id'] });
     }
   } catch (e) { /* non-fatal */ }
   const body = { 'mac-address': mac, type: 'bypassed', comment: comment || 'RumaLink-TV' };

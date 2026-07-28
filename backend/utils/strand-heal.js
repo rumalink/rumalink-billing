@@ -69,7 +69,7 @@ async function pass(onlyPaymentId) { /* RL_HEAL_ONE: when given, heal just that 
       if (isTv && tvMac) {
         ex = await query("SELECT id, code FROM hotspot_vouchers WHERE isp_id=$1::uuid AND is_tv=true AND UPPER(tv_mac)=UPPER($2) ORDER BY (payment_id IS NOT NULL) DESC, updated_at DESC NULLS LAST, created_at DESC, LENGTH(code) DESC, code DESC LIMIT 1 /* RL_REUSE_STICKY */", [p.isp_id, tvMac]);
       } else if (phone) {
-        ex = await query("SELECT id, code FROM hotspot_vouchers WHERE isp_id=$1::uuid AND buyer_phone=$2 AND (is_tv IS NOT TRUE) ORDER BY (payment_id IS NOT NULL) DESC, updated_at DESC NULLS LAST, created_at DESC, LENGTH(code) DESC, code DESC LIMIT 1 /* RL_REUSE_STICKY */", [p.isp_id, phone]);
+        ex = await query("SELECT id, code FROM hotspot_vouchers WHERE isp_id=$1::uuid AND RIGHT(regexp_replace(buyer_phone,'[^0-9]','','g'),9) = RIGHT(regexp_replace($2,'[^0-9]','','g'),9) AND (is_tv IS NOT TRUE) /* RL_PHONE_NORM_MATCH */ ORDER BY (payment_id IS NOT NULL) DESC, updated_at DESC NULLS LAST, created_at DESC, LENGTH(code) DESC, code DESC LIMIT 1 /* RL_REUSE_STICKY */", [p.isp_id, phone]);
       } else { ex = { rows: [] }; }
 
       let vid, code;
@@ -128,33 +128,14 @@ async function pass(onlyPaymentId) { /* RL_HEAL_ONE: when given, heal just that 
     "AND NOT EXISTS (SELECT 1 FROM hotspot_vouchers v WHERE v.id = hotspot_bound_devices.active_voucher_id)"
   ).catch(function (e) { logger.warn('[strand-heal] dangle: ' + e.message); });
 
-  // ---- D) expired/unbound TVs: remove router binding + rl-tv queue (rate limit off at expiry) ----
-  try {
-    const deadTvs = await query(
-      "SELECT mac_address FROM hotspot_bound_devices WHERE is_bound=false OR expires_at IS NULL OR expires_at <= NOW()");
-    if (deadTvs.rows.length) {
-      const nas = await currentRouter();
-      if (nas) {
-        const base = 'http://' + nas.wireguard_ip + '/rest';
-        const auth = { username: nas.mikrotik_api_user, password: nas.mikrotik_api_password };
-        let binds = [], queues = [];
-        try { binds = (await axios.get(base + '/ip/hotspot/ip-binding', { auth, timeout: 8000 })).data || []; } catch (e) {}
-        try { queues = (await axios.get(base + '/queue/simple', { auth, timeout: 8000 })).data || []; } catch (e) {}
-        for (const tv of deadTvs.rows) {
-          const mac = String(tv.mac_address).toUpperCase();
-          const macNc = mac.replace(/:/g, '');
-          const bind = binds.find(function (x) { return String(x['mac-address'] || '').toUpperCase() === mac; });
-          if (bind && bind['.id']) {
-            try { await axios.delete(base + '/ip/hotspot/ip-binding/' + encodeURIComponent(bind['.id']), { auth, timeout: 8000 }); logger.info('[strand-heal] removed expired TV binding ' + mac); } catch (e) {}
-          }
-          const qu = queues.find(function (x) { return String(x.name || '') === 'rl-tv-' + macNc; });
-          if (qu && qu['.id']) {
-            try { await axios.delete(base + '/queue/simple/' + encodeURIComponent(qu['.id']), { auth, timeout: 8000 }); logger.info('[strand-heal] removed expired TV queue rl-tv-' + macNc); } catch (e) {}
-          }
-        }
-      }
-    }
-  } catch (e) { logger.warn('[strand-heal] tv cleanup: ' + e.message); }
+  /* ---- D) RETIRED — RL_TV_OWNERSHIP_MOVED ----
+     This used to remove TV bindings and queues from the router. tv-reconcile does the same job
+     from the same data, so both wrote to the router with independently maintained conditions —
+     and the moment those drifted apart (a leftover row from a deleted ISP was enough) one removed
+     the binding a second after the other added it, sixty times an hour, on a paid television.
+     Router state for TVs now has exactly one owner: convergeTvBindings() in tv-reconcile.js.
+     strand-heal still maintains the DATABASE view of a TV (sections B, C and E2); it simply no
+     longer reaches for the router itself. */
 
   // ---- E2) RL_RELEASE_EXPIRED: an expired voucher must stop owning a device MAC (your rule) ----
   try {

@@ -517,7 +517,7 @@ router.get('/:token/script', async (req, res) => {
         `UPDATE nas_devices 
             SET radius_secret = COALESCE(NULLIF(radius_secret, ''), encode(gen_random_bytes(16), 'hex'))
           WHERE id = $1::uuid 
-        RETURNING id, radius_secret, wireguard_ip, mikrotik_api_user, mikrotik_api_password /* RL_RETURNING_ID: id was missing, so ns.id was undefined and loadDevice(undefined) threw 'Device not found' */`,
+        RETURNING id, secret, radius_secret, wireguard_ip, mikrotik_api_user, mikrotik_api_password /* RL_SECRET_COLUMN_FIX */ /* RL_RETURNING_ID: id was missing, so ns.id was undefined and loadDevice(undefined) threw 'Device not found' */`,
         [nas.id]
       );
       const ns = secretRow.rows[0];
@@ -531,6 +531,15 @@ router.get('/:token/script', async (req, res) => {
           if (client) {
             // Remove existing RumaLink-VPS entries
             const existing = await client.get('/radius');
+            /* RL_RADIUS_NO_CHURN: this deleted and re-added the router's RADIUS client on EVERY
+               5-minute heartbeat. Each rewrite leaves a brief window with no client configured, in
+               which any authentication in flight is silently discarded — and it buried the router
+               log under add/remove pairs that made real events hard to spot. Only touch it when it
+               is actually wrong. */
+            const _want = ns.secret || ns.radius_secret;
+            if ((existing.data || []).some(function (r) { return r.address === '10.8.0.1' && r.secret === _want; })) {
+              require('../utils/logger').info('[RADIUS-PROVISION] router entry already correct — no change');
+            } else {
             for (const r of (existing.data || [])) {
               if (r.comment === 'RumaLink-VPS' || r.address === '10.8.0.1') {
                 /* RL_CLIENT_DEL_SAFE: the REST helper does not expose .del — the delete method
@@ -544,7 +553,12 @@ router.get('/:token/script', async (req, res) => {
             // Add fresh
             await client.put('/radius', {
               address: '10.8.0.1',
-              secret: ns.radius_secret,
+              /* RL_SECRET_COLUMN_FIX: nas_devices holds TWO secrets. FreeRADIUS authenticates with `secret`
+                 (the RML… value written to clients-rumalink.conf and the nas table); `radius_secret`
+                 is a legacy hex column nothing else reads. Pushing the legacy one left the router
+                 signing packets with a secret the server did not recognise, and FreeRADIUS discards
+                 those SILENTLY — so every hotspot and PPPoE login failed while radtest still passed. */
+              secret: ns.secret || ns.radius_secret,
               service: 'hotspot,ppp',
               timeout: '3s',
               'src-address': ns.wireguard_ip,
@@ -553,6 +567,7 @@ router.get('/:token/script', async (req, res) => {
               comment: 'RumaLink-VPS'
             });
             require('../utils/logger').info(`[RADIUS-PROVISION] added /radius entry on ${ns.id}`);
+            }
           }
         } catch(e) { require('../utils/logger').warn(`[RADIUS-PROVISION] router push failed: ${e.message}`); }
 
@@ -633,7 +648,7 @@ router.post('/heartbeat/:token', async (req, res) => {
         `UPDATE nas_devices 
             SET radius_secret = COALESCE(NULLIF(radius_secret, ''), encode(gen_random_bytes(16), 'hex'))
           WHERE id = $1::uuid 
-        RETURNING id, radius_secret, wireguard_ip, mikrotik_api_user, mikrotik_api_password /* RL_RETURNING_ID: id was missing, so ns.id was undefined and loadDevice(undefined) threw 'Device not found' */`,
+        RETURNING id, secret, radius_secret, wireguard_ip, mikrotik_api_user, mikrotik_api_password /* RL_SECRET_COLUMN_FIX */ /* RL_RETURNING_ID: id was missing, so ns.id was undefined and loadDevice(undefined) threw 'Device not found' */`,
         [dev.rows[0] ? dev.rows[0].id : null] /* RL_HEARTBEAT_NAS_FIX: this block lives in the 5-minute
            heartbeat handler where the device variable is `dev`, not `nas`. Referencing `nas` threw
            "nas is not defined" on EVERY heartbeat, so the router /radius push and the clients.conf
@@ -650,6 +665,15 @@ router.post('/heartbeat/:token', async (req, res) => {
           if (client) {
             // Remove existing RumaLink-VPS entries
             const existing = await client.get('/radius');
+            /* RL_RADIUS_NO_CHURN: this deleted and re-added the router's RADIUS client on EVERY
+               5-minute heartbeat. Each rewrite leaves a brief window with no client configured, in
+               which any authentication in flight is silently discarded — and it buried the router
+               log under add/remove pairs that made real events hard to spot. Only touch it when it
+               is actually wrong. */
+            const _want = ns.secret || ns.radius_secret;
+            if ((existing.data || []).some(function (r) { return r.address === '10.8.0.1' && r.secret === _want; })) {
+              require('../utils/logger').info('[RADIUS-PROVISION] router entry already correct — no change');
+            } else {
             for (const r of (existing.data || [])) {
               if (r.comment === 'RumaLink-VPS' || r.address === '10.8.0.1') {
                 /* RL_CLIENT_DEL_SAFE: the REST helper does not expose .del — the delete method
@@ -663,7 +687,12 @@ router.post('/heartbeat/:token', async (req, res) => {
             // Add fresh
             await client.put('/radius', {
               address: '10.8.0.1',
-              secret: ns.radius_secret,
+              /* RL_SECRET_COLUMN_FIX: nas_devices holds TWO secrets. FreeRADIUS authenticates with `secret`
+                 (the RML… value written to clients-rumalink.conf and the nas table); `radius_secret`
+                 is a legacy hex column nothing else reads. Pushing the legacy one left the router
+                 signing packets with a secret the server did not recognise, and FreeRADIUS discards
+                 those SILENTLY — so every hotspot and PPPoE login failed while radtest still passed. */
+              secret: ns.secret || ns.radius_secret,
               service: 'hotspot,ppp',
               timeout: '3s',
               'src-address': ns.wireguard_ip,
@@ -672,6 +701,7 @@ router.post('/heartbeat/:token', async (req, res) => {
               comment: 'RumaLink-VPS'
             });
             require('../utils/logger').info(`[RADIUS-PROVISION] added /radius entry on ${ns.id}`);
+            }
           }
         } catch(e) { require('../utils/logger').warn(`[RADIUS-PROVISION] router push failed: ${e.message}`); }
 
@@ -823,7 +853,7 @@ router.post('/:token/interfaces', async (req, res) => {
         `UPDATE nas_devices 
             SET radius_secret = COALESCE(NULLIF(radius_secret, ''), encode(gen_random_bytes(16), 'hex'))
           WHERE id = $1::uuid 
-        RETURNING id, radius_secret, wireguard_ip, mikrotik_api_user, mikrotik_api_password /* RL_RETURNING_ID: id was missing, so ns.id was undefined and loadDevice(undefined) threw 'Device not found' */`,
+        RETURNING id, secret, radius_secret, wireguard_ip, mikrotik_api_user, mikrotik_api_password /* RL_SECRET_COLUMN_FIX */ /* RL_RETURNING_ID: id was missing, so ns.id was undefined and loadDevice(undefined) threw 'Device not found' */`,
         [nas.id]
       );
       const ns = secretRow.rows[0];
@@ -837,6 +867,15 @@ router.post('/:token/interfaces', async (req, res) => {
           if (client) {
             // Remove existing RumaLink-VPS entries
             const existing = await client.get('/radius');
+            /* RL_RADIUS_NO_CHURN: this deleted and re-added the router's RADIUS client on EVERY
+               5-minute heartbeat. Each rewrite leaves a brief window with no client configured, in
+               which any authentication in flight is silently discarded — and it buried the router
+               log under add/remove pairs that made real events hard to spot. Only touch it when it
+               is actually wrong. */
+            const _want = ns.secret || ns.radius_secret;
+            if ((existing.data || []).some(function (r) { return r.address === '10.8.0.1' && r.secret === _want; })) {
+              require('../utils/logger').info('[RADIUS-PROVISION] router entry already correct — no change');
+            } else {
             for (const r of (existing.data || [])) {
               if (r.comment === 'RumaLink-VPS' || r.address === '10.8.0.1') {
                 /* RL_CLIENT_DEL_SAFE: the REST helper does not expose .del — the delete method
@@ -850,7 +889,12 @@ router.post('/:token/interfaces', async (req, res) => {
             // Add fresh
             await client.put('/radius', {
               address: '10.8.0.1',
-              secret: ns.radius_secret,
+              /* RL_SECRET_COLUMN_FIX: nas_devices holds TWO secrets. FreeRADIUS authenticates with `secret`
+                 (the RML… value written to clients-rumalink.conf and the nas table); `radius_secret`
+                 is a legacy hex column nothing else reads. Pushing the legacy one left the router
+                 signing packets with a secret the server did not recognise, and FreeRADIUS discards
+                 those SILENTLY — so every hotspot and PPPoE login failed while radtest still passed. */
+              secret: ns.secret || ns.radius_secret,
               service: 'hotspot,ppp',
               timeout: '3s',
               'src-address': ns.wireguard_ip,
@@ -859,6 +903,7 @@ router.post('/:token/interfaces', async (req, res) => {
               comment: 'RumaLink-VPS'
             });
             require('../utils/logger').info(`[RADIUS-PROVISION] added /radius entry on ${ns.id}`);
+            }
           }
         } catch(e) { require('../utils/logger').warn(`[RADIUS-PROVISION] router push failed: ${e.message}`); }
 
