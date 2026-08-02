@@ -356,6 +356,13 @@ router.post('/:ispId/pay', require('../middleware/auth').requireActiveLicense, a
          explicit 'intasend' selection, so an ISP who chose "M-Pesa STK" fell through to Daraja —
          which has no credentials on this platform — and got a 403 from Safaricom. */
       const _route = await require('../utils/paymentRoute').resolve(req.params.ispId);
+      /* RL_ROUTE_REFUSAL: paymentRoute refuses rather than substituting a gateway the ISP did
+         not choose (RL_NO_SUBSTITUTION). Surface that as a clear message instead of falling
+         through to Daraja and failing at Safaricom with a 403 nobody can interpret. */
+      if (_route && _route.gateway === null && _route.error) {
+        logger.warn('[captive] payment refused for isp ' + req.params.ispId + ': ' + _route.error);
+        return res.status(400).json({ error: _route.error });
+      }
       if (_route.gateway === 'intasend') {
         const intasend = require('../utils/intasend-client');
         const isfees = require('../utils/intasend-fees');
