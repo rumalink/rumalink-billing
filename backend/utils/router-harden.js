@@ -18,22 +18,35 @@ async function onlineRouters() {
 async function harden(d) {
   const auth = { username: d.mikrotik_api_user, password: d.mikrotik_api_password };
   const b = 'http://' + d.wireguard_ip + '/rest';
-  const get = async p => (await axios.get(b + p, { auth, timeout: 8000 })).data || [];
-  const put = async (p, body) => axios.put(b + p, body, { auth, timeout: 8000 });
-  const patch = async (p, body) => axios.patch(b + p, body, { auth, timeout: 8000 });
-  const del = async (p, id) => axios.delete(b + p + '/' + encodeURIComponent(id), { auth, timeout: 8000 });
-  const move = async (p, id, dest) => axios.post(b + p + '/move', { numbers: id, destination: dest }, { auth, timeout: 8000 });
+  const get = async p => (await axios.get(b + p, { auth, timeout: 25000 })).data || [];
+  const put = async (p, body) => axios.put(b + p, body, { auth, timeout: 25000 });
+  const patch = async (p, body) => axios.patch(b + p, body, { auth, timeout: 25000 });
+  const del = async (p, id) => axios.delete(b + p + '/' + encodeURIComponent(id), { auth, timeout: 25000 });
+  const move = async (p, id, dest) => axios.post(b + p + '/move', { numbers: id, destination: dest }, { auth, timeout: 25000 });
 
-  // 1) fasttrack pair
+  // 1) RL_NO_FASTTRACK — fasttrack is DELIBERATELY NOT enabled on RumaLink routers.
+  //    Fasttracked packets bypass the forwarding pipeline that /queue/simple lives in, so
+  //    every per-user rate limit (hotspot rl-<code>, PPPoE, TV rl-tv-<mac>) silently stops
+  //    being enforced. Shaping is the product, so fasttrack can only ever accelerate traffic
+  //    we are not billing — effectively nothing on a hotspot/PPPoE router. We therefore
+  //    ensure it is ABSENT/DISABLED rather than adding it.
+  //    NOTE: the general `accept established,related` rule IS kept — it is required for
+  //    return traffic and is unrelated to fasttrack.
   const filter = await get('/ip/firewall/filter');
-  const hasFt = filter.some(f => f.action === 'fasttrack-connection');
-  if (!hasFt) {
-    const fwd = filter.filter(f => f.chain === 'forward');
-    const firstId = fwd.length ? fwd[0]['.id'] : null;
-    const r1 = await put('/ip/firewall/filter', { chain:'forward', action:'fasttrack-connection', 'connection-state':'established,related', comment:'RL-FASTTRACK est' });
-    const r2 = await put('/ip/firewall/filter', { chain:'forward', action:'accept', 'connection-state':'established,related', comment:'RL-FASTTRACK accept' });
-    if (firstId) for (const id of [r1.data['.id'], r2.data['.id']]) { try { await axios.post(b+'/ip/firewall/filter/move',{numbers:id,destination:firstId},{auth,timeout:8000}); } catch(e){} }
-    logger.info('[router-harden] ' + d.name + ' fasttrack added');
+  for (const f of filter) {
+    if (f.action === 'fasttrack-connection') {
+      try {
+        await del('/ip/firewall/filter', f['.id']);
+        logger.warn('[router-harden] ' + d.name + ' FASTTRACK RULE FOUND — deleted it; rate limits were being bypassed');
+      } catch (e) { logger.warn('[router-harden] fasttrack delete: ' + e.message); }
+    }
+  }
+  // keep the connectivity-critical established/related accept
+  if (!filter.some(f => /RL-FASTTRACK accept/.test(String(f.comment || '')))) {
+    try {
+      await put('/ip/firewall/filter', { chain:'forward', action:'accept', 'connection-state':'established,related', comment:'RL-FASTTRACK accept' });
+      logger.info('[router-harden] ' + d.name + ' established/related accept restored');
+    } catch (e) {}
   }
 
   // 2) MSS clamp on pppoe (only if a pppoe WAN iface exists)
@@ -74,26 +87,27 @@ async function harden(d) {
       await put('/ip/firewall/filter', Object.assign({}, W, { protocol:'udp', 'dst-port':'53', action:'accept', comment:'RL-PPPOE-WALL dns' }));
       await put('/ip/firewall/filter', Object.assign({}, W, { protocol:'tcp', 'dst-port':'53', action:'accept', comment:'RL-PPPOE-WALL dns2' }));
       await put('/ip/firewall/filter', Object.assign({}, W, { 'dst-address-list':'rl-portal', action:'accept', comment:'RL-PPPOE-WALL portal' }));
-      await put('/ip/firewall/filter', Object.assign({}, W, { action:'drop', comment:'RL-PPPOE-WALL drop' }));
+      await put('/ip/firewall/filter', Object.assign({}, W, { action:'reject', 'reject-with':'icmp-admin-prohibited', comment:'RL-PPPOE-WALL drop' })); /* RL_WALL_REJECT: reject (not drop) so expired clients fail fast and the OS re-probes -> portal appears quickly */
       logger.info('[router-harden] ' + d.name + ' RL-PPPOE-WALL (scoped) added');
     }
   } catch (e) { logger.warn('[router-harden] wall: ' + e.message); }
 
-  // 6) RL_PPPOE_FULL — RL-PPPOE-NOFT: exclude the PPPoE pool from fasttrack so per-user queues
-  //    actually cap the speed (fasttracked conns bypass queues -> uncapped bursts + instability).
-  //    Must sit ABOVE the fasttrack rule. Scoped to 100.64.0.0/24 so hotspot keeps fasttrack.
+  // 6) RL_NOFT_OBSOLETE — RL-PPPOE-NOFT is intentionally NOT created any more.
+  //    It existed only to keep the PPPoE pool out of fasttrack. Fasttrack is no longer used
+  //    (see RL_NO_FASTTRACK above), so the rule had no purpose — and because it accepted
+  //    established,related ABOVE the RL-PPPOE-WALL drops, it let expired customers keep
+  //    using already-open connections past expiry. Removing it closes that leak at the
+  //    firewall level; expired-enforcer.js remains as defence in depth.
   try {
-    const fw2 = await get('/ip/firewall/filter');
-    const haveNoft = fw2.filter(function(x){ return /RL-PPPOE-NOFT/.test(String(x.comment||'')); });
-    const ftRule = fw2.find(function(x){ return x.action === 'fasttrack-connection'; });
-    if (ftRule && haveNoft.length < 2) {
-      for (const x of haveNoft) { try { await del('/ip/firewall/filter', x['.id']); } catch(e){} }
-      const a1 = await put('/ip/firewall/filter', { chain:'forward', action:'accept', 'connection-state':'established,related', 'src-address':'100.64.0.0/24', comment:'RL-PPPOE-NOFT src' });
-      const a2 = await put('/ip/firewall/filter', { chain:'forward', action:'accept', 'connection-state':'established,related', 'dst-address':'100.64.0.0/24', comment:'RL-PPPOE-NOFT dst' });
-      for (const id of [a1.data['.id'], a2.data['.id']]) { try { await move('/ip/firewall/filter', id, ftRule['.id']); } catch(e){} }
-      logger.info('[router-harden] ' + d.name + ' RL-PPPOE-NOFT added above fasttrack');
+    const fwN = await get('/ip/firewall/filter');
+    for (const x of fwN) {
+      if (/RL-PPPOE-NOFT|RL-HOTSPOT-NOFT/.test(String(x.comment || ''))) {
+        try { await del('/ip/firewall/filter', x['.id']); logger.info('[router-harden] ' + d.name + ' removed obsolete ' + x.comment); } catch (e) {}
+      }
     }
-  } catch (e) { logger.warn('[router-harden] noft: ' + e.message); }
+  } catch (e) { logger.warn('[router-harden] noft-cleanup: ' + e.message); }
+
+
 
   // 7) RL-PPPOE-CAPTIVE: dst-nat expired-PPPoE port-80 to the nginx responder so the phone shows
   //    'Sign in to network' and opens the pay portal. Scoped to 100.64.0.0/24 + rl-expired list.

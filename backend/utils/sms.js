@@ -161,7 +161,11 @@ const KENYA_GATEWAYS = {
 };
 
 const sendSMS = async ({ to, message, isp }) => {
-  const gateway = isp?.sms_gateway?.toLowerCase() || process.env.SMS_DEFAULT_GATEWAY || 'africastalking';
+  /* RL_DEFAULT_GATEWAY: defaulted to 'africastalking', which is not configured here, while the
+     logging wrapper below defaulted to 'rumalink'. Any caller that did not set sms_gateway
+     explicitly (cron expiry notices, ISP alerts) failed to send AND was logged against the
+     wrong provider. 'rumalink' is the platform reseller gateway backed by sms_provider_config. */
+  const gateway = isp?.sms_gateway?.toLowerCase() || process.env.SMS_DEFAULT_GATEWAY || 'rumalink';
   const phone = to.toString().replace(/^0/, '+254').replace(/^\+?254/, '+254').replace(/\s/g, '');
 
   const gw = KENYA_GATEWAYS[gateway];
@@ -210,4 +214,49 @@ const sendSMS = async ({ to, message, isp }) => {
 // Export list of gateways for frontend
 const GATEWAY_LIST = Object.entries(KENYA_GATEWAYS).map(([id, g]) => ({ id, name: g.name }));
 
-module.exports = { sendSMS, GATEWAY_LIST };
+/* RL_SMS_LOGGING: record every message that leaves the platform.
+   sms_logs existed with the right columns but nothing ever wrote to it, so per-customer history
+   was permanently empty and there was no way to answer "did this person actually get their code?".
+   Wrapping the exported function rather than editing the sender means every caller is covered —
+   purchase confirmations, expiry notices, OTPs, ISP alerts and manual messages — without each one
+   having to remember to log. Failures are recorded too: a message that never arrived is exactly
+   the one worth being able to see. */
+const _rlSendCore = sendSMS;
+const _rlSendLogged = async function (opts) {
+  const o = opts || {};
+  const to = o.to || o.phone || '';
+  const body = o.message || o.text || '';
+  const isp = o.isp || {};
+  const gateway = (isp.sms_gateway || process.env.SMS_DEFAULT_GATEWAY || 'rumalink').toLowerCase();
+  let result = null, failure = null;
+  try {
+    result = await _rlSendCore(o);
+  } catch (e) {
+    failure = e;
+  }
+  try {
+    const gwId = result && (result.messageId || result.message_id || result.id ||
+                            (result.data && (result.data.messageId || result.data.id))) || null;
+    const cost = result && (result.cost || (result.data && result.data.cost)) || null;
+    /* RL_STATUS_NORMALISE: gateways disagree on vocabulary — TalkSASA answers 'success', others
+       return nothing at all and fall through to 'sent'. Two words for one outcome made identical
+       messages look like different events in the history. Collapse them at write time. */
+    let status = failure ? 'failed' : ((result && (result.status || result.state)) || 'sent');
+    status = String(status).toLowerCase();
+    if (['success', 'ok', 'queued', 'submitted', 'accepted', 'delivered'].indexOf(status) >= 0) status = 'sent';
+    if (['error', 'rejected', 'undelivered'].indexOf(status) >= 0) status = 'failed';
+    const note = failure ? String(failure.message || 'send failed').slice(0, 200) : null;
+    await query(
+      "INSERT INTO sms_logs (isp_id, recipient, message, gateway, gateway_message_id, status, cost, sent_at) " +
+      "VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, NOW())",
+      [isp.id || null, String(to), note ? (String(body) + '\n[' + note + ']') : String(body),
+       gateway, gwId ? String(gwId) : null, String(status).slice(0, 40),
+       cost != null ? Number(cost) : null]);
+  } catch (le) {
+    try { require('./logger').warn('[sms-log] ' + le.message); } catch (e) {}
+  }
+  if (failure) throw failure;
+  return result;
+};
+
+module.exports = { sendSMS: _rlSendLogged, GATEWAY_LIST };

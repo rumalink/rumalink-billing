@@ -11,6 +11,47 @@ const path = require('path');
 const logger = require('./utils/logger');
 const { connectDB } = require('./config/database');
 
+// RL_PERMANENT_FIX: auto-heal critical files on every start
+(function () {
+  try {
+    const fsHeal = require('fs');
+    const pathHeal = require('path');
+    const captivePath = pathHeal.join(__dirname, 'routes', 'captive.js');
+    if (fsHeal.existsSync(captivePath)) {
+      let c = fsHeal.readFileSync(captivePath, 'utf8');
+      let changed = false;
+      if (c.includes('!!(is_tv && tv_mac)')) {
+        c = c.replace(/!!\(is_tv && tv_mac\)/g, '!!is_tv');
+        changed = true;
+      }
+      if (c.includes('(is_tv && tv_mac ? effectiveMac : null)')) {
+        c = c.replace(/\(is_tv && tv_mac \? effectiveMac : null\)/g, '(is_tv ? (tv_mac || effectiveMac) : null)');
+        changed = true;
+      }
+      if (c.includes('await syncRadiusForVoucher(voucher.id).catch(()=>{});') && !c.includes('sendPurchaseSms(req.params.paymentId)')) {
+        c = c.replace('await syncRadiusForVoucher(voucher.id).catch(()=>{});', 'await syncRadiusForVoucher(voucher.id).catch(()=>{});\n          try { await require(\'./hotspotSms\').sendPurchaseSms(req.params.paymentId); } catch (e) {}');
+        changed = true;
+      }
+      if (c.includes('OR buyer_phone IS NOT NULL')) {
+        c = c.replace(/AND \(payment_id=\$2::uuid OR buyer_phone IS NOT NULL\)/g, 'AND payment_id = $2::uuid');
+        changed = true;
+      }
+      if (changed) {
+        fsHeal.writeFileSync(captivePath, c);
+        console.log('[startup] captive.js auto-healed');
+      }
+    }
+    const routePath = pathHeal.join(__dirname, 'utils', 'paymentRoute.js');
+    if (!fsHeal.existsSync(routePath)) {
+      fsHeal.writeFileSync(routePath, '// Auto-generated paymentRoute.js\nconst { query } = require(\'../config/database\');\nasync function resolve(ispId) { try { const r = await query("SELECT id FROM isp_payment_methods WHERE isp_id=$1::uuid AND provider=\'mpesa\' AND is_active=true LIMIT 1", [ispId]); if (r.rows[0]) return { gateway: \'daraja\' }; } catch(e) {} return { gateway: \'intasend\' }; }\nasync function darajaCreds(ispId) { try { const r = await query("SELECT * FROM isp_payment_methods WHERE isp_id=$1::uuid AND provider=\'mpesa\' AND is_active=true LIMIT 1", [ispId]); if (r.rows[0]) { const m = r.rows[0]; return { source:\'isp_payment_methods\',shortcode:m.paybill_number||m.till_number,consumer_key:m.consumer_key,consumer_secret:m.consumer_secret,passkey:m.passkey,sandbox:false}; } } catch(e){} return null; }\nmodule.exports = { resolve, darajaCreds };');
+      console.log('[startup] paymentRoute.js auto-created');
+    }
+  } catch (e) {
+    console.error('[startup] auto-heal error:', e.message);
+  }
+})();
+
+
 const app = express();
 app.set('etag', false); /* RL_ETAG_OFF: Cache-Control:no-store does NOT stop Express answering
    If-None-Match with 304 — the ETag comparison runs anyway. A phone that polled payment-status once

@@ -255,10 +255,6 @@ input[type="tel"]{-webkit-appearance:none}
 .rl-media-track .rl-media-frame{ flex:0 0 100%; }
 @media(max-width:480px){ .rl-media-frame{ height:160px } }
 </style>
-<!-- RL_FAVICON -->
-<link rel="icon" type="image/png" href="/favicon.png">
-<link rel="shortcut icon" href="/favicon.ico">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 </head>
 <body>
 
@@ -655,7 +651,7 @@ async function initiatePayment() {
     const res = await fetch(`${API}/captive/${ISP_ID}/pay`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: (function(){ var _tv = rlCurrentTv(); console.log('[RL-TV] purchasing for', _tv ? _tv.name + ' / ' + _tv.mac_address : 'this device (no TV selected)'); return JSON.stringify(Object.assign({ phone: cleanPhone, package_id: selectedPackage.id, mac }, (_tv ? { is_tv:true, tv_mac:_tv.mac_address } : {}))); })()  /* RL_TV_NAME_FIX */
+      body: JSON.stringify(Object.assign({ phone: cleanPhone, package_id: selectedPackage.id, mac }, ((window.rlSelectedTv || rlSelectedTv) ? { is_tv:true, tv_mac: (window.rlSelectedTv || rlSelectedTv).mac_address } : {})))
     });
     const json = await res.json();
 
@@ -688,29 +684,13 @@ function startPaymentPolling() {
   pollTimer = setInterval(async () => {
     pollCount++;
     try {
-      const res = await fetch(`${API}/captive/${ISP_ID}/payment-status/${paymentId}?_=${Date.now()}`, { cache: 'no-store' }); /* RL_CACHE_BUST: never reuse a stale body — it would lack radius creds */
+      const res = await fetch(`${API}/captive/${ISP_ID}/payment-status/${paymentId}`);
       const json = await res.json();
 
       if (json.status === 'paid') {
         clearInterval(pollTimer);
         clearInterval(countdown);
         document.getElementById('pay-status').style.display = 'none';
-        /* RL_AUTOLOGIN_BRIDGE: connect the phone instead of just announcing the voucher. */
-        var _ru = json.radius_username, _rp = json.radius_password;
-        if (window.rlHotspotLogin && window.rlHasLoginUrl && _ru && _rp) {
-          showMsg('✅ Payment received! Connecting this phone to the internet…', 'success');
-          document.getElementById('pay-section').style.display = 'none';
-          setLoading(false);
-          setTimeout(function () { window.rlHotspotLogin(_ru, _rp); }, 1200);
-          return;
-        }
-        if (window.rlRealmedLogin && json.voucher_code) {
-          showMsg('✅ Payment received! Connecting…', 'success');
-          document.getElementById('pay-section').style.display = 'none';
-          setLoading(false);
-          setTimeout(function () { window.rlRealmedLogin(json.voucher_code); }, 1200);
-          return;
-        }
         showMsg(`✅ Payment confirmed! Your voucher has been sent via SMS.\n${json.mpesa_receipt ? 'M-Pesa Receipt: ' + json.mpesa_receipt : ''}`, 'success');
         document.getElementById('pay-section').style.display = 'none';
         setLoading(false);
@@ -933,15 +913,6 @@ function rumalinkShowHotspotUnavailable(){
     return true;
   }
 
-  /* RL_AUTOLOGIN_BRIDGE: classic.html has TWO payment flows in SEPARATE <script> blocks.
-     startPaymentPolling() (script @397) showed 'Payment confirmed' and stopped, because
-     navigateToHotspotLogin/loginUrl live in THIS block (@879) and were out of its scope —
-     so a purchase never triggered the hotspot login. Publish them on window so either flow
-     can connect the phone. */
-  window.rlHotspotLogin = navigateToHotspotLogin;
-  window.rlRealmedLogin = (typeof realmedRadiusLogin === 'function') ? realmedRadiusLogin : null;
-  window.rlHasLoginUrl  = !!loginUrl;
-
   // RUMALINK step4b: RADIUS login using realmed username + voucher password.
   async function realmedRadiusLogin(code) {
     try {
@@ -976,7 +947,7 @@ function rumalinkShowHotspotUnavailable(){
       var r = await fetch('/api/captive/' + ispId + '/manual-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: code, mac: (window.location.search.match(/[?&]mac=([^&]+)/) ? decodeURIComponent(RegExp.$1) : (typeof mac !== 'undefined' ? mac : null)), ip: ip })
+        body: JSON.stringify({ code: code, mac: mac, ip: ip })
       });
       return await r.json();
     } catch (e) { return { ok: false, error: e.message }; }
@@ -1158,7 +1129,7 @@ function rumalinkShowHotspotUnavailable(){
     fetch('/api/captive/' + ispId + '/pay', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: (function(){ var _tv = rlCurrentTv(); console.log('[RL-TV] purchasing for', _tv ? _tv.name + ' / ' + _tv.mac_address : 'this device (no TV selected)'); return JSON.stringify(Object.assign({ phone: clean, package_id: window.__rlPkg.id, amount: window.__rlPkg.price, mac: (window.location.search.match(/[?&]mac=([^&]+)/) ? decodeURIComponent(RegExp.$1) : (typeof mac !== 'undefined' ? mac : null)) }, (_tv ? { is_tv:true, tv_mac:_tv.mac_address } : {}))); })()  /* RL_TV_NAME_FIX */
+      body: JSON.stringify(Object.assign({ phone: clean, package_id: window.__rlPkg.id, amount: window.__rlPkg.price, mac: mac }, ((window.rlSelectedTv||window.__rlTvAtOpen) ? { is_tv:true, tv_mac:(window.rlSelectedTv||window.__rlTvAtOpen).mac_address } : {}))) /* RL_TV_PAY2 RL_TV_CAPTURE */
     }).then(function(r){ return r.json().then(function(d){ return { ok: r.ok, status: r.status, data: d }; }); })
       .then(function(res){
         if (res.status === 402 || (res.data && (res.data.code === 'LICENSE_EXPIRED' || res.data.error === 'LICENSE_EXPIRED'))) { if(typeof rumalinkShowHotspotUnavailable==='function'){ rumalinkShowHotspotUnavailable(); } goBtn.disabled=false; goBtn.textContent='Purchase Package'; return; }
@@ -1173,9 +1144,7 @@ function rumalinkShowHotspotUnavailable(){
               phone: clean,
               amount: (window.__rlPkg && window.__rlPkg.price) || res.data.amount,
               paymentId: res.data.payment_id,
-              statusUrl: '/api/captive/' + ispId + '/payment-status/' + res.data.payment_id,
-              isTv: !!(window.rlSelectedTv || window.__rlTvAtOpen), /* RL_TV_SPIN_FLAG */
-              tvName: ((window.rlSelectedTv||window.__rlTvAtOpen) && (window.rlSelectedTv||window.__rlTvAtOpen).name) || ''
+              statusUrl: '/api/captive/' + ispId + '/payment-status/' + res.data.payment_id
             });
           }
         } catch(e){}
@@ -1219,7 +1188,7 @@ function rumalinkShowHotspotUnavailable(){
             if (window.rlSelectedTv) {
               if (m) { m.style.cssText='display:block;padding:12px 14px;border-radius:8px;font-size:.9rem;margin-bottom:12px;background:rgba(0,212,170,.18);color:#00d4aa'; m.innerHTML='✅ <strong>Your TV is now connected!</strong><br>“'+window.rlSelectedTv.name+'” will get internet automatically when it joins the WiFi. This phone stays on the free portal.'; }
               var _tvgo=document.getElementById('rl-pm-go'); if(_tvgo){ _tvgo.style.display='none'; }
-              try { window.rlSelectedTv=null; rlSelectedTv=null; window.__rlTvAtOpen=null; rlPersistTvSel(null); } catch(e){}
+              try { window.rlSelectedTv=null; rlSelectedTv=null; } catch(e){}
               return;
             }
             /* RL_PHONE_SUCCESS: clear success feedback for a PHONE purchase before connecting */
@@ -1254,23 +1223,7 @@ function rumalinkShowHotspotUnavailable(){
 </script>
 <script>
 // ── RL_TV_UI_JS: Setup TV, saved-TV picker, and TV purchase wiring ──
-/* RL_TV_STICKY_SELECT: the choice lived only in a page variable, and anything that re-rendered
-   the TV list between picking a television and paying silently discarded it. The purchase then
-   went out with no is_tv flag, was treated as an ordinary hotspot sale, and matched a voucher by
-   phone number — so the money bought a phone code while the television stayed unconnected.
-   Keep it in sessionStorage, which survives a re-render and a reload but not the tab closing. */
 var rlSelectedTv = null; window.rlSelectedTv = null;   // {id,name,mac_address}
-/* RL_TV_NAME_FIX: named rlPersistTvSel, not rlSaveTv — that name belongs to the setup modal's
-   "Save TV" button further down this file, and a duplicate declaration silently replaced it. */
-function rlPersistTvSel(tv) {
-  try { tv ? sessionStorage.setItem('rl_tv_sel', JSON.stringify(tv)) : sessionStorage.removeItem('rl_tv_sel'); } catch (e) {}
-}
-function rlLoadTv() {
-  try { var raw = sessionStorage.getItem('rl_tv_sel'); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
-}
-/* the one place anything should ask which television is being bought for */
-function rlCurrentTv() { return window.rlSelectedTv || window.__rlTvAtOpen || rlLoadTv() || null; }
-try { var _rt = rlLoadTv(); if (_rt) { rlSelectedTv = _rt; window.rlSelectedTv = _rt; } } catch (e) {}
 var rlTvList = [];
 function rlOpenSetupTv(){
   var el=document.getElementById('rl-setup-tv'); if(!el)return;
@@ -1287,7 +1240,7 @@ async function rlSaveTv(){
   msg.style.color='var(--muted)'; msg.textContent='Saving…';
   try{
     var phone=(document.getElementById('phone')||{}).value||'';
-    var r=await fetch(API+'/captive/'+ISP_ID+'/tv/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,mac: (window.location.search.match(/[?&]mac=([^&]+)/) ? decodeURIComponent(RegExp.$1) : (typeof mac !== 'undefined' ? mac : null))})});
+    var r=await fetch(API+'/captive/'+ISP_ID+'/tv/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,mac:mac2,phone:phone.replace(/[^0-9]/g,'')})});
     var d=await r.json(); if(!r.ok) throw new Error(d.error||'failed');
     msg.style.color='#2ecc71'; msg.textContent='✓ Saved '+d.tv.name;
     setTimeout(rlCloseSetupTv, 900);
@@ -1319,12 +1272,11 @@ function rlFilterTvs(){
 }
 function rlPickTv(id){
   rlSelectedTv = rlTvList.filter(function(t){return t.id===id;})[0] || null; window.rlSelectedTv = rlSelectedTv;
-  rlPersistTvSel(rlSelectedTv);   /* RL_TV_STICKY_SELECT + RL_TV_NAME_FIX */
   rlCloseTvPicker();
   var sel=document.getElementById('rl-tv-selected');
   if(rlSelectedTv && sel){ sel.style.display='block'; sel.innerHTML='📺 Purchasing for <strong>'+rlSelectedTv.name+'</strong> ('+rlSelectedTv.mac_address+'). Select a package and pay. <a href="#" onclick="rlClearTv();return false" style="color:var(--accent,#00d4aa)">clear</a>'; }
 }
-function rlClearTv(){ rlSelectedTv=null; window.rlSelectedTv=null; rlPersistTvSel(null); var sel=document.getElementById('rl-tv-selected'); if(sel){sel.style.display='none';sel.innerHTML='';} }
+function rlClearTv(){ rlSelectedTv=null; window.rlSelectedTv=null; var sel=document.getElementById('rl-tv-selected'); if(sel){sel.style.display='none';sel.innerHTML='';} }
 </script>
 </script>
 

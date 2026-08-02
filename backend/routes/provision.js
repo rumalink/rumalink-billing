@@ -246,12 +246,17 @@ ${bridgePortsBlock}
 # place-before=[find ...] expression (which fails silently under on-error and mis-orders the chain).
 # router-harden also verifies/repairs the ordering with an explicit move within 2 minutes.
 :do { /ip firewall filter remove [find comment~"RL-PPPOE-NOFT"] } on-error={}
-:do { /ip firewall filter add chain=forward action=fasttrack-connection connection-state=established,related place-before=0 comment="RL-FASTTRACK est" } on-error={}
-:do { /ip firewall filter add chain=forward action=accept connection-state=established,related place-before=1 comment="RL-FASTTRACK accept" } on-error={}
+# RL_NO_FASTTRACK: fasttrack is intentionally NOT added. Fasttracked packets bypass
+# /queue/simple, which silently disables every per-user rate limit (hotspot, PPPoE, TV).
+# Shaping is the product; fasttrack would only accelerate traffic we do not bill.
+# The established/related accept below is kept — it is required for return traffic.
+# RL_ACCEPT_MUST_BE_LAST: no place-before — this rule MUST land at the BOTTOM of the
+# forward chain. If it sits above the rl-expired reject rules, expired customers keep
+# using already-open connections past expiry (revenue leak). router-harden re-asserts
+# this ordering every 2 minutes by delete+re-add.
+:do { /ip firewall filter add chain=forward action=accept connection-state=established,related comment="RL-FASTTRACK accept" } on-error={}
 # RL_NOFT_ORDER2: fasttrack uses place-before=0/1 (jumps to the top), so NOFT must be inserted AFTER it
 # with place-before=0 to sit ABOVE it. Adding dst first then src leaves order: src, dst, fasttrack...
-:do { /ip firewall filter add chain=forward action=accept connection-state=established,related dst-address=100.64.0.0/24 comment="RL-PPPOE-NOFT dst" place-before=0 } on-error={}
-:do { /ip firewall filter add chain=forward action=accept connection-state=established,related src-address=100.64.0.0/24 comment="RL-PPPOE-NOFT src" place-before=0 } on-error={}
 :do { /ip firewall mangle remove [find comment~"RL-MSS"] } on-error={}
 :do { /ip firewall mangle add chain=forward action=change-mss new-mss=clamp-to-pmtu protocol=tcp tcp-flags=syn out-interface=rl-wan-pppoe comment="RL-MSS clamp pppoe out" } on-error={}
 :do { /ip firewall mangle add chain=forward action=change-mss new-mss=clamp-to-pmtu protocol=tcp tcp-flags=syn in-interface=rl-wan-pppoe comment="RL-MSS clamp pppoe in" } on-error={}
@@ -281,7 +286,7 @@ ${bridgePortsBlock}
 :do { /ip firewall filter add chain=forward src-address=100.64.0.0/24 src-address-list="rl-expired" protocol=udp dst-port=53 action=accept comment="RL-PPPOE-WALL dns" } on-error={}
 :do { /ip firewall filter add chain=forward src-address=100.64.0.0/24 src-address-list="rl-expired" protocol=tcp dst-port=53 action=accept comment="RL-PPPOE-WALL dns2" } on-error={}
 :do { /ip firewall filter add chain=forward src-address=100.64.0.0/24 src-address-list="rl-expired" dst-address-list="rl-portal" action=accept comment="RL-PPPOE-WALL portal" } on-error={}
-:do { /ip firewall filter add chain=forward src-address=100.64.0.0/24 src-address-list="rl-expired" action=drop comment="RL-PPPOE-WALL drop" } on-error={}
+:do { /ip firewall filter add chain=forward src-address=100.64.0.0/24 src-address-list="rl-expired" action=reject reject-with=icmp-admin-prohibited comment="RL-PPPOE-WALL drop" } on-error={}
 # RL-PPPOE-NOFT: keep pppoe OUT of fasttrack so per-user queues actually cap speed (placed above fasttrack).
 :do { /ip firewall filter remove [find comment~"RL-PPPOE-NOFT"] } on-error={}
 # RL-PPPOE-CAPTIVE: expired pppoe port-80 -> nginx responder over WG (triggers the 'Sign in' popup).
@@ -304,7 +309,7 @@ ${bridgePortsBlock}
 :do { /ip firewall nat remove [find comment="RumaLink-wg-pppoe-redirect"] } on-error={}
 :do { :local pip [:resolve ${serverDomain}]; /ip firewall nat add chain=dstnat src-address-list="rl-expired" protocol=tcp dst-port=80 action=dst-nat to-addresses=$pip to-ports=80 comment="RumaLink-wg-pppoe-redirect" } on-error={}
 # Anything else from an expired user is dropped (HTTPS sites fail -> phone shows the captive page).
-:do { /ip firewall filter add chain=forward src-address-list="rl-expired" action=drop comment="RumaLink-wg-pppoe-drop" } on-error={}
+:do { /ip firewall filter add chain=forward src-address-list="rl-expired" action=reject reject-with=icmp-admin-prohibited comment="RumaLink-wg-pppoe-drop" } on-error={}
 ` : '';
 
   return `# RumaLink Auto-Config for ${isp.company_name} - ${isp.plan_type.toUpperCase()}
@@ -419,6 +424,15 @@ ${wireguardSection}${hotspotSection}${pppoeSection}
 }
 :log info "RumaLink: configuration complete"
 :put "RumaLink Setup Complete - Plan: ${isp.plan_type}"
+
+# RL_ACCEPT_LAST: re-assert the established/related accept as the LAST forward rule.
+# RouterOS appends rules in the order added, so this rule (added earlier, in the hotspot
+# section) would otherwise sit ABOVE the rl-expired reject rules — letting expired customers
+# keep using already-open connections past expiry (revenue leak). Removing and re-adding it
+# here guarantees it is below the walled garden. It also guarantees the rule exists at all on
+# PPPoE-only routers, where the hotspot section that normally creates it is skipped.
+:do { /ip firewall filter remove [find comment="RL-FASTTRACK accept"] } on-error={}
+:do { /ip firewall filter add chain=forward action=accept connection-state=established,related comment="RL-FASTTRACK accept" } on-error={}
 `;
 }
 
@@ -428,7 +442,12 @@ ${wireguardSection}${hotspotSection}${pppoeSection}
 // v62.19: sync secret column with radius_secret for backward compat
 async function syncProvisionSecret(nasId) {
   try {
-    await query("UPDATE nas_devices SET secret = radius_secret WHERE id = $1::uuid AND radius_secret IS NOT NULL AND secret IS DISTINCT FROM radius_secret", [nasId]);
+    /* RL_SECRET_CONVERGE: `secret` is what is pushed to the router and written into
+   clients-rumalink.conf, so it wins. The previous statement copied the OTHER way
+   (secret := radius_secret), which overwrote the router's real secret and left
+   10.8.0.2 registered twice with conflicting secrets — every Access-Request was
+   then silently discarded on shared-secret validation, with no radpostauth row. */
+    await query("UPDATE nas_devices SET secret = COALESCE(NULLIF(secret,''), radius_secret), radius_secret = COALESCE(NULLIF(secret,''), radius_secret) WHERE id = $1::uuid", [nasId]);
   } catch (e) { /* ignore */ }
 }
 

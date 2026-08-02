@@ -1731,9 +1731,27 @@ router.patch('/:ispId/voucher/:voucherId', async (req, res) => {
     const sets = [];
     const vals = [];
     let i = 1;
-    if (expires_at !== undefined) {
+    /* RL_EXPIRE_FORCE_TIME: status and expiry must never contradict. Marking a voucher expired
+       while its timestamp still sits in the future produced one screen saying 'expired' and
+       another saying '23h 43m left' — and the session sweep, which reads the status, cut off a
+       customer whose paid time had not run out. The status the operator picked decides the
+       timestamp, not the other way round. */
+    const _wantExpired = String(status || '').toLowerCase() === 'expired';
+    const _wantActive  = String(status || '').toLowerCase() === 'active';
+    if (_wantExpired) {
+      // never leave a future timestamp on an expired voucher
+      if (expires_at !== undefined && expires_at) {
+        sets.push('expires_at = LEAST($' + i++ + '::timestamptz, NOW())');
+        vals.push(expires_at);
+      } else {
+        sets.push('expires_at = NOW()');
+      }
+    } else if (expires_at !== undefined && expires_at) {
       sets.push('expires_at = $' + i++);
       vals.push(expires_at);
+    } else if (_wantActive) {
+      // reactivating something already past its time needs a future expiry, or it is both at once
+      sets.push("expires_at = GREATEST(COALESCE(expires_at, NOW()), NOW() + interval '1 hour')");
     }
     if (status !== undefined) {
       sets.push('status = $' + i++);
@@ -1848,6 +1866,127 @@ router.post('/:ispId/user/:code/resend-sms', async (req, res) => {
     return res.json({ ok: true, sent_to: v.buyer_phone });
   } catch (err) {
     require('../utils/logger').error('[resend-sms] ' + err.message);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+/* RL_MESSAGE_HISTORY: everything the SYSTEM has sent this customer — purchase confirmations,
+   expiry notices, OTPs, and anything typed by hand. Matched on the last nine digits of the number
+   so a message logged as +254…, 254… or 07… all belong to the same person; storing one format and
+   querying another is exactly how a history silently comes back empty. */
+router.get('/:ispId/user/:identifier/messages', async (req, res) => {
+  try {
+    const { ispId, identifier } = req.params;
+    const ident = String(identifier || '').split('@')[0].trim();
+    const digits = ident.replace(/[^0-9]/g, '');
+    let phone = null;
+
+    const v = await query(
+      "SELECT hv.buyer_phone FROM hotspot_vouchers hv WHERE hv.isp_id = $1::uuid " +
+      "AND (UPPER(hv.code) = UPPER($2) OR (LENGTH($3) >= 9 AND RIGHT(regexp_replace(hv.buyer_phone,'[^0-9]','','g'),9) = RIGHT($3,9))) " +
+      "ORDER BY hv.updated_at DESC NULLS LAST LIMIT 1", [ispId, ident, digits]);
+    if (v.rows[0]) phone = v.rows[0].buyer_phone;
+
+    if (!phone) {
+      const p = await query(
+        "SELECT phone FROM pppoe_subscribers WHERE isp_id = $1::uuid " +
+        "AND (LOWER(username) = LOWER($2) OR (LENGTH($3) >= 9 AND RIGHT(regexp_replace(COALESCE(phone,''),'[^0-9]','','g'),9) = RIGHT($3,9))) LIMIT 1",
+        [ispId, ident, digits]);
+      if (p.rows[0]) phone = p.rows[0].phone;
+    }
+    if (!phone) {
+      const t = await query(
+        "SELECT hv.buyer_phone FROM hotspot_bound_devices bd JOIN hotspot_vouchers hv ON hv.id = bd.active_voucher_id " +
+        "WHERE bd.isp_id = $1::uuid AND UPPER(bd.mac_address) = UPPER($2) LIMIT 1", [ispId, ident]);
+      if (t.rows[0]) phone = t.rows[0].buyer_phone;
+    }
+    if (!phone && digits.length >= 9) phone = digits;
+    if (!phone) return res.json({ ok: true, phone: null, messages: [], note: 'No phone on record' });
+
+    const pd = String(phone).replace(/[^0-9]/g, '');
+    /* RL_HISTORY_PAGING: return a page plus the true total, so the UI can say "1-20 of 143"
+       rather than silently truncating at a hundred. */
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 20, 1), 100);
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+    const tot = await query(
+      "SELECT COUNT(*)::int AS n FROM sms_logs WHERE isp_id = $1::uuid " +
+      "AND RIGHT(regexp_replace(recipient,'[^0-9]','','g'),9) = RIGHT($2,9)", [ispId, pd]);
+    const r = await query(
+      "SELECT id, recipient, message, status, gateway, cost, sent_at FROM sms_logs " +
+      "WHERE isp_id = $1::uuid AND RIGHT(regexp_replace(recipient,'[^0-9]','','g'),9) = RIGHT($2,9) " +
+      "ORDER BY sent_at DESC NULLS LAST LIMIT $3 OFFSET $4", [ispId, pd, limit, offset]);
+
+    return res.json({ ok: true, phone: phone, count: tot.rows[0].n, shown: r.rows.length,
+                      limit: limit, offset: offset, messages: r.rows });
+  } catch (err) {
+    require('../utils/logger').error('[message-history] ' + err.message);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+/* RL_CUSTOM_MESSAGE: free-text SMS to one customer from their lifecycle page.
+   Separate from resend-sms on purpose — that one re-sends the fixed voucher credentials and is
+   left exactly as it was. The recipient is resolved on the SERVER from the identifier rather than
+   taken from the request, so a tampered payload cannot make one ISP text another ISP's customer. */
+router.post('/:ispId/user/:identifier/message', async (req, res) => {
+  try {
+    const { ispId, identifier } = req.params;
+    const message = String((req.body && req.body.message) || '').trim();
+    if (!message) return res.status(400).json({ ok: false, error: 'Message is empty' });
+    if (message.length > 480) return res.status(400).json({ ok: false, error: 'Message is too long (max 480 characters, 3 SMS)' });
+
+    const ident = String(identifier || '').split('@')[0].trim();
+    const digits = ident.replace(/[^0-9]/g, '');
+    let phone = null, who = null;
+
+    // hotspot voucher: by code, or by the buyer's number in any format
+    const v = await query(
+      "SELECT hv.code, hv.buyer_phone FROM hotspot_vouchers hv " +
+      "WHERE hv.isp_id = $1::uuid AND (UPPER(hv.code) = UPPER($2) " +
+      "  OR (LENGTH($3) >= 9 AND RIGHT(regexp_replace(hv.buyer_phone,'[^0-9]','','g'),9) = RIGHT($3,9))) " +
+      "ORDER BY hv.updated_at DESC NULLS LAST LIMIT 1", [ispId, ident, digits]);
+    if (v.rows[0] && v.rows[0].buyer_phone) { phone = v.rows[0].buyer_phone; who = 'voucher ' + v.rows[0].code; }
+
+    // PPPoE subscriber: by username or number
+    if (!phone) {
+      const p = await query(
+        "SELECT username, phone FROM pppoe_subscribers " +
+        "WHERE isp_id = $1::uuid AND (LOWER(username) = LOWER($2) " +
+        "  OR (LENGTH($3) >= 9 AND RIGHT(regexp_replace(COALESCE(phone,''),'[^0-9]','','g'),9) = RIGHT($3,9))) LIMIT 1",
+        [ispId, ident, digits]);
+      if (p.rows[0] && p.rows[0].phone) { phone = p.rows[0].phone; who = 'subscriber ' + p.rows[0].username; }
+    }
+
+    // TV: the bound device carries no number, so fall back to the voucher that owns it
+    if (!phone) {
+      const t = await query(
+        "SELECT hv.code, hv.buyer_phone FROM hotspot_bound_devices bd " +
+        "JOIN hotspot_vouchers hv ON hv.id = bd.active_voucher_id " +
+        "WHERE bd.isp_id = $1::uuid AND UPPER(bd.mac_address) = UPPER($2) LIMIT 1", [ispId, ident]);
+      if (t.rows[0] && t.rows[0].buyer_phone) { phone = t.rows[0].buyer_phone; who = 'TV owner (' + t.rows[0].code + ')'; }
+    }
+
+    if (!phone) return res.status(404).json({ ok: false, error: 'No phone number on record for this customer' });
+
+    const ispInfo = await query('SELECT * FROM isps WHERE id = $1::uuid', [ispId]);
+    if (!ispInfo.rows[0]) return res.status(404).json({ ok: false, error: 'ISP not found' });
+
+    const { sendSMS } = require('../utils/sms');
+    try {
+      await sendSMS({ to: phone, message, isp: ispInfo.rows[0] });
+    } catch (se) {
+      // Surface the real reason. A silent failure here looks identical to success in the UI,
+      // which is how an empty SMS balance goes unnoticed for days.
+      const msg = se && se.code === 'SMS_BALANCE_EMPTY'
+        ? 'SMS balance is empty. Top up to send messages.'
+        : (se.message || 'Send failed');
+      require('../utils/logger').warn('[custom-message] ' + msg);
+      return res.status(400).json({ ok: false, error: msg });
+    }
+    require('../utils/logger').info('[custom-message] sent to ' + phone + ' (' + who + ') by isp ' + ispId);
+    return res.json({ ok: true, sent_to: phone, matched: who, segments: Math.ceil(message.length / 160) });
+  } catch (err) {
+    require('../utils/logger').error('[custom-message] ' + err.message);
     return res.status(500).json({ ok: false, error: err.message });
   }
 });
@@ -2712,7 +2851,7 @@ router.post('/:ispId/users/import', async (req, res) => {
         const t = String(r.type||'hotspot').toLowerCase();
         if (t === 'hotspot') {
           const pkgId = matchPkg(r.package_name);
-          const code = 'K' + nextK;
+          const code = _pfx + nextK; /* RL_IMPORT_PREFIX */
           const pass = Math.random().toString(16).slice(2, 8);
           const st = (String(r.status||'').toLowerCase().indexOf('activ')===0) ? 'active' : 'unused';
           const ins = await query(
@@ -2734,7 +2873,7 @@ router.post('/:ispId/users/import', async (req, res) => {
         } else out.skipped++;
       } catch (e) { out.errors.push((r.identifier||'?') + ': ' + e.message); }
     }
-    res.json({ ok: true, ...out, next_code: 'K' + nextK, import_batch: importBatch }); /* RL_IMPORT_BATCH */
+    res.json({ ok: true, ...out, next_code: _pfx + nextK /* RL_IMPORT_PREFIX */, import_batch: importBatch }); /* RL_IMPORT_BATCH */
   } catch (e) { res.status(500).json({ ok:false, error: e.message }); }
 });
 

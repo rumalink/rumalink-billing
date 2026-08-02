@@ -390,7 +390,7 @@ router.get('/:ispId/payment-status/:paymentId', async (req, res) => {
       try {
         const v = await query(
           `SELECT code FROM hotspot_vouchers
-           WHERE isp_id=$1::uuid AND (payment_id=$2::uuid OR buyer_phone IS NOT NULL)
+           WHERE payment_id = $2::uuid
            ORDER BY created_at DESC LIMIT 1`,
           [req.params.ispId, req.params.paymentId]
         );

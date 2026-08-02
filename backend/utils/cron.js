@@ -806,3 +806,6 @@ try { require('./router-heartbeat').start(); } catch (e) { require('./logger').w
 // Deleting credentials alone never ends a session — the router authorises once at login and does
 // not re-check RADIUS, so an expired customer stayed online until Session-Timeout ran out.
 try { require('./hotspotExpire').start(); } catch (e) { require('./logger').warn('[hotspot-expire] start: ' + e.message); }
+try { require('./fasttrack-guard').start(); } catch (e) { require('./logger').warn('[fasttrack-guard] start: ' + e.message); }
+try { require('./queue-monitor').start(); } catch (e) { require('./logger').warn('[queue-monitor] start: ' + e.message); }
+try { require('./expired-enforcer').start(); } catch (e) { require('./logger').warn('[expired-enforcer] start: ' + e.message); }

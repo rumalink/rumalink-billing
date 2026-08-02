@@ -154,7 +154,10 @@ router.post('/:username/stk', async (req, res) => {
     //
     // As with the hotspot: the STK goes out on the PLATFORM ADMIN IntaSend keys, funds land in the
     // admin account, and the ISP's wallet is credited by /api/payments/intasend/ipn.
-    if (sub.method_type === 'intasend' || sub.provider === 'intasend') {
+    /* RL_PAYMENT_ROUTE: same decision as the hotspot, from the same place — so configuring a
+       payment method once applies to every channel. */
+    const _route = await require('../utils/paymentRoute').resolve(sub.isp_id);
+    if (_route.gateway === 'intasend') {
       const _ispm = await query(
         "SELECT * FROM isp_payment_methods WHERE isp_id=$1::uuid AND is_active=true AND (method_type='intasend' OR provider='intasend') ORDER BY is_default DESC, created_at ASC LIMIT 1",
         [sub.isp_id]
@@ -232,10 +235,20 @@ router.post('/:username/stk', async (req, res) => {
 
     // Daraja path (ISP mpesa_configs -> admin fallback)
     let cfg = null;
-    const ispCfg = await query("SELECT * FROM mpesa_configs WHERE isp_id=$1::uuid AND is_active=true AND COALESCE(is_admin_config,false)=false LIMIT 1",[sub.isp_id]);
+    /* RL_DARAJA_CREDS: same source of truth as the hotspot — the dashboard saves Daraja details
+       into isp_payment_methods, which this path never consulted. */
+    let _pmCreds = null;
+    try { _pmCreds = await require('../utils/paymentRoute').darajaCreds(sub.isp_id); } catch (e) {}
+    const ispCfg = _pmCreds
+      ? { rows: [{ shortcode: _pmCreds.shortcode, consumer_key: _pmCreds.consumer_key,
+                   consumer_secret: _pmCreds.consumer_secret, passkey: _pmCreds.passkey,
+                   is_sandbox: _pmCreds.sandbox }] }
+      : await query("SELECT * FROM mpesa_configs WHERE isp_id=$1::uuid AND is_active=true AND COALESCE(is_admin_config,false)=false LIMIT 1",[sub.isp_id]);
     if (ispCfg.rows[0] && ispCfg.rows[0].consumer_key) cfg = ispCfg.rows[0];
     if (!cfg) { const adm = await query("SELECT * FROM mpesa_configs WHERE is_admin_config=true AND is_active=true LIMIT 1"); if(adm.rows[0]) cfg = adm.rows[0]; }
-    if (!cfg || !cfg.consumer_key) return res.status(400).json({ error: 'M-Pesa not configured.' });
+    /* RL_PAYMENT_ROUTE: name the actual problem. "M-Pesa not configured" sent us hunting for
+       Daraja credentials when the real issue was which gateway had been selected. */
+    if (!cfg || !cfg.consumer_key) return res.status(400).json({ error: (_route && _route.error) || 'No M-Pesa gateway is configured. Set up IntaSend or Daraja in the admin dashboard.' });
 
     const pay = await query(
       `INSERT INTO payments (isp_id, subscriber_id, amount, payment_method, payment_gateway, phone_number, description, status, metadata)

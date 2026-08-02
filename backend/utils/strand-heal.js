@@ -11,6 +11,32 @@ const logger = require('./logger');
 const axios = require('axios');
 
 function kNext(cur) { return 'K' + (parseInt(String(cur).replace(/[^0-9]/g, ''), 10) + 1); }
+
+/* RL_PREFIX_FROM_ISP: voucher codes must carry the ISP's own initial (Rumalink -> R1, R2...).
+   This module used to hardcode 'K', so any voucher created here — every TV purchase, since
+   TVs are healed through this path — came out as K1 while captive.js correctly produced R1.
+   Derive the letter from company_name and make collision-retry preserve whatever prefix the
+   code already has, so no path can reintroduce a wrong letter. */
+async function ispPrefix(ispId) {
+  try {
+    const r = await query("SELECT company_name FROM isps WHERE id=$1::uuid", [ispId]);
+    const n = String((r.rows[0] && r.rows[0].company_name) || '').trim();
+    return (n.charAt(0) || 'K').toUpperCase();
+  } catch (e) { return 'K'; }
+}
+async function nextCodeFor(ispId) {
+  const pfx = await ispPrefix(ispId);
+  const r = await query(
+    "SELECT COALESCE(MAX(NULLIF(regexp_replace(code,'[^0-9]','','g'),'')::int),0) AS m " +
+    "FROM hotspot_vouchers WHERE isp_id=$1::uuid AND code ~ ('^' || $2 || '[0-9]+$')",
+    [ispId, pfx]);
+  return pfx + (Number(r.rows[0].m || 0) + 1);
+}
+function nextAfter(cur) {
+  const m = String(cur).match(/^([A-Za-z]*)(\d+)$/);
+  if (!m) return String(cur) + '1';
+  return m[1] + (parseInt(m[2], 10) + 1);
+}
 async function globalNextCode() {
   const r = await query("SELECT COALESCE(MAX((substring(code from 2))::int),0) AS m FROM hotspot_vouchers WHERE code ~ '^K[0-9]+$'");
   return 'K' + (Number(r.rows[0].m || 0) + 1);
@@ -44,15 +70,31 @@ async function pass(onlyPaymentId) { /* RL_HEAL_ONE: when given, heal just that 
 
   // ---- A) stranded paid payments: reuse-first ----
   const strays = onlyPaymentId
-    ? await query("SELECT p.* FROM payments p WHERE p.id = " + String.fromCharCode(36) + "1::uuid AND p.status='paid' AND NOT EXISTS (SELECT 1 FROM hotspot_vouchers v WHERE v.payment_id = p.id)", [onlyPaymentId])
+    ? await query("SELECT p.* FROM payments p WHERE p.id = " + String.fromCharCode(36) + "1::uuid AND p.status='paid' " +
+      "AND p.subscriber_id IS NULL AND COALESCE(p.description,'') NOT ILIKE 'PPPoE%' " + /* RL_CHANNEL_SCOPED */
+      "AND NOT EXISTS (SELECT 1 FROM hotspot_vouchers v WHERE v.payment_id = p.id)", [onlyPaymentId])
     : await query(
       "SELECT p.* FROM payments p WHERE p.status='paid' AND p.created_at > NOW() - interval '7 days' " +
       "AND (p.metadata->>'rl_healed') IS NULL " + /* RL_HEAL_MARK: each payment healed exactly once */
+      /* RL_CHANNEL_SCOPED: never touch a PPPoE payment. The channel is recorded on the payment;
+         inferring it from the price gave a PPPoE customer a free hotspot voucher whenever the two
+         price lists happened to overlap. */
+      "AND p.subscriber_id IS NULL AND COALESCE(p.description,'') NOT ILIKE 'PPPoE%' " +
       "AND NOT EXISTS (SELECT 1 FROM hotspot_vouchers v WHERE v.payment_id = p.id) LIMIT 20");
   for (const p of strays.rows) {
     try {
       let md = {};
       try { md = typeof p.metadata === 'string' ? JSON.parse(p.metadata) : (p.metadata || {}); } catch (e) {}
+      /* RL_ALREADY_FULFILLED: a voucher is a long-lived per-device credential, so topping it up
+         re-points payment_id to the newest payment and leaves the PREVIOUS payment with no
+         voucher attached. That is not an unfulfilled purchase — it was already served. Healing
+         it minted a junk code on every single top-up (R4 four seconds after R1 was reused).
+         The purchase-SMS flag is written by the path that served the customer, so it is
+         authoritative evidence of fulfilment. */
+      if (String(md.rl_purchase_sms || '') === 'sent') {
+        await query("UPDATE payments SET metadata = COALESCE(metadata,'{}'::jsonb) || jsonb_build_object('rl_healed','served') WHERE id=$1::uuid", [p.id]).catch(function(){});
+        continue;
+      }
       const desc = String(p.description || '');
       if (desc.indexOf('Platform charge') === 0 || desc.indexOf('SMS topup') === 0) { await query("UPDATE payments SET metadata = COALESCE(metadata,'{}'::jsonb) || jsonb_build_object('rl_healed','skip') WHERE id="+DS+"1::uuid",[p.id]).catch(function(e){}); continue; }
       if (String(p.payment_method || '') === 'admin_charge') { await query("UPDATE payments SET metadata = COALESCE(metadata,'{}'::jsonb) || jsonb_build_object('rl_healed','skip') WHERE id="+DS+"1::uuid",[p.id]).catch(function(e){}); continue; }
@@ -65,35 +107,43 @@ async function pass(onlyPaymentId) { /* RL_HEAL_ONE: when given, heal just that 
       const isTv = !!md.is_tv; const tvMac = md.tv_mac ? String(md.tv_mac).toUpperCase() : null;
 
       // policy: reuse the buyer's own voucher if it exists (even expired)
-      let ex;
-      if (isTv && tvMac) {
-        ex = await query("SELECT id, code FROM hotspot_vouchers WHERE isp_id=$1::uuid AND is_tv=true AND UPPER(tv_mac)=UPPER($2) ORDER BY (payment_id IS NOT NULL) DESC, updated_at DESC NULLS LAST, created_at DESC, LENGTH(code) DESC, code DESC LIMIT 1 /* RL_REUSE_STICKY */", [p.isp_id, tvMac]);
-      } else if (phone) {
-        ex = await query("SELECT id, code FROM hotspot_vouchers WHERE isp_id=$1::uuid AND RIGHT(regexp_replace(buyer_phone,'[^0-9]','','g'),9) = RIGHT(regexp_replace($2,'[^0-9]','','g'),9) AND (is_tv IS NOT TRUE) /* RL_PHONE_NORM_MATCH */ ORDER BY (payment_id IS NOT NULL) DESC, updated_at DESC NULLS LAST, created_at DESC, LENGTH(code) DESC, code DESC LIMIT 1 /* RL_REUSE_STICKY */", [p.isp_id, phone]);
-      } else { ex = { rows: [] }; }
+      /* RL_REUSE_BY_DEVICE: reuse is keyed on the DEVICE, never the buyer's phone number.
+         Keying on the number meant a TV and a phone bought on one number shared a voucher, and
+         two phones on one number did too. A TV purchase could also inherit a PHONE voucher,
+         which made the confirmation SMS use the phone wording (username + password) for a TV. */
+      const buyerMac = md.mac || md.client_mac || md.used_by_mac || md.device_mac || null;
+      const devKey = isTv ? tvMac : (buyerMac ? String(buyerMac).toUpperCase() : null);
+      let ex = { rows: [] };
+      if (devKey) {
+        ex = await query(
+          isTv
+            ? "SELECT id, code FROM hotspot_vouchers WHERE isp_id=$1::uuid AND is_tv=true AND UPPER(tv_mac)=UPPER($2) ORDER BY (payment_id IS NOT NULL) DESC, updated_at DESC NULLS LAST, created_at DESC LIMIT 1"
+            : "SELECT id, code FROM hotspot_vouchers WHERE isp_id=$1::uuid AND (is_tv IS NOT TRUE) AND COALESCE(purchased_by_mac, used_by_mac) IS NOT NULL AND UPPER(COALESCE(purchased_by_mac, used_by_mac))=UPPER($2) ORDER BY (payment_id IS NOT NULL) DESC, updated_at DESC NULLS LAST, created_at DESC LIMIT 1",
+          [p.isp_id, String(devKey).toUpperCase()]);
+      }
 
       let vid, code;
       if (ex.rows[0]) {
         vid = ex.rows[0].id; code = ex.rows[0].code;
         await query(
-          "UPDATE hotspot_vouchers SET payment_id=$1::uuid, package_id=$2::uuid, status='active', " +
-          "expires_at = COALESCE($3::timestamptz, NOW()) + ($4 || ' hours')::interval, " +
-          "used_by_mac = COALESCE($5, used_by_mac), is_tv = COALESCE($6, is_tv), tv_mac = COALESCE($7, tv_mac), updated_at=NOW() WHERE id=$8::uuid",
-          [p.id, pkg.rows[0].id, p.paid_at || p.created_at || null, String(durH), (isTv && tvMac) ? tvMac : null, (isTv ? true : null), tvMac, vid]);
+          "UPDATE hotspot_vouchers SET payment_id=$1::uuid, package_id=$2::uuid, status='active', expiry_sms_sent=false, /* RL_EXPIRY_SMS_RESET */ " +
+          "expires_at = GREATEST(COALESCE(expires_at, NOW()), COALESCE($3::timestamptz, NOW())) + ($4 || ' hours')::interval, /* RL_TOPUP_EXPIRY: a voucher is a long-lived per-device credential. Buying while time remains must ADD to it, not reset the clock — the old form discarded whatever the customer had left, so paying early cost them time. */ " +
+          "used_by_mac = COALESCE($5, used_by_mac), is_tv = COALESCE($6, is_tv), tv_mac = COALESCE($7, tv_mac), purchased_by_mac = COALESCE(purchased_by_mac, $9), updated_at=NOW() WHERE id=$8::uuid",
+          [p.id, pkg.rows[0].id, p.paid_at || p.created_at || null, String(durH), (isTv && tvMac) ? tvMac : null, (isTv ? true : null), tvMac, vid, (devKey ? String(devKey).toUpperCase() : null)]);
         logger.info('[strand-heal] payment ' + p.id + ' -> REUSED voucher ' + code + (isTv ? ' (TV ' + tvMac + ')' : ''));
       } else {
-        code = await globalNextCode();
+        code = await nextCodeFor(p.isp_id);
         for (let t = 0; t < 40; t++) {
           try {
             const ins = await query(
-              "INSERT INTO hotspot_vouchers (isp_id, package_id, code, status, buyer_phone, payment_id, used_by_mac, is_tv, tv_mac, expires_at) " +
-              "VALUES ($1::uuid,$2::uuid,$3,'active',$4,$5::uuid,$6,$7,$8, COALESCE($9::timestamptz, NOW()) + ($10 || ' hours')::interval) RETURNING id",
-              [p.isp_id, pkg.rows[0].id, code, phone, p.id, (isTv && tvMac) ? tvMac : null, isTv, tvMac, p.paid_at || p.created_at || null, String(durH)]);
+              "INSERT INTO hotspot_vouchers (isp_id, package_id, code, status, buyer_phone, payment_id, used_by_mac, is_tv, tv_mac, expires_at, purchased_by_mac) /* RL_PURCHASED_BY_MAC */ " +
+              "VALUES ($1::uuid,$2::uuid,$3,'active',$4,$5::uuid,$6,$7,$8, COALESCE($9::timestamptz, NOW()) + ($10 || ' hours')::interval, $11) RETURNING id",
+              [p.isp_id, pkg.rows[0].id, code, phone, p.id, (isTv && tvMac) ? tvMac : null, isTv, tvMac, p.paid_at || p.created_at || null, String(durH), (devKey ? String(devKey).toUpperCase() : null)]);
             vid = ins.rows[0].id;
             logger.info('[strand-heal] payment ' + p.id + ' -> NEW voucher ' + code + (isTv ? ' (TV ' + tvMac + ')' : ''));
             break;
           } catch (ce) {
-            if (ce && ce.code === '23505' && t < 39) { code = kNext(code); continue; }
+            if (ce && ce.code === '23505' && t < 39) { code = nextAfter(code); continue; }
             throw ce;
           }
         }
@@ -104,6 +154,10 @@ async function pass(onlyPaymentId) { /* RL_HEAL_ONE: when given, heal just that 
         const cap = require('../routes/captive');
         if (cap.syncRadiusForVoucher) await cap.syncRadiusForVoucher(vid);
       } catch (e) { logger.warn('[strand-heal] radius sync: ' + e.message); }
+      /* RL_PURCHASE_SMS: a payment rescued here never went through the normal activation, so it
+         would otherwise be the one customer who pays and hears nothing. */
+      try { await require('./hotspotSms').sendPurchaseSms(p.id, p.transaction_id); }
+      catch (e) { logger.warn('[strand-heal] purchase sms: ' + e.message); }
       if (isTv && tvMac) {
         await query(
           "UPDATE hotspot_bound_devices SET active_voucher_id=$1::uuid, expires_at=(SELECT expires_at FROM hotspot_vouchers WHERE id=$1::uuid), is_bound=true WHERE isp_id=$2::uuid AND UPPER(mac_address)=UPPER($3)",
@@ -115,7 +169,8 @@ async function pass(onlyPaymentId) { /* RL_HEAL_ONE: when given, heal just that 
 
   // ---- B) TV voucher <-> bound device sync ----
   const b = await query(
-    "UPDATE hotspot_bound_devices bd SET active_voucher_id = v.id, expires_at = v.expires_at, is_bound = true " +
+    "UPDATE hotspot_bound_devices bd SET active_voucher_id = v.id, expires_at = v.expires_at, is_bound = true, " +
+    "    package_id = COALESCE(v.package_id, bd.package_id) " + /* RL_TV_SYNC_PKG: the cap is derived from this */
     "FROM hotspot_vouchers v WHERE v.is_tv = true AND v.status='active' AND v.expires_at > NOW() " +
     "AND UPPER(v.tv_mac) = UPPER(bd.mac_address) AND v.isp_id = bd.isp_id " +
     "AND (bd.active_voucher_id IS DISTINCT FROM v.id OR bd.expires_at IS DISTINCT FROM v.expires_at OR bd.is_bound = false)"
