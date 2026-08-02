@@ -111,6 +111,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/auth', require('./routes/auth'));
 /* RL_EMAIL_CONFIG_API: mounted before /api/admin so the specific path wins cleanly. */
 app.use('/api/admin/email-config', require('./routes/adminEmail'));
+app.use('/api/admin/health', require('./routes/health'));
 app.use('/api/admin', require('./routes/admin'));
 /* RL_NO_STORE_API: payment-status pollers must NEVER be cached. Express sends an ETag by default,
    so a phone that polled once got 304 Not Modified on every later poll and kept reusing the FIRST

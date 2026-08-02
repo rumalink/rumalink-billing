@@ -809,3 +809,4 @@ try { require('./hotspotExpire').start(); } catch (e) { require('./logger').warn
 try { require('./fasttrack-guard').start(); } catch (e) { require('./logger').warn('[fasttrack-guard] start: ' + e.message); }
 try { require('./queue-monitor').start(); } catch (e) { require('./logger').warn('[queue-monitor] start: ' + e.message); }
 try { require('./expired-enforcer').start(); } catch (e) { require('./logger').warn('[expired-enforcer] start: ' + e.message); }
+try { require('./health-monitor').start(); } catch (e) { require('./logger').warn('[health-monitor] start: ' + e.message); }
