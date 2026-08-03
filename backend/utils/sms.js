@@ -172,9 +172,16 @@ const sendSMS = async ({ to, message, isp }) => {
   if (!gw) throw new Error(`Unknown SMS gateway: ${gateway}`);
 
   // RumaLink SMS: enforce the ISP's credit balance BEFORE sending.
+  /* RL_SMS_ISP_ID: the balance was looked up with isp.id, but several callers pass a JOINED
+     row rather than an ISP row — the PPPoE expiry sweep selects ps.id (the SUBSCRIBER's id)
+     and the hotspot expiry selects hv.id (the VOUCHER's id), both alongside i.company_name.
+     The lookup matched nothing, read the balance as 0 and refused to send while the ISP had
+     credits on file. A joined row always carries the correct isp_id; a true ISP row carries
+     only id. Resolving both here fixes every caller at once. */
+  const _rlIspId = (isp && (isp.isp_id || isp.id)) || null;
   if (gateway === 'rumalink') {
-    if (!isp || !isp.id) throw new Error('RumaLink SMS requires ISP context');
-    const balRes = await query("SELECT sms_balance FROM isps WHERE id=$1::uuid", [isp.id]);
+    if (!_rlIspId) throw new Error('RumaLink SMS requires ISP context');
+    const balRes = await query("SELECT sms_balance FROM isps WHERE id=$1::uuid", [_rlIspId]);
     const bal = balRes.rows[0] ? parseFloat(balRes.rows[0].sms_balance) : 0;
     if (!(bal >= 1)) {
       const e = new Error('Insufficient SMS balance. Top up your SMS from the dashboard to continue sending.');
@@ -196,9 +203,9 @@ const sendSMS = async ({ to, message, isp }) => {
     logger.info(`SMS sent via ${gw.name} to ${phone}`);
 
     // RumaLink SMS: decrement the ISP balance + record consumption.
-    if (gateway === 'rumalink' && isp && isp.id) {
+    if (gateway === 'rumalink' && _rlIspId) {
       try {
-        const upd = await query("UPDATE isps SET sms_balance = GREATEST(sms_balance - 1, 0) WHERE id=$1::uuid RETURNING sms_balance", [isp.id]);
+        const upd = await query("UPDATE isps SET sms_balance = GREATEST(sms_balance - 1, 0) WHERE id=$1::uuid RETURNING sms_balance", [_rlIspId]);
         const after = upd.rows[0] ? parseFloat(upd.rows[0].sms_balance) : null;
         await query(`INSERT INTO sms_credit_transactions (isp_id, txn_type, sms_count, isp_balance_after, status, note)
                      VALUES ($1::uuid, 'consumption', -1, $2, 'completed', 'SMS sent')`, [isp.id, after]).catch(()=>{});
@@ -249,7 +256,7 @@ const _rlSendLogged = async function (opts) {
     await query(
       "INSERT INTO sms_logs (isp_id, recipient, message, gateway, gateway_message_id, status, cost, sent_at) " +
       "VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, NOW())",
-      [isp.id || null, String(to), note ? (String(body) + '\n[' + note + ']') : String(body),
+      [(isp.isp_id || isp.id) || null, String(to), note ? (String(body) + '\n[' + note + ']') : String(body),
        gateway, gwId ? String(gwId) : null, String(status).slice(0, 40),
        cost != null ? Number(cost) : null]);
   } catch (le) {

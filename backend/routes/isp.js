@@ -1003,9 +1003,10 @@ router.get('/users', async (req, res) => {
       try {
         const r = await query(`
           SELECT s.id, s.username, s.phone, s.full_name, s.next_billing_date AS expires_at, s.status,
-                 s.created_at, pkg.name as package_name, pkg.price as package_price /* RL_PPPOE_COL_FIX */
+                 s.created_at, pkg.name as package_name, pkg.price as package_price, rc.value as password /* RL_PPPOE_COL_FIX */
           FROM pppoe_subscribers s
           LEFT JOIN pppoe_packages pkg ON pkg.id = s.package_id
+          LEFT JOIN radcheck rc ON rc.username = s.username AND rc.attribute = 'Cleartext-Password'
           WHERE s.isp_id = $1::uuid
           ORDER BY s.created_at DESC LIMIT $2
         `, [req.user.ispId, limit]);
@@ -1014,7 +1015,7 @@ router.get('/users', async (req, res) => {
             id: row.id, type: 'pppoe',
             username: row.username, phone: row.phone, full_name: row.full_name,
             package_name: row.package_name, package_price: row.package_price,
-            expires_at: row.expires_at, status: row.status, created_at: row.created_at,
+            expires_at: row.expires_at, status: row.status, created_at: row.created_at, password: row.password,
             online: false
           });
         }
@@ -2230,9 +2231,12 @@ router.get('/:ispId/pppoe-user/:identifier', async (req, res) => {
 
 // v62.23: Update PPPoE subscriber (phone, etc.) via ISP route
 router.patch('/:ispId/pppoe-subscriber/:subscriberId', async (req, res) => {
+  if (req.body) { req.body.password = req.body.password || req.body.pppoe_password || req.body.pppoePassword || req.body.new_password || req.body.secret; }
+
   try {
     const { ispId, subscriberId } = req.params;
-    const { phone, full_name, email, status, next_billing_date, password, package_id } = req.body || {}; /* RL_PPPOE_PKG_EDIT */
+    let { phone, full_name, email, status, next_billing_date, password, package_id, pppoe_password } = req.body || {};
+    if (!password && pppoe_password) password = pppoe_password; /* RL_PPPOE_PKG_EDIT */
     
     // Build dynamic update
     const fields = [];
@@ -2243,7 +2247,7 @@ router.patch('/:ispId/pppoe-subscriber/:subscriberId', async (req, res) => {
     if (email !== undefined) { fields.push(`email = $${idx++}`); params.push(email); }
     if (status !== undefined) { fields.push(`status = $${idx++}`); params.push(status); }
     if (next_billing_date !== undefined) { fields.push(`next_billing_date = $${idx++}::timestamptz`); params.push(next_billing_date); }
-    if (fields.length === 0) return res.status(400).json({ ok: false, error: 'no fields to update' });
+    if (fields.length === 0 && !password && !package_id) return res.status(400).json({ ok: false, error: 'no fields to update' });
     
     fields.push('updated_at = NOW()');
     params.push(subscriberId, ispId);

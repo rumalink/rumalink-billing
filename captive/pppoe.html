@@ -85,11 +85,14 @@
       <div id="plans-list"></div>
     </div>
     <div class="tabs">
-      <div class="tab active" id="tab-paybill" onclick="showTab('paybill')">Pay by Paybill</div>
-      <div class="tab" id="tab-stk" onclick="showTab('stk')">M-Pesa Prompt</div>
+      <!-- RL_PAYBILL_HIDDEN: the paybill flow is not configured yet, so the tab is hidden rather
+           than deleted. To restore it: remove style="display:none" here, drop the "hide" class from
+           #pane-paybill, and move "active" back to this tab from #tab-stk. -->
+      <div class="tab" id="tab-paybill" style="display:none" onclick="showTab('paybill')">Pay by Paybill</div>
+      <div class="tab active" id="tab-stk" onclick="showTab('stk')">M-Pesa Prompt</div>
     </div>
 
-    <div id="pane-paybill">
+    <div id="pane-paybill" class="hide">
       <div class="paybox">
         <div style="font-size:.8rem;color:#9fb0cc;margin-bottom:6px">On your phone: M-Pesa &rarr; Lipa na M-Pesa &rarr; Pay Bill</div>
         <div class="row" style="display:flex;justify-content:space-between;margin:6px 0"><span class="k">Business No.</span><span class="big" id="p-paybill">—</span></div>
@@ -100,7 +103,7 @@
       <button class="btn-outline" onclick="startPolling()">I've Paid — Check Status</button>
     </div>
 
-    <div id="pane-stk" class="hide">
+    <div id="pane-stk">
       <label>M-Pesa Phone Number</label>
       <input id="stk-phone" type="tel" placeholder="07XX XXX XXX"/>
       <button class="btn-primary" id="stk-go" onclick="sendStk()">Send M-Pesa Prompt</button>
