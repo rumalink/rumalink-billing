@@ -1315,16 +1315,28 @@ async function monitorDevice(deviceId) {
             if (patched || doPark || doUnpark) {
               logger.info(`[mwan-quality] ${dev.name} WAN${link.position} [${t.type}]: ${parked ? 'PARKED dist='+PARKED_DISTANCE+' (→ backup)' : 'ACTIVE dist='+healthyDistance}${patched ? ' [router corrected '+curDist+'→'+desiredDist+']' : ''} lat=${q.latencyMs}ms jit=${q.jitterMs}ms loss=${q.lossPct}%`);
             }
+            /* RL_FAILOVER_SMS: this used to INSERT a nas_event on EVERY pass — three identical
+               'wan_quality_recovered' rows inside 40 seconds — and told the ISP nothing. A link could
+               flip to the backup uplink (often metered or slower) and the owner would only find out
+               from the bill or a customer. ispAlert.notify is edge-triggered: it records the event and
+               texts the account owner ONLY when the state actually changes. Total outage is not sent
+               from here — isp-monitor already owns isp_link_down / isp_link_up. */
             try {
-              await query(
-                `INSERT INTO nas_events (nas_id, isp_id, event_type, message, created_at)
-                 VALUES ($1::uuid, $2::uuid, $3, $4, NOW())`,
-                [dev.id, dev.isp_id, doPark ? 'wan_quality_degraded' : 'wan_quality_recovered',
-                 doPark
-                   ? `WAN${link.position} degraded (lat ${Math.round(q.latencyMs||0)}ms, jitter ${Math.round(q.jitterMs||0)}ms, loss ${q.lossPct}%) — failed over to backup`
-                   : `WAN${link.position} quality recovered — restored as primary`]
-              );
-            } catch(e){ /* nas_events may differ; ignore */ }
+              const _wanN = 'WAN' + link.position;
+              const _lat = Math.round(q.latencyMs || 0), _jit = Math.round(q.jitterMs || 0);
+              await require('./ispAlert').notify({
+                nasId: dev.id, ispId: dev.isp_id,
+                kind: 'wan_failover_' + link.position,
+                state: doPark ? 'backup' : 'primary',
+                eventType: doPark ? 'wan_quality_degraded' : 'wan_quality_recovered',
+                message: doPark
+                  ? '\u26a0\ufe0f RumaLink: "' + dev.name + '" switched to the BACKUP link. '
+                    + _wanN + ' degraded (latency ' + _lat + 'ms, jitter ' + _jit + 'ms, loss ' + q.lossPct + '%). '
+                    + 'Your customers stay online on the backup. We will text you when the main link returns.'
+                  : '\u2705 RumaLink: "' + dev.name + '" is back on its MAIN link (' + _wanN + '). '
+                    + 'The backup uplink is no longer carrying traffic.'
+              });
+            } catch(e) { logger.warn('[mwan-quality] failover alert: ' + e.message); }
           } catch(e){ logger.warn('[mwan-quality] direct distance set failed: ' + e.message); }
         }
 
