@@ -696,6 +696,15 @@ function startPaymentPolling() {
         clearInterval(countdown);
         document.getElementById('pay-status').style.display = 'none';
         /* RL_AUTOLOGIN_BRIDGE: connect the phone instead of just announcing the voucher. */
+        /* RL_TV_NO_AUTOLOGIN: a TV purchase must not connect this phone. The server no longer returns
+           credentials for a TV voucher, so the check below already fails safely — this just makes the
+           message accurate instead of a generic voucher notice. */
+        if (json.is_tv) {
+          showMsg('\u2705 Payment received! Your TV is now connected. It comes online automatically \u2014 no login needed.', 'success');
+          document.getElementById('pay-section').style.display = 'none';
+          setLoading(false);
+          return;
+        }
         var _ru = json.radius_username, _rp = json.radius_password;
         if (window.rlHotspotLogin && window.rlHasLoginUrl && _ru && _rp) {
           showMsg('✅ Payment received! Connecting this phone to the internet…', 'success');

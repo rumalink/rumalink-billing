@@ -909,7 +909,7 @@ router.get('/:ispId/payment-status/:paymentId', async (req, res) => {
       try { await require('../utils/intasend-activate').activateVoucher(req.params.paymentId); }
       catch (e) { logger.warn('[captive] inline intasend activate: ' + e.message); }
     }
-    let radius_username = null, radius_password = null;
+    let radius_username = null, radius_password = null, is_tv_purchase = false;
     if (r.rows[0].status === 'paid') {
       try {
         const vc = await query(
@@ -923,6 +923,17 @@ router.get('/:ispId/payment-status/:paymentId', async (req, res) => {
         }
       } catch (e) {}
     }
+    /* RL_TV_NO_CREDS: a television is bypassed at the router and can never sign in, so login
+       credentials are meaningless for it — but returning them made the portal auto-login the
+       BUYER'S PHONE on the TV's voucher: two devices on one purchase, with the phone's own
+       session invisible in the dashboard. Strip them here, after every other path has run, so
+       the guard cannot be bypassed by whichever branch produced the credentials. */
+    try {
+      const _tvq = await query("SELECT is_tv FROM hotspot_vouchers WHERE payment_id = $1::uuid LIMIT 1", [req.params.paymentId]);
+      if (_tvq.rows[0] && _tvq.rows[0].is_tv === true) {
+        radius_username = null; radius_password = null; is_tv_purchase = true;
+      }
+    } catch (e) { logger.warn('[captive] tv creds guard: ' + e.message); }
     res.json({
       payment_id: r.rows[0].id,
       status: r.rows[0].status,
@@ -931,7 +942,8 @@ router.get('/:ispId/payment-status/:paymentId', async (req, res) => {
       failure_reason: r.rows[0].failure_reason,
       voucher_code,
       radius_username,
-      radius_password
+      radius_password,
+            is_tv: is_tv_purchase
     });
   } catch (err) {
     res.json({ status: 'pending' });
