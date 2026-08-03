@@ -973,6 +973,11 @@ router.post('/:ispId/callback/:paymentId', async (req, res) => {
         if (voucher) {
           logger.info(`Voucher ${voucher.code} activated. New expiry: ${voucher.expires_at}`);
           await syncRadiusForVoucher(voucher.id).catch(()=>{});
+          /* RL_DARAJA_TV_BIND: this path had no TV handling at all, so a TV sale bought from a
+             phone bound nothing, capped nothing, and left the buyer's PHONE connected on the
+             voucher instead. IntaSend did it correctly; the shared module keeps them in step. */
+          try { await require('../utils/tvBind').bindTvForPayment(req.params.paymentId); }
+          catch (e) { logger.warn('[CB-TV] bind: ' + e.message); }
           /* RL_DARAJA_ACTIVATE_STAMP: strand-heal skips payments whose voucher was already
              activated (RL_SKIP_ACTIVATED), but only the IntaSend activator stamped this column.
              Without it a Daraja payment looks unfulfilled once a later top-up re-points the
