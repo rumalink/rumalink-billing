@@ -262,7 +262,13 @@ ${bridgePortsBlock}
 :do { /ip firewall mangle add chain=forward action=change-mss new-mss=clamp-to-pmtu protocol=tcp tcp-flags=syn in-interface=rl-wan-pppoe comment="RL-MSS clamp pppoe in" } on-error={}
 :do { /queue type set [find name="pcq-download-default"] kind=pcq pcq-rate=0 pcq-classifier=dst-address pcq-limit=50 pcq-total-limit=2000 } on-error={}
 :do { /queue type set [find name="pcq-upload-default"] kind=pcq pcq-rate=0 pcq-classifier=src-address pcq-limit=50 pcq-total-limit=2000 } on-error={}
-:do { /ip hotspot user profile set [find name="default"] queue-type=pcq-upload-default/pcq-download-default } on-error={}
+# RL_PCQ_HOTSPOT_INVALID: removed. RouterOS 7.19 REJECTS
+# queue-type=pcq-upload-default/pcq-download-default on a HOTSPOT user profile — that combined
+# form is PPP-profile syntax. Wrapped in on-error={} it failed silently on every provision
+# (the live profile reads queue-type=(none)), and router-harden already dropped the same step
+# for logging a warning every 2 minutes. Hotspot speed is enforced by the RADIUS
+# Mikrotik-Rate-Limit reply plus the rl-<code> simple queues, both verified working.
+# The two /queue/type definitions above are kept: valid, harmless, used by PPPoE profiles.
 :do { /ip hotspot walled-garden remove [find comment="RumaLink-portal"] } on-error={}
 :do { /ip hotspot walled-garden add dst-host="${serverDomain}" comment="RumaLink-portal" } on-error={}
 :do { /ip hotspot walled-garden add dst-host="*.safaricom.co.ke" comment="RumaLink-portal" } on-error={}
