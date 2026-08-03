@@ -1381,6 +1381,38 @@ async function monitorAll() {
     const dr = await query(`SELECT id FROM nas_devices WHERE multi_wan_applied_at IS NOT NULL AND multi_wan_mode IS NOT NULL AND multi_wan_mode != 'none'`);
     for (const row of dr.rows) {
       try { await monitorDevice(row.id); } catch (e) { logger.warn(`[mwan-monitor] device ${row.id}: ${e.message}`); }
+      /* RL_FAILOVER_OUTCOME: alert on WHICH LINK IS CARRYING TRAFFIC, not on one decision branch.
+         The first attempt hooked the quality path (park a degraded primary) and stayed silent on a
+         real flip, because that one was a hard down — the primary lost its address entirely and
+         RL_HARDDOWN handles it elsewhere. Netwatch and manual changes are further branches again.
+         Reading the outcome covers every cause, including ones not yet written. */
+      try {
+        const _ls = await query(
+          "SELECT position, interface, role, current_status, is_active, internet_ok " +
+          "FROM nas_wan_links WHERE nas_id=$1::uuid AND enabled=true ORDER BY position ASC", [row.id]);
+        const _links = _ls.rows || [];
+        const _carrying = _links.filter(l => l.is_active === true || String(l.current_status) === 'online');
+        const _primary  = _links.find(l => String(l.role) === 'failover_primary');
+        const _state = _carrying.length ? _carrying.map(l => 'wan' + l.position).join('+') : 'none';
+        if (_links.length > 1 && _state !== 'none') {
+          const _onPrimary = !!(_primary && _carrying.some(l => l.position === _primary.position));
+          const _dv = await query('SELECT name, isp_id FROM nas_devices WHERE id=$1::uuid', [row.id]);
+          const _d = _dv.rows[0];
+          if (_d) {
+            const _names = _carrying.map(l => 'WAN' + l.position + ' (' + l.interface + ')').join(' + ');
+            await require('./ispAlert').notify({
+              nasId: row.id, ispId: _d.isp_id, kind: 'wan_carrying', state: _state,
+              eventType: _onPrimary ? 'wan_quality_recovered' : 'wan_quality_degraded',
+              message: _onPrimary
+                ? '\u2705 RumaLink: "' + _d.name + '" is back on its MAIN link \u2014 ' + _names
+                  + '. The backup uplink is no longer carrying traffic.'
+                : '\u26a0\ufe0f RumaLink: "' + _d.name + '" has switched to the BACKUP link \u2014 now on '
+                  + _names + '. The main link is down or degraded. Your customers stay online on the '
+                  + 'backup; we will text you when the main link returns.'
+            });
+          }
+        }
+      } catch (e) { logger.warn('[mwan-monitor] failover alert: ' + e.message); }
     }
     return dr.rows.length;
   } catch (e) { logger.error('[mwan-monitor] monitorAll: ' + e.message); return 0; }
