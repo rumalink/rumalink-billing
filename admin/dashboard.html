@@ -2735,7 +2735,30 @@ async function rlDoReset(){if(!confirm('This will DELETE ALL TEST DATA. A backup
   </div>
 </div>
 <script>/* RL_OPS_MODAL: styled system ops modals */
-function rlOpsHdr(){ var t=null; try{t=localStorage.getItem('token')||localStorage.getItem('adminToken')||localStorage.getItem('rl_token');}catch(e){} var h={'Content-Type':'application/json'}; if(t)h['Authorization']='Bearer '+t; return h; }
+/* RL_OPS_ADMIN_TOKEN: this read 'token' first and never read 'rl_admin_token' — the key the
+   admin login actually writes. With the ISP dashboard open in the same browser 'token' holds the
+   ISP JWT, which passes authenticateToken and fails requireAdmin, so Save/Backup/Restore returned
+   403 "Admin access required" while a valid admin session sat in the same browser. Prefer the
+   admin key, and as a last resort pick only a JWT that really carries role=superadmin. */
+function rlOpsHdr(){
+  var t=null;
+  try{
+    var ks=['rl_admin_token','rl_admin','adminToken','rl_token','token'];
+    for(var i=0;i<ks.length && !t;i++){
+      var v=localStorage.getItem(ks[i]);
+      if(v && v.split('.').length===3){
+        try{ var c=JSON.parse(atob(v.split('.')[1])); if(c && c.role==='superadmin') t=v; }catch(e){}
+      }
+    }
+    if(!t){ for(var k in localStorage){ var x=localStorage.getItem(k);
+      if(x && typeof x==='string' && x.split('.').length===3){
+        try{ var c2=JSON.parse(atob(x.split('.')[1])); if(c2 && c2.role==='superadmin'){ t=x; break; } }catch(e){}
+      } } }
+  }catch(e){}
+  var h={'Content-Type':'application/json'};
+  if(t)h['Authorization']='Bearer '+t;
+  return h;
+}
 function rlOps(o){
   var m=document.getElementById('rl-ops-modal');
   document.getElementById('rl-ops-icon').textContent=o.icon||'';
