@@ -159,7 +159,9 @@ router.post('/subscribers', async (req, res, next) => {
     // Welcome SMS
     if (phone) {
       const isp = await query('SELECT company_name, sms_gateway, sms_api_key, sms_sender_id FROM isps WHERE id = $1', [req.user.ispId]);
-      if (isp.rows[0]?.sms_gateway) {
+      /* RL_PPPOE_WELCOME_GATE: gated on the sms_gateway column, which is blank on the platform
+         gateway — the welcome SMS never sent. sendSMS resolves the gateway itself. */
+      if (isp.rows[0]) {
         try {
           await sendSMS({
             to: phone,

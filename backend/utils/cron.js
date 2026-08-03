@@ -685,7 +685,11 @@ cron.schedule('* * * * *', async () => {
         await require('./walledGarden').restrict(sub);
         logger.info('[expiry-enforcer] ' + sub.username + ' expired -> walled');
         // One-time expiry SMS with the pay link (only if not already sent recently).
-        if (sub.phone && sub.sms_gateway) {
+        /* RL_PPPOE_SMS_GATE: this required isps.sms_gateway to be SET. It is blank for every ISP
+           using the platform gateway — sendSMS defaults it to 'rumalink' internally — so the
+           expiry notice was skipped silently while hotspot SMS worked fine. Send whenever the
+           subscriber has a phone; sendSMS decides the gateway. */
+        if (sub.phone) {
           try {
             const payDetails = buildPaymentDetails(sub);
             await sendSMS({

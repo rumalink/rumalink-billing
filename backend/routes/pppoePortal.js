@@ -355,6 +355,32 @@ async function onPaid(paymentId, receipt){
     // RL_ONPAID_CREDIT: credit the ISP wallet for this PPPoE payment (idempotent).
     try { await require('../utils/wallet-credit').creditWalletOnce(paymentId); }
     catch(e){ logger.error('[PPPoE-portal] wallet credit: '+e.message); }
+    /* RL_PPPOE_RENEWAL_SMS: onPaid extended the billing date, restored access and credited the
+       wallet, but never told the customer their plan was renewed — the one party who paid heard
+       nothing. Idempotent via the payment's own flag, so the Daraja callback, the IntaSend IPN
+       and the sweep cannot each send their own copy of the same renewal. */
+    try {
+      const _sent = (pay.metadata && (typeof pay.metadata === 'string' ? JSON.parse(pay.metadata) : pay.metadata) || {}).rl_renewal_sms;
+      if (!_sent && sub.phone) {
+        const _info = (await query(
+          'SELECT pp.name AS pkg_name, pp.price, i.company_name, i.* FROM pppoe_subscribers ps ' +
+          'JOIN pppoe_packages pp ON pp.id=ps.package_id JOIN isps i ON i.id=ps.isp_id ' +
+          'WHERE ps.id=$1::uuid LIMIT 1', [sub.id])).rows[0];
+        if (_info) {
+          const _due = new Date(nb).toLocaleDateString('en-KE', { day:'numeric', month:'short', year:'numeric' });
+          await require('../utils/sms').sendSMS({
+            to: sub.phone,
+            message: 'Dear ' + (sub.full_name || 'Customer') + ', your ' + _info.company_name +
+                     ' internet (' + _info.pkg_name + ') has been RENEWED. You are back online. ' +
+                     'Next due: ' + _due + '. Thank you!',
+            isp: _info
+          });
+          await query("UPDATE payments SET metadata = COALESCE(metadata,'{}'::jsonb) || jsonb_build_object('rl_renewal_sms','sent') WHERE id=$1::uuid", [paymentId]).catch(function(){});
+          await query('UPDATE pppoe_subscribers SET payment_sms_sent_at=NOW() WHERE id=$1::uuid', [sub.id]).catch(function(){});
+          logger.info('[PPPoE-portal] renewal SMS sent to ' + sub.phone + ' for ' + sub.username);
+        }
+      }
+    } catch(e) { logger.error('[PPPoE-portal] renewal sms: ' + e.message); }
     // (B2C forward to ISP happens here in a later sub-step.)
   }
 }
