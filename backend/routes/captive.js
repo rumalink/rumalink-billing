@@ -1344,6 +1344,24 @@ async function syncRadiusForVoucher(voucherId) {
       [radiusUsername(r.code, r.isp_id), r.password || r.code] /* RL_PW_REAL: login flows send the voucher PASSWORD (validate-voucher / SMS); code only as fallback */
     );
 
+    /* RL_SIMUL_USE: how many devices this package may use AT ONCE. FreeRADIUS enforces it
+       through session { -sql } + simul_count_query, so the N+1th device is refused at
+       authentication and cannot route around a portal check. Written by BOTH RADIUS writers
+       (here and intasend-activate.js) — a value set by only one path would apply or not
+       depending on which gateway the ISP happens to use. */
+    try {
+      const _sim = await query(
+        'SELECT COALESCE(hp.simultaneous_sessions,1) AS n FROM hotspot_vouchers hv ' +
+        'JOIN hotspot_packages hp ON hp.id = hv.package_id WHERE hv.id = $1::uuid', [voucherId]);
+      const _n = _sim.rows[0] ? parseInt(_sim.rows[0].n, 10) : 1;
+      if (Number.isFinite(_n) && _n > 0) {
+        await query(
+          `INSERT INTO radcheck (username, attribute, op, value)
+           VALUES ($1, 'Simultaneous-Use', ':=', $2)`,
+          [radiusUsername(r.code, r.isp_id), String(_n)]);
+      }
+    } catch (e) { logger.warn('[RADIUS-SYNC] simultaneous-use: ' + e.message); }
+
     // Session-Timeout from expires_at
     if (r.expires_at) {
       const seconds = Math.max(60, Math.floor((new Date(r.expires_at).getTime() - Date.now()) / 1000));

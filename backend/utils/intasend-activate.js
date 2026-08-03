@@ -13,7 +13,7 @@ async function syncRadius(voucherId) {
     const v = vr.rows[0];
     if (!v) return;
     const pr = await query(
-      `SELECT duration_hours, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_mb, mikrotik_profile
+      `SELECT duration_hours, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_mb, mikrotik_profile, simultaneous_sessions
        FROM hotspot_packages WHERE id=$1::uuid`, [v.package_id]);
     const pkg = pr.rows[0] || {};
 
@@ -42,6 +42,17 @@ async function syncRadius(voucherId) {
     if (pkg.data_limit_mb) {
       await query("INSERT INTO radreply (username, attribute, op, value) VALUES ($1,'Mikrotik-Total-Limit','=',$2)",
         [realmedUser, String(pkg.data_limit_mb * 1024 * 1024)]);
+    }
+    /* RL_SIMUL_USE: how many devices this package may use AT ONCE. FreeRADIUS enforces it via
+       session { -sql } + simul_count_query, so the N+1th device is rejected at authentication
+       and cannot slip past a portal check. Written on every sync so a package change takes
+       effect on the next activation. */
+    {
+      const _simul = parseInt(pkg.simultaneous_sessions, 10);
+      if (Number.isFinite(_simul) && _simul > 0) {
+        await query("INSERT INTO radcheck (username, attribute, op, value) VALUES ($1,'Simultaneous-Use',':=',$2)",
+          [realmedUser, String(_simul)]);
+      }
     }
     if (pkg.mikrotik_profile) {
       await query("INSERT INTO radreply (username, attribute, op, value) VALUES ($1,'Mikrotik-Group','=',$2)",

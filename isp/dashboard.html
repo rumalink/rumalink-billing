@@ -2222,6 +2222,10 @@ function openHSPackageModal(){
     <div class="fg2"><div class="fg"><label>Name *</label><input id="hsp-name" placeholder="e.g. 1 Hour Premium"/></div><div class="fg"><label>Price (KES) *</label><input id="hsp-price" type="number" placeholder="50"/></div></div>
     <div class="fg2"><div class="fg"><label>Duration (hours)</label><input id="hsp-hrs" type="number" placeholder="1 (blank=unlimited)"/></div><div class="fg"><label>Download Mbps</label><input id="hsp-down" type="number" placeholder="5 (blank=unlimited)"/></div></div>
     <div class="fg2"><div class="fg"><label>Upload Mbps</label><input id="hsp-up" type="number"/></div><div class="fg"><label>Data Limit (MB)</label><input id="hsp-data" type="number" placeholder="blank=unlimited"/></div></div>
+    <!-- RL_SIMUL_FIELD: how many devices may use ONE voucher at the same time.
+         Enforced by RADIUS (Simultaneous-Use); 1 keeps today's behaviour. -->
+    <label>Devices allowed at once</label>
+    <input id="hsp-devices" type="number" min="1" max="10" value="1" placeholder="1"/>
     <div class="fg"><label>MikroTik Profile Name</label><input id="hsp-profile" placeholder="e.g. hotspot-1hr"/></div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button><button class="btn btn-teal" onclick="saveHSPkg()">Create</button></div>
   </div>`;
@@ -2231,7 +2235,7 @@ function openHSPackageModal(){
 
 async function saveHSPkg(){
   try{
-    await api('/hotspot/packages',{method:'POST',body:JSON.stringify({name:document.getElementById('hsp-name').value,price:document.getElementById('hsp-price').value,duration_hours:document.getElementById('hsp-hrs').value||null,bandwidth_down_mbps:document.getElementById('hsp-down').value||null,bandwidth_up_mbps:document.getElementById('hsp-up').value||null,data_limit_mb:document.getElementById('hsp-data').value||null,mikrotik_profile:document.getElementById('hsp-profile').value})});
+    await api('/hotspot/packages',{method:'POST',body:JSON.stringify({name:document.getElementById('hsp-name').value,price:document.getElementById('hsp-price').value,duration_hours:document.getElementById('hsp-hrs').value||null,bandwidth_down_mbps:document.getElementById('hsp-down').value||null,bandwidth_up_mbps:document.getElementById('hsp-up').value||null,data_limit_mb:document.getElementById('hsp-data').value||null,simultaneous_sessions:parseInt(document.getElementById('hsp-devices').value||'1',10),mikrotik_profile:document.getElementById('hsp-profile').value})});
     toast('Package created!');document.querySelectorAll('.modal-overlay').forEach(o=>o.remove());loadHSPackages();
   }catch(e){toast(e.message,'error');}
 }
