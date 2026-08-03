@@ -964,7 +964,13 @@ router.post('/:ispId/callback/:paymentId', async (req, res) => {
         if (voucher) {
           logger.info(`Voucher ${voucher.code} activated. New expiry: ${voucher.expires_at}`);
           await syncRadiusForVoucher(voucher.id).catch(()=>{});
-          try { await require('./hotspotSms').sendPurchaseSms(req.params.paymentId); } catch (e) {}
+          try { await require('../utils/hotspotSms').sendPurchaseSms(req.params.paymentId); }
+          /* RL_SMS_REQUIRE_PATH: this was require('./hotspotSms'), which resolves to
+             routes/hotspotSms.js — the module lives in utils/. require threw
+             MODULE_NOT_FOUND and the empty catch discarded it, so every customer paid
+             and heard nothing while the log showed a clean activation. Never swallow
+             this one: a missing confirmation is a support call. */
+          catch (e) { logger.error('[purchase-sms] send failed for payment ' + req.params.paymentId + ': ' + e.message); }
           logger.info(`[CB-VOUCHER] code=${voucher.code} mac=${voucher.used_by_mac || '(none)'} package=${voucher.package_id} isp=${voucher.isp_id}`);
 
           // ─── CB-QUEUE-APPLY v54: apply queue to router NOW for this voucher's MAC ───

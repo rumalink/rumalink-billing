@@ -29,7 +29,7 @@ const { connectDB } = require('./config/database');
         changed = true;
       }
       if (c.includes('await syncRadiusForVoucher(voucher.id).catch(()=>{});') && !c.includes('sendPurchaseSms(req.params.paymentId)')) {
-        c = c.replace('await syncRadiusForVoucher(voucher.id).catch(()=>{});', 'await syncRadiusForVoucher(voucher.id).catch(()=>{});\n          try { await require(\'./hotspotSms\').sendPurchaseSms(req.params.paymentId); } catch (e) {}');
+        c = c.replace('await syncRadiusForVoucher(voucher.id).catch(()=>{});', 'await syncRadiusForVoucher(voucher.id).catch(()=>{});\n          try { await require(\'../utils/hotspotSms\').sendPurchaseSms(req.params.paymentId); } catch (e) {}');
         changed = true;
       }
       if (c.includes('OR buyer_phone IS NOT NULL')) {
