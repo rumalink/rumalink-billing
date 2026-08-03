@@ -167,9 +167,15 @@ router.post('/', ...ispAuthChain, async (req, res) => {
       const _beneficiary = _ispName || 'ISP';
       const _dest = Object.assign({}, destination, {
         name: _beneficiary,
-        narrative: (_ispName ? _ispName + ' withdrawal' : 'RumaLink withdrawal'),
+        narrative: (_ispName ? _ispName + ' withdrawal ' + String(withdrawalId).slice(0, 8)
+                                 : 'RumaLink withdrawal ' + String(withdrawalId).slice(0, 8)),
       });
-      payout = await intasend.sendPayout(method, { ...destination, narrative: `RumaLink withdrawal ${withdrawalId}` }, quote.net);
+      /* RL_BENEFICIARY_NAME_APPLIED: _dest (built just above with the ISP's company name and
+             narrative) was constructed and then discarded — this call spread `destination` and
+             overwrote the narrative, so every payout reached IntaSend anonymous and
+             reconciliation across several withdrawing ISPs was impossible. Use _dest, and keep
+             the withdrawal id in the narrative for traceability. */
+          payout = await intasend.sendPayout(method, _dest, quote.net);
     } catch (e) {
       // Refund on hard failure to initiate.
       await query('UPDATE isps SET wallet_balance=wallet_balance+$1 WHERE id=$2', [amount, ispId]);

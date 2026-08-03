@@ -106,6 +106,12 @@ async function activateVoucher(paymentId) {
     } catch (e) { logger.error('[intasend-activate] TV bind: ' + e.message); }
 
     await syncRadius(v.id);
+    /* RL_INTASEND_PURCHASE_SMS: the confirmation is sent from the Daraja callback for that
+       gateway; on the IntaSend path nothing sent it, so those customers paid and heard
+       nothing. sendPurchaseSms is idempotent via the payment's rl_purchase_sms flag, so a
+       retry or a second activation pass cannot send a duplicate. */
+    try { await require('./hotspotSms').sendPurchaseSms(paymentId); }
+    catch (e) { logger.error('[intasend-activate] purchase sms: ' + e.message); }
     return v;
   } catch (e) {
     logger.error('[intasend-activate] ' + e.message);

@@ -900,6 +900,15 @@ router.get('/:ispId/payment-status/:paymentId', async (req, res) => {
        autologin fell through to navigateToHotspotLogin(code, code) -> RADIUS expects
        'R1@<isp8>' / '<voucher password>' and rejects 'R1'/'R1'. Return the real creds, exactly
        like /api/payments/public-status already does. */
+    /* RL_INTASEND_INLINE_ACTIVATE: IntaSend confirms via poll, but the voucher was activated and
+       RADIUS-synced by a LATER pass — so the first response that said 'paid' carried null creds
+       and the portal could not auto-login, stranding a paying customer on the purchase page.
+       Daraja never had this gap: its callback activates before the next poll. activateVoucher is
+       idempotent (RL_ACTIVATE_GUARD), so calling it on every paid poll is safe. */
+    if (r.rows[0].status === 'paid') {
+      try { await require('../utils/intasend-activate').activateVoucher(req.params.paymentId); }
+      catch (e) { logger.warn('[captive] inline intasend activate: ' + e.message); }
+    }
     let radius_username = null, radius_password = null;
     if (r.rows[0].status === 'paid') {
       try {
@@ -964,6 +973,11 @@ router.post('/:ispId/callback/:paymentId', async (req, res) => {
         if (voucher) {
           logger.info(`Voucher ${voucher.code} activated. New expiry: ${voucher.expires_at}`);
           await syncRadiusForVoucher(voucher.id).catch(()=>{});
+          /* RL_DARAJA_ACTIVATE_STAMP: strand-heal skips payments whose voucher was already
+             activated (RL_SKIP_ACTIVATED), but only the IntaSend activator stamped this column.
+             Without it a Daraja payment looks unfulfilled once a later top-up re-points the
+             voucher, and gets 'healed' — duplicate SMS and a second period of access. */
+          await query("UPDATE payments SET voucher_activated_at = COALESCE(voucher_activated_at, NOW()) WHERE id = $1::uuid", [req.params.paymentId]).catch(()=>{});
           try { await require('../utils/hotspotSms').sendPurchaseSms(req.params.paymentId); }
           /* RL_SMS_REQUIRE_PATH: this was require('./hotspotSms'), which resolves to
              routes/hotspotSms.js — the module lives in utils/. require threw

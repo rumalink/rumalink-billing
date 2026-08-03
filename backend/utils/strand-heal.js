@@ -76,6 +76,14 @@ async function pass(onlyPaymentId) { /* RL_HEAL_ONE: when given, heal just that 
     : await query(
       "SELECT p.* FROM payments p WHERE p.status='paid' AND p.created_at > NOW() - interval '7 days' " +
       "AND (p.metadata->>'rl_healed') IS NULL " + /* RL_HEAL_MARK: each payment healed exactly once */
+            /* RL_SKIP_ACTIVATED: a voucher is a long-lived per-device credential, so a NEW purchase
+               tops it up and re-points payment_id — leaving the PREVIOUS payment with no voucher
+               attached even though it was fully served. Healing it re-pointed the voucher back,
+               sent a duplicate SMS and granted a second period of access (10:27 -> 11:27), and the
+               newer payment then looked unfulfilled: a ping-pong costing an SMS credit and free
+               time on every pass. voucher_activated_at is stamped when a voucher is activated FOR
+               THIS payment, so it records fulfilment regardless of where the voucher now points. */
+            "AND p.voucher_activated_at IS NULL " +
       /* RL_CHANNEL_SCOPED: never touch a PPPoE payment. The channel is recorded on the payment;
          inferring it from the price gave a PPPoE customer a free hotspot voucher whenever the two
          price lists happened to overlap. */
