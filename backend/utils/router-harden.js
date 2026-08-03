@@ -49,6 +49,37 @@ async function harden(d) {
     } catch (e) {}
   }
 
+  // 1b) RL_ACCEPT_ORDER — the bare `accept established,related` rule must sit BELOW every
+  //     rl-expired rule. Above them, an expired customer's already-open connections are accepted
+  //     before reaching the expiry reject, and they keep browsing after their package ends.
+  //     Enforced by DELETE + re-ADD (an append reliably lands last) rather than a positional
+  //     move: positional moves previously black-holed every expired user. Safe because the
+  //     forward chain has no terminal drop — during the sub-millisecond gap traffic falls
+  //     through to the chain's default accept.
+  try {
+    const fwA = await get('/ip/firewall/filter');
+    const fwd = fwA.filter(x => x.chain === 'forward');
+    const acceptIdx = fwd.findIndex(x =>
+      x.action === 'accept' &&
+      String(x['connection-state'] || '') === 'established,related' &&
+      !x['src-address'] && !x['dst-address'] && !x['src-address-list'] && !x['dst-address-list']);
+    const lastExpiredIdx = fwd.map((x, i) =>
+      String(x['src-address-list'] || '') === 'rl-expired' ? i : -1)
+      .reduce((a, b) => Math.max(a, b), -1);
+    if (acceptIdx > -1 && lastExpiredIdx > -1 && acceptIdx < lastExpiredIdx) {
+      const rule = fwd[acceptIdx];
+      const body = { chain: 'forward', action: 'accept', 'connection-state': 'established,related',
+                     comment: rule.comment || 'RL-FASTTRACK accept' };
+      try {
+        await del('/ip/firewall/filter', rule['.id']);
+        await put('/ip/firewall/filter', body);
+        logger.warn('[router-harden] ' + d.name +
+          ' established/related accept was ABOVE the expiry rules (position ' + acceptIdx +
+          ' vs ' + lastExpiredIdx + ') — moved to the bottom; expired users could bypass the walled garden');
+      } catch (e) { logger.warn('[router-harden] accept-order: ' + e.message); }
+    }
+  } catch (e) { logger.warn('[router-harden] accept-order: ' + e.message); }
+
   // 2) MSS clamp on pppoe (only if a pppoe WAN iface exists)
   const ifs = await get('/interface');
   const pppoeWan = ifs.find(i => i.name === 'rl-wan-pppoe');
