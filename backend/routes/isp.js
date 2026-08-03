@@ -2828,7 +2828,12 @@ router.post('/:ispId/users/import', async (req, res) => {
   try {
     const { ispId } = req.params;
     const rows = Array.isArray(req.body.rows) ? req.body.rows : [];
-    const kre = '^K[0-9]+' + String.fromCharCode(36);
+    /* RL_IMPORT_PREFIX: was hardcoded 'K'. Codes must carry the ISP's own initial
+       (Rumalink -> R1, R2...). The max-number lookup below also searched the ^K[0-9]+$ series,
+       so for any ISP not starting with K it counted from an unrelated sequence. */
+    const _pfxRow = await query("SELECT company_name FROM isps WHERE id=$1::uuid", [ispId]);
+    const _pfx = (String((_pfxRow.rows[0] && _pfxRow.rows[0].company_name) || 'X').trim().match(/[A-Za-z]/) || ['X'])[0].toUpperCase();
+    const kre = '^' + _pfx + '[0-9]+' + String.fromCharCode(36);
     const mk = await query("SELECT COALESCE(MAX((substring(code from 2))::int),0) AS m FROM hotspot_vouchers WHERE isp_id=$1::uuid AND code ~ '" + kre + "'", [ispId]);
     let nextK = Number(mk.rows[0].m || 0) + 1;
     const importBatch = 'imp_' + Date.now(); /* RL_IMPORT_BATCH */
