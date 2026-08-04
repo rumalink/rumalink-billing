@@ -539,7 +539,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
               <th style="padding:12px;text-align:left">Expires</th>
               <th style="padding:12px;text-align:left">Data</th>
             </tr></thead>
-            <tbody id="active-sessions-tbody"><tr><td colspan="8" style="text-align:center;padding:24px;color:#888">Click to load…</td></tr></tbody>
+            <tbody id="active-sessions-tbody"><tr><td colspan="9" style="text-align:center;padding:24px;color:#888">Click to load…</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -587,9 +587,9 @@ tr:hover td{background:rgba(255,255,255,.015)}
               <th style="padding:12px;text-align:left">Status</th>
               <th style="padding:12px;text-align:left">Expires</th>
               <th style="padding:12px;text-align:left">Online</th>
-              <th style="padding:12px;text-align:left">Created</th>
+              <th style="padding:12px;text-align:left">Created</th><th style="padding:12px;text-align:right">Actions</th>
             </tr></thead>
-            <tbody id="users-tbody"><tr><td colspan="8" style="text-align:center;padding:24px;color:#888">Click to load…</td></tr></tbody>
+            <tbody id="users-tbody"><tr><td colspan="9" style="text-align:center;padding:24px;color:#888">Click to load…</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -712,7 +712,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
           </div>
           <button class="btn btn-outline btn-sm" onclick="loadSubscribers()">🔄</button>
         </div>
-        <div class="tbl-wrap"><table><thead><tr><th>Name</th><th>Username</th><th>Phone</th><th>Package</th><th>Status</th><th>Next Bill</th><th>Balance</th><th>Actions</th></tr></thead><tbody id="subs-tbody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">Loading…</td></tr></tbody></table></div>
+        <div class="tbl-wrap"><table><thead><tr><th>Name</th><th>Username</th><th>Phone</th><th>Package</th><th>Status</th><th>Next Bill</th><th>Balance</th><th>Actions</th></tr></thead><tbody id="subs-tbody"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">Loading…</td></tr></tbody></table></div>
         <div style="padding:12px 18px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--border)">
           <button class="btn btn-outline btn-sm" onclick="if(subPage>1){subPage--;loadSubscribers()}">← Prev</button>
           <button class="btn btn-outline btn-sm" onclick="subPage++;loadSubscribers()">Next →</button>
@@ -2316,7 +2316,7 @@ async function loadSubscribers(){
   const search=document.getElementById('sub-search').value;
   const status=document.getElementById('sub-filter').value;
   const tbody=document.getElementById('subs-tbody');
-  tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:16px">Loading…</td></tr>';
+  tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:16px">Loading…</td></tr>';
   try{
     const d=await api(`/pppoe/subscribers?page=${subPage}&limit=20${search?'&search='+encodeURIComponent(search):''}${status?'&status='+status:''}`);
     tbody.innerHTML=(d.subscribers||[]).map(s=>`
@@ -2333,7 +2333,7 @@ async function loadSubscribers(){
           <button class="btn btn-outline btn-sm" onclick="openPaymentFor('${s.id}')">Pay</button>
           <button class="btn btn-sm ${s.status==='suspended'?'btn-teal':'btn-red'}" onclick="toggleSub('${s.id}','${s.status==='suspended'?'active':'suspended'}')">${s.status==='suspended'?'Activate':'Suspend'}</button>
         </td>
-      </tr>`).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">No subscribers</td></tr>';
+      </tr>`).join('')||'<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">No subscribers</td></tr>';
   }catch(e){toast('Failed to load subscribers','error');}
 }
 
@@ -4209,7 +4209,7 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
     });
 
     if (!filtered.length) {
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#888">No active sessions</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:#888">No active sessions</td></tr>';
       return;
     }
 
@@ -4242,7 +4242,7 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
       return;
     }
     var seq = ++_asSeq;   /* RL_AS_RACE_FIX */
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#888">Loading…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:#888">Loading…</td></tr>';
     try {
       var d = await api('/isp/sessions/active');
       if (seq !== _asSeq) return;   /* RL_AS_RACE_FIX: a newer load won — drop this stale one */
@@ -4268,7 +4268,7 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
       } catch(_e) { console.warn('[RL-ActiveSess-v3] card fill failed', _e); }
     } catch (e) {
       console.error('[RL-ActiveSess-v3] load failed:', e);
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#e74c3c">Failed: ' + esc(e.message) + '</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:#e74c3c">Failed: ' + esc(e.message) + '</td></tr>';
     }
   }
   window.rlLoadActiveSessions = loadActiveSessions;
@@ -4417,7 +4417,7 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
     });
 
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#888">No users</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:#888">No users</td></tr>';
       return;
     }
 
@@ -4438,6 +4438,10 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
         + '<td style="padding:12px;color:' + exp.color + '">' + exp.text + '</td>'
         + '<td style="padding:12px">' + onlineBadge + '</td>'
         + '<td style="padding:12px;color:#888">' + dts(u.created_at) + '</td>'
+        /* RL_DELETE_BTN */
+        + '<td style="padding:12px;text-align:right"><button type="button" title="Delete this user"'
+        + ' onclick="event.stopPropagation();rlDeleteUser(\'' + u.id + '\',\'' + (u.type === 'pppoe' ? 'pppoe' : 'hotspot') + '\',\'' + esc(u.username || '') + '\')"'
+        + ' style="background:transparent;border:1px solid rgba(231,76,60,.45);color:#e74c3c;border-radius:6px;padding:4px 9px;cursor:pointer;font-size:.78rem">Delete</button></td>'
         + '</tr>';
     }).join('');
   }
@@ -4445,7 +4449,7 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
   async function loadUsers() {
     var tbody = findTbody();
     if (!tbody) { setTimeout(loadUsers, 500); return; }
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#888">Loading…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:#888">Loading…</td></tr>';
     try {
       var qs = '';
       if (state.search) qs += '&search=' + encodeURIComponent(state.search);
@@ -4464,7 +4468,7 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
       renderRows();
     } catch(e) {
       console.error('[RL-Users-v5] failed:', e);
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#e74c3c">Failed: ' + esc(e.message) + '</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:#e74c3c">Failed: ' + esc(e.message) + '</td></tr>';
     }
   }
   window.rlLoadUsers = loadUsers;
@@ -5077,6 +5081,24 @@ async function rlDoIE(){
   }
 }
 
+</script>
+
+
+<script>
+/* RL_DELETE_BTN: removing a user takes away access immediately but keeps their payment history —
+   a hard delete is refused by the database for anyone who has ever paid, and forcing it would
+   erase revenue records. */
+window.rlDeleteUser = async function(id, type, label){
+  if (!confirm('Delete ' + (label || 'this user') + '?\n\nThey lose access straight away. Their payment history is kept for your records.')) return;
+  try {
+    await api('/isp/users/' + id + '?type=' + type, { method: 'DELETE' });
+    if (typeof toast === 'function') toast('Deleted');
+    if (typeof rlLoadUsers === 'function') rlLoadUsers();
+    else if (typeof loadUsers === 'function') loadUsers();
+  } catch (e) {
+    if (typeof toast === 'function') toast(e.message, 'error'); else alert(e.message);
+  }
+};
 </script>
 
 </body>

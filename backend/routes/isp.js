@@ -912,7 +912,7 @@ router.get('/users', async (req, res) => {
         FROM hotspot_vouchers v
         LEFT JOIN hotspot_packages hp ON hp.id = v.package_id
         LEFT JOIN payments p ON p.id = v.payment_id
-        WHERE v.isp_id = $1::uuid
+        WHERE v.isp_id = $1::uuid AND v.deleted_at IS NULL /* RL_HIDE_DELETED */
           AND (v.payment_id IS NOT NULL OR v.created_by_isp = true OR v.expires_at IS NOT NULL) /* RL_SHOW_ISP_CREATED: show paid OR ISP-created(import/test) OR dated vouchers */
           AND (v.is_tv IS NOT TRUE OR v.is_tv IS NULL) /* RL_TV_EXCLUDE_USERS */
         ORDER BY v.created_at DESC LIMIT $2
@@ -984,7 +984,7 @@ router.get('/users', async (req, res) => {
           FROM pppoe_subscribers s
           LEFT JOIN pppoe_packages pkg ON pkg.id = s.package_id
           LEFT JOIN radcheck rc ON rc.username = s.username AND rc.attribute = 'Cleartext-Password'
-          WHERE s.isp_id = $1::uuid
+          WHERE s.isp_id = $1::uuid AND s.deleted_at IS NULL /* RL_HIDE_DELETED */
           ORDER BY s.created_at DESC LIMIT $2
         `, [req.user.ispId, FETCH_CAP]);
         for (const row of r.rows) {
@@ -1058,11 +1058,11 @@ router.get('/users', async (req, res) => {
       const _c = await query(
         `SELECT
            (SELECT count(*) FROM hotspot_vouchers v
-             WHERE v.isp_id = $1::uuid
+             WHERE v.isp_id = $1::uuid AND v.deleted_at IS NULL /* RL_HIDE_DELETED */
                AND (v.payment_id IS NOT NULL OR v.created_by_isp = true OR v.expires_at IS NOT NULL)
                AND (v.is_tv IS NOT TRUE OR v.is_tv IS NULL))::int AS hotspot,
            (SELECT count(*) FROM hotspot_bound_devices bd WHERE bd.isp_id = $1::uuid)::int AS tvs,
-           (SELECT count(*) FROM pppoe_subscribers s WHERE s.isp_id = $1::uuid)::int AS pppoe`,
+           (SELECT count(*) FROM pppoe_subscribers s WHERE s.isp_id = $1::uuid AND s.deleted_at IS NULL)::int AS pppoe`,
         [req.user.ispId]);
       const _r = _c.rows[0] || { hotspot: 0, tvs: 0, pppoe: 0 };
       /* the Hotspot tab shows TVs too — the server groups them there — so the badge must match */
@@ -1205,34 +1205,92 @@ router.put('/users/:id', async (req, res) => {
 
 // Delete one user
 router.delete('/users/:id', async (req, res) => {
+  /* RL_SOFT_DELETE: this used a hard DELETE, which Postgres refuses for anyone with payment
+     history — payments, pppoe_sessions and pppoe_invoices all reference these rows. Cascading
+     instead would erase revenue records. So: mark the row removed, take away its access
+     immediately, and hide it from the lists. The ISP sees a delete; the accounts stay whole. */
   try {
     const { type } = req.query;
-    if (type === 'hotspot') {
-      // Get code first for router removal
-      const v = await query(
-        `SELECT v.code, n.id as nas_id FROM hotspot_vouchers v, nas_devices n
-         WHERE v.id = $1::uuid AND v.isp_id = $2::uuid AND n.isp_id = $2::uuid AND n.wireguard_ip IS NOT NULL
-         LIMIT 1`, [req.params.id, req.user.ispId]
-      );
-      if (v.rows[0]) {
-        try {
-          const mt = require('../utils/mikrotik');
-          await mt.removeHotspotUser(v.rows[0].nas_id, v.rows[0].code);
-        } catch(e) {}
-      }
-      await query(`DELETE FROM hotspot_vouchers WHERE id = $1::uuid AND isp_id = $2::uuid`, [req.params.id, req.user.ispId]);
-    } else if (type === 'pppoe') {
-      await query(`DELETE FROM pppoe_subscribers WHERE id = $1::uuid AND isp_id = $2::uuid`, [req.params.id, req.user.ispId]);
-    } else {
+    if (type !== 'hotspot' && type !== 'pppoe') {
       return res.status(400).json({ error: 'type must be hotspot or pppoe' });
     }
+
+    if (type === 'hotspot') {
+      const v = (await query(
+        `SELECT v.id, v.code, v.isp_id, v.used_by_mac FROM hotspot_vouchers v
+          WHERE v.id = $1::uuid AND v.isp_id = $2::uuid LIMIT 1`,
+        [req.params.id, req.user.ispId])).rows[0];
+      if (!v) return res.status(404).json({ error: 'User not found' });
+
+      const realmed = v.code + '@' + String(v.isp_id).replace(/-/g, '').slice(0, 8).toLowerCase();
+      /* credentials first — the customer must lose access even if the router is unreachable */
+      await query('DELETE FROM radcheck WHERE username = $1 OR username = $2', [realmed, v.code]).catch(() => {});
+      await query('DELETE FROM radreply WHERE username = $1 OR username = $2', [realmed, v.code]).catch(() => {});
+      if (v.used_by_mac) {
+        await query('DELETE FROM radcheck WHERE username = $1', [v.used_by_mac]).catch(() => {});
+        await query('DELETE FROM radreply WHERE username = $1', [v.used_by_mac]).catch(() => {});
+      }
+      await query('DELETE FROM hotspot_voucher_devices WHERE voucher_id = $1::uuid', [v.id]).catch(() => {});
+
+      try {
+        const mt = require('../utils/mikrotik');
+        const nas = (await query(
+          'SELECT id FROM nas_devices WHERE isp_id = $1::uuid AND wireguard_ip IS NOT NULL', [req.user.ispId])).rows;
+        for (const n of nas) {
+          await mt.removeHotspotUser(n.id, v.code).catch(() => {});
+          if (mt.kickHotspotUser) await mt.kickHotspotUser(n.id, v.code).catch(() => {});
+        }
+      } catch (e) { require('../utils/logger').warn('[delete-user] router cleanup: ' + e.message); }
+
+      await query(
+        `UPDATE hotspot_vouchers SET deleted_at = NOW(), status = 'deleted', updated_at = NOW()
+          WHERE id = $1::uuid AND isp_id = $2::uuid`, [req.params.id, req.user.ispId]);
+      require('../utils/logger').info('[delete-user] hotspot ' + v.code + ' removed by isp ' + req.user.ispId);
+
+    } else {
+      const sub = (await query(
+        'SELECT id, username FROM pppoe_subscribers WHERE id = $1::uuid AND isp_id = $2::uuid LIMIT 1',
+        [req.params.id, req.user.ispId])).rows[0];
+      if (!sub) return res.status(404).json({ error: 'Subscriber not found' });
+
+      await query('DELETE FROM radcheck WHERE username = $1', [sub.username]).catch(() => {});
+      await query('DELETE FROM radreply WHERE username = $1', [sub.username]).catch(() => {});
+
+      try {
+        const axios = require('axios');
+        const nas = (await query(
+          `SELECT wireguard_ip, mikrotik_api_user, mikrotik_api_password FROM nas_devices
+            WHERE isp_id = $1::uuid AND wireguard_ip IS NOT NULL`, [req.user.ispId])).rows;
+        for (const n of nas) {
+          const b = 'http://' + n.wireguard_ip + '/rest';
+          const auth = { username: n.mikrotik_api_user, password: n.mikrotik_api_password };
+          const act = (await axios.get(b + '/ppp/active', { auth, timeout: 8000, validateStatus: () => true })).data || [];
+          for (const a of act) {
+            if (String(a.name) === sub.username) {
+              await axios.delete(b + '/ppp/active/' + encodeURIComponent(a['.id']), { auth, timeout: 8000 }).catch(() => {});
+            }
+          }
+          const secrets = (await axios.get(b + '/ppp/secret', { auth, timeout: 8000, validateStatus: () => true })).data || [];
+          for (const sc of secrets) {
+            if (String(sc.name) === sub.username) {
+              await axios.delete(b + '/ppp/secret/' + encodeURIComponent(sc['.id']), { auth, timeout: 8000 }).catch(() => {});
+            }
+          }
+        }
+      } catch (e) { require('../utils/logger').warn('[delete-user] pppoe router cleanup: ' + e.message); }
+
+      await query(
+        `UPDATE pppoe_subscribers SET deleted_at = NOW(), status = 'deleted', updated_at = NOW()
+          WHERE id = $1::uuid AND isp_id = $2::uuid`, [req.params.id, req.user.ispId]);
+      require('../utils/logger').info('[delete-user] pppoe ' + sub.username + ' removed by isp ' + req.user.ispId);
+    }
+
     res.json({ ok: true });
   } catch (err) {
+    require('../utils/logger').error('[delete-user] ' + err.message);
     res.status(500).json({ error: err.message });
   }
 });
-
-
 // ─── v58: RADIUS Accounting / Usage Reports endpoint ───
 router.get('/:ispId/usage-reports', authenticateToken, async (req, res) => {
   try {
