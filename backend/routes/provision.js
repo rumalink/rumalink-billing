@@ -246,6 +246,9 @@ ${bridgePortsBlock}
 :do { /ip hotspot user remove [find name="rumalink"] } on-error={}
 :do { /ip hotspot user add name="rumalink" password="rumalink" profile=default comment="RumaLink-generic" } on-error={}
 :do { /ip dns set allow-remote-requests=yes } on-error={}
+# RL_SHARED_USERS_PROV: the default hotspot user profile caps simultaneous logins at 1, which
+# silently overrides the per-package limit RADIUS sends. Keep it permissive here too.
+:do { /ip hotspot user profile set [find] shared-users=10 } on-error={}
 :do { /ip hotspot profile set [find name="rl-hsprof"] login-by=mac,cookie,http-pap mac-auth-password="RLMACAUTH" } on-error={}
 # RL-FASTTRACK + MSS clamp + PCQ (RL_PERF: recover throughput on low-power routers; hotspot is unmarked so safe to fasttrack)
 :do { /ip firewall filter remove [find comment~"RL-FASTTRACK"] } on-error={}

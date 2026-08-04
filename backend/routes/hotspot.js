@@ -43,6 +43,15 @@ router.put('/packages/:id', async (req, res, next) => {
       WHERE id=$11 AND isp_id=$12 RETURNING *
     `, [name, description, price, duration_hours, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_mb, simultaneous_sessions, mikrotik_profile, is_active, req.params.id, req.user.ispId]);
     if (!result.rows[0]) return res.status(404).json({ error: 'Package not found' });
+    /* RL_PKG_LIMIT_PROPAGATE: changing a package's device count must reach the vouchers already
+       issued from it. The limit lives in radcheck, so this is a database update — nothing is
+       pushed to the router, which is the point of keeping shared-users permissive. */
+    try {
+      await query("UPDATE radcheck rc SET value = COALESCE(hp.simultaneous_sessions,1)::text " +
+        "FROM hotspot_vouchers hv JOIN hotspot_packages hp ON hp.id = hv.package_id " +
+        "WHERE rc.attribute='Simultaneous-Use' AND hv.status='active' AND hp.id = $1::uuid " +
+        "AND rc.username = hv.code || '@' || lower(left(replace(hv.isp_id::text,'-',''),8))", [req.params.id]);
+    } catch (e) { require('../utils/logger').warn('[packages] limit propagate: ' + e.message); }
     res.json({ package: result.rows[0] });
   } catch (err) { next(err); }
 });

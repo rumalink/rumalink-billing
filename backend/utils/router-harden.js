@@ -80,6 +80,22 @@ async function harden(d) {
     }
   } catch (e) { logger.warn('[router-harden] accept-order: ' + e.message); }
 
+  // 1c) RL_SHARED_USERS — the hotspot user profile must NOT cap simultaneous logins. It ships
+  //     with shared-users=1, so a second device on a multi-device package got Access-Accept from
+  //     RADIUS and was then refused by the router itself: no accounting start, no error, the
+  //     browser just returned to the login page. The real per-package limit is carried by RADIUS
+  //     (Simultaneous-Use), which means a package change takes effect through radcheck with
+  //     nothing to push here. Keep the router permissive so the two never disagree.
+  try {
+    const profs = await get('/ip/hotspot/user/profile');
+    for (const pr of profs) {
+      if (String(pr['shared-users'] || '1') !== '10') {
+        await patch('/ip/hotspot/user/profile/' + encodeURIComponent(pr['.id']), { 'shared-users': '10' });
+        logger.info('[router-harden] ' + d.name + ' hotspot profile ' + pr.name + ' shared-users -> 10 (RADIUS carries the real limit)');
+      }
+    }
+  } catch (e) { logger.warn('[router-harden] shared-users: ' + e.message); }
+
   // 2) MSS clamp on pppoe (only if a pppoe WAN iface exists)
   const ifs = await get('/interface');
   const pppoeWan = ifs.find(i => i.name === 'rl-wan-pppoe');
