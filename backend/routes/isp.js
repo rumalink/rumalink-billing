@@ -613,7 +613,9 @@ router.get('/transactions', async (req, res, next) => {
 router.get('/sessions/active', async (req, res) => {
   const _logger = require('../utils/logger');
   try {
-    const type = req.query.type || 'all';
+    /* RL_TYPE_NORMALISE: a repeated ?type= arrives as an array; take the last value. */
+    const _rawT = req.query.type;
+    const type = (Array.isArray(_rawT) ? _rawT[_rawT.length - 1] : _rawT) || 'all';
     let sessions = [];
     _logger.info(`[ACTIVE-SESS] start ispId=${req.user.ispId} type=${type}`);
 
@@ -914,7 +916,12 @@ router.get('/radius-status', async (req, res) => {
 // ─── ALL USERS: unified hotspot + pppoe view, optionally enriched with live router state ───
 router.get('/users', async (req, res) => {
   try {
-    const type = req.query.type || 'all';
+    /* RL_TYPE_NORMALISE: the page requests '?type=all' and the filter appends '&type=pppoe',
+       so Express hands us an ARRAY ['all','pppoe']. Every branch below compares with === to a
+       string, so all of them failed and the list came back empty — which read as 'there are no
+       PPPoE users'. Take the last value, which is the one the filter meant. */
+    const _rawType = req.query.type;
+    const type = (Array.isArray(_rawType) ? _rawType[_rawType.length - 1] : _rawType) || 'all';
     const search = (req.query.search || '').trim().toLowerCase();
     const limit = Math.min(parseInt(req.query.limit) || 50, 500);
     const offset = Math.max(parseInt(req.query.offset) || 0, 0); /* RL_USERS_PAGINATE */
