@@ -1368,34 +1368,7 @@ function rlClearTv(){ rlSelectedTv=null; window.rlSelectedTv=null; rlPersistTvSe
 
 
 
-<script>
-/* RL_REDEEM_ERRORS_GLOBAL: whatever the page does with a failed redeem, make sure the customer
-   is told why. Wraps fetch so any non-OK /redeem or /voucher-login response surfaces the
-   server's own message — "This code is already used by 1 device. It allows 1." reads as an
-   answer; being returned to the purchase page reads as the payment having failed. */
-(function(){
-  var _f = window.fetch;
-  window.fetch = function(){
-    var url = arguments[0];
-    var pr = _f.apply(this, arguments);
-    try {
-      if (typeof url === 'string' && /\/(redeem|voucher-login)/.test(url)) {
-        pr.then(function(r){
-          if (r && !r.ok) {
-            r.clone().json().then(function(j){
-              if (j && j.error && typeof showMsg === 'function') {
-                showMsg(j.error, 'error');
-                if (typeof setLoading === 'function') setLoading(false);
-              }
-            }).catch(function(){});
-          }
-        }).catch(function(){});
-      }
-    } catch(e){}
-    return pr;
-  };
-})();
-</script>
+
 
 </body>
 </html>
