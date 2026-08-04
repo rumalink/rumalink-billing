@@ -752,9 +752,45 @@ router.get('/sessions/active', async (req, res) => {
       });
     }
 
+    /* RL_AS_TODAY_TOTALS: restored verbatim from the pre-rewrite handler. The usage cards read
+       these; my rewrite returned only { sessions } and they fell to 0 B. Deliberately sourced
+       from usage_daily rather than radacct — see the original note below. */
+    // RL_AS_TODAY_TOTALS: today's data by service from radacct (matches user pages).
+    let today_totals = { hotspot: 0, pppoe: 0, total: 0 };
+    try {
+/* RL_TOTALS_FROM_USAGE_DAILY: read the SAME source the user pages read.
+   Raw radacct is wrong here: interim updates lag (an open session can report 22 MB
+   while the router shows 9 GB), and `acctstarttime >= today` silently drops sessions
+   that started yesterday and are still running. usage_daily is collector-fed, ISP-
+   scoped and keyed to the Nairobi day — it is what /usage/today-split and the user
+   pages (RUMALINK_UD_FINAL) use, so the cards now agree with them by construction. */
+const ttRes = await query(`
+  SELECT
+    COALESCE(SUM(u.bytes_in + u.bytes_out) FILTER (WHERE ps.username IS NOT NULL), 0)::bigint AS pppoe_bytes,
+    COALESCE(SUM(u.bytes_in + u.bytes_out) FILTER (WHERE ps.username IS NULL), 0)::bigint     AS hotspot_bytes
+  FROM usage_daily u
+  LEFT JOIN pppoe_subscribers ps
+    ON ps.username = u.username AND ps.isp_id = $1::uuid
+  WHERE u.isp_id = $1::uuid
+    AND u.usage_day = (now() AT TIME ZONE 'Africa/Nairobi')::date
+`, [req.user.ispId]);
+const hb = Number(ttRes.rows[0]?.hotspot_bytes || 0);
+const pb = Number(ttRes.rows[0]?.pppoe_bytes || 0);
+today_totals = { hotspot: hb, pppoe: pb, total: hb + pb };
+/* RL_TV_USAGE_ROUTER_TOTAL: bypass TVs have no radacct; sum their QUEUE byte counters. */
+try {
+  const tvu = require('../utils/tv-usage');
+  const tvs = (await query("SELECT mac_address FROM hotspot_bound_devices WHERE isp_id=$1::uuid AND is_bound=true", [req.user.ispId])).rows;
+  let tvBytes = 0;
+  for (const t of tvs) { const rs = await tvu.tvRouterStats(req.user.ispId, t.mac_address); tvBytes += (rs.bytes_in + rs.bytes_out); }
+  if (tvBytes > 0) { today_totals.hotspot += tvBytes; today_totals.total += tvBytes; }
+} catch (e) { _logger.warn('[ACTIVE-SESS] TV usage: ' + e.message); }
+    } catch (e) { _logger.warn('[ACTIVE-SESS] today_totals: ' + e.message); }
+
     _logger.info('[ACTIVE-SESS] returning ' + sessions.length + ' session(s) from ' + routers.length + ' router(s)');
     res.json({
       sessions: sessions,
+      today_totals,
       total: sessions.length,
       counts: {
         all: sessions.length,
