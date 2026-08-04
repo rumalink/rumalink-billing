@@ -813,22 +813,17 @@ function showTVPage() {
    so the device limit could not count devices and purchased_by_mac was polluted.
    MikroTik puts the real MAC in the login URL; use that first, then the gateway derived from
    link-login (never a guessed address), and only then give up. */
+/* RL_GETMAC_INSTANT: this must never block. An earlier version fetched the hotspot gateway
+   to ask for the MAC; the purchase path does `await getMac()` before /pay, so a slow or
+   intercepted request stalled the whole flow — the spinner appeared only after the STK push
+   had been answered. MikroTik already puts the MAC in the hotspot login URL, so read it from
+   there and return immediately. No network call, nothing to wait on. */
 async function getMac() {
-  function _qs(k) { try { return new URLSearchParams(location.search).get(k) || ''; } catch (e) { return ''; } }
-  var m = _qs('mac') || _qs('client_mac') || _qs('client-mac');
-  if (m && /^[0-9A-Fa-f]{2}([:-][0-9A-Fa-f]{2}){5}$/.test(m)) return m.toUpperCase();
   try {
-    var ll = _qs('link-login-only') || _qs('link-login') || '';
-    var host = ll ? (ll.match(/^https?:\/\/([^\/]+)/) || [])[1] : '';
-    if (!host && location.hostname && !/rumalink/i.test(location.hostname)) host = location.host;
-    if (host) {
-      var c = new AbortController();
-      var t = setTimeout(function () { c.abort(); }, 2000);
-      var r = await fetch('http://' + host + '/login?mac', { signal: c.signal });
-      clearTimeout(t);
-      var txt = (await r.text()).trim();
-      if (/^[0-9A-Fa-f]{2}([:-][0-9A-Fa-f]{2}){5}$/.test(txt)) return txt.toUpperCase();
-    }
+    var q = new URLSearchParams(location.search);
+    var m = q.get('mac') || q.get('client_mac') || q.get('client-mac') || '';
+    if (/^[0-9A-Fa-f]{2}([:-][0-9A-Fa-f]{2}){5}$/.test(m)) return m.toUpperCase();
+    if (window.RL_MAC && /^[0-9A-Fa-f]{2}([:-][0-9A-Fa-f]{2}){5}$/.test(window.RL_MAC)) return String(window.RL_MAC).toUpperCase();
   } catch (e) {}
   return '';
 }
