@@ -1,3 +1,6 @@
+/* RL_MANUAL_USER_FLAG: a voucher with no payment is refused at login unless
+   created_by_isp is set (captive.js:1454). The import path set it; creating a single
+   user did not, so hand-made accounts were told 'Voucher has no payment'. */
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const coa = require('../utils/coa');
@@ -2442,8 +2445,7 @@ router.post('/hotspot/manual-voucher', async (req, res, next) => {
 
     const result = await query(`
       INSERT INTO hotspot_vouchers (
-        isp_id, package_id, nas_id, code, status, is_paid, is_test, amount_paid, payment_method, buyer_phone, used_by_mac, expires_at
-      ) VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        isp_id, package_id, nas_id, code, status, is_paid, is_test, amount_paid, payment_method, buyer_phone, used_by_mac, expires_at, created_by_isp) VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true)
       RETURNING id, code, expires_at, is_test, is_paid, buyer_phone
     `, [req.user.ispId, package_id, nas_id || null, code, 'active', isPaid, testFlag, amountPaid, paymentMethod, buyer_phone || null, mac_address || null, expiresAt]);
 
@@ -2484,8 +2486,7 @@ router.post('/hotspot/test-voucher', async (req, res, next) => {
     expiresAt.setHours(expiresAt.getHours() + (pkg.rows[0].duration_hours || 1));
 
     const result = await query(`
-      INSERT INTO hotspot_vouchers (isp_id, package_id, nas_id, code, status, is_paid, is_test, amount_paid, payment_method, expires_at)
-      VALUES ($1::uuid, $2::uuid, $3, $4, 'active', true, true, 0, 'test', $5)
+      INSERT INTO hotspot_vouchers (isp_id, package_id, nas_id, code, status, is_paid, is_test, amount_paid, payment_method, expires_at, created_by_isp) VALUES ($1::uuid, $2::uuid, $3, $4, 'active', true, true, 0, 'test', $5, true)
       RETURNING id, code, expires_at, is_test
     `, [req.user.ispId, package_id, nas_id || null, code, expiresAt]);
 

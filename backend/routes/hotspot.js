@@ -1,3 +1,6 @@
+/* RL_MANUAL_USER_FLAG: a voucher with no payment is refused at login unless
+   created_by_isp is set (captive.js:1454). The import path set it; creating a single
+   user did not, so hand-made accounts were told 'Voucher has no payment'. */
 const express = require('express');
 const { query } = require('../config/database');
 const { authenticateToken, requireISP } = require('../middleware/auth');
