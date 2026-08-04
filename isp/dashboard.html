@@ -4300,9 +4300,9 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
   });
 
   // Auto-refresh while on the page
-  setInterval(function(){
-    if (isActivePageVisible()) loadActiveSessions();   /* RL_AS_RACE_FIX */
-  }, 15000);
+  /* RL_NO_AUTOREFRESH: this reloaded Active Sessions every 15s — redrawing the table while you
+     were reading it, and polling the router on a schedule nobody asked for. It loads when you open
+     the page and when you press Refresh, which is when the answer needs to be current. */
 
   // Initial load attempt
   setTimeout(function(){
@@ -4580,10 +4580,7 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
   });
 
   // Auto-load when sidebar clicked + auto-refresh every 30s while visible
-  setInterval(function(){
-    var page = findUsersPage();
-    if (page && page.offsetParent !== null && page.style.display !== 'none') loadUsers();
-  }, 30000);
+  /* RL_NO_AUTOREFRESH: All Users reloaded every 30s for the same reason. Removed. */
 
   setTimeout(function(){
     var page = findUsersPage();

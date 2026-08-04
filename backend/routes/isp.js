@@ -781,8 +781,25 @@ today_totals = { hotspot: hb, pppoe: pb, total: hb + pb };
 try {
   const tvu = require('../utils/tv-usage');
   const tvs = (await query("SELECT mac_address FROM hotspot_bound_devices WHERE isp_id=$1::uuid AND is_bound=true", [req.user.ispId])).rows;
-  let tvBytes = 0;
-  for (const t of tvs) { const rs = await tvu.tvRouterStats(req.user.ispId, t.mac_address); tvBytes += (rs.bytes_in + rs.bytes_out); }
+              /* RL_TV_USAGE_PARALLEL: this awaited tvRouterStats once per TV, and each call is a
+                 router round trip — seven TVs meant seven sequential trips on every request, which is
+                 most of why this endpoint felt slow. Run them together, and cache for 30s: queue byte
+                 counters move slowly and every viewer was recomputing the same number. */
+              let tvBytes = 0;
+              const _tvKey = 'tv:' + req.user.ispId;
+              const _now = Date.now();
+              global.__rlTvCache = global.__rlTvCache || new Map();
+              const _c = global.__rlTvCache.get(_tvKey);
+              if (_c && (_now - _c.t) < 30000) {
+                tvBytes = _c.v;
+              } else {
+                const _stats = await Promise.allSettled(
+                  tvs.map(t => tvu.tvRouterStats(req.user.ispId, t.mac_address)));
+                for (const r of _stats) {
+                  if (r.status === 'fulfilled' && r.value) tvBytes += (r.value.bytes_in + r.value.bytes_out);
+                }
+                global.__rlTvCache.set(_tvKey, { t: _now, v: tvBytes });
+              }
   if (tvBytes > 0) { today_totals.hotspot += tvBytes; today_totals.total += tvBytes; }
 } catch (e) { _logger.warn('[ACTIVE-SESS] TV usage: ' + e.message); }
     } catch (e) { _logger.warn('[ACTIVE-SESS] today_totals: ' + e.message); }
