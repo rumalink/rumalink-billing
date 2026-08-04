@@ -314,6 +314,16 @@ input[type="tel"]{-webkit-appearance:none}
 
   <div class="divider">Pay & Connect</div>
 
+  <!-- RL_CODE_LOGIN_UI: lets a SECOND device use a code that allows more than one device. -->
+  <div id="code-login" style="margin:14px 0;padding:14px;border:1px solid rgba(255,255,255,.18);border-radius:12px">
+    <div style="font-weight:600;margin-bottom:8px">Already have a code?</div>
+    <div style="display:flex;gap:8px">
+      <input id="cl-code" type="text" placeholder="e.g. Q2" autocapitalize="characters"
+             style="flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:transparent;color:inherit"/>
+      <button id="cl-btn" type="button" style="padding:10px 16px;border-radius:8px;border:0;font-weight:600;cursor:pointer">Connect</button>
+    </div>
+    <div id="cl-msg" style="margin-top:8px;font-size:.86rem;opacity:.85"></div>
+  </div>
   <div id="pay-section">
     <div class="input-group">
       <label>M-Pesa Phone Number</label>
@@ -1340,6 +1350,33 @@ function rlClearTv(){ rlSelectedTv=null; window.rlSelectedTv=null; rlPersistTvSe
 
 
 
+
+
+<script>
+/* RL_CODE_LOGIN_UI */
+(function(){
+  var btn = document.getElementById('cl-btn');
+  if (!btn) return;
+  btn.addEventListener('click', function(){
+    var code = (document.getElementById('cl-code').value || '').trim();
+    var msg  = document.getElementById('cl-msg');
+    if (!code) { msg.textContent = 'Enter your code.'; return; }
+    msg.textContent = 'Checking...';
+    var mac = (typeof rlClientMac === 'function' ? rlClientMac() : (window.RL_MAC || ''));
+    fetch((window.API || '/api') + '/captive/' + window.ISP_ID + '/voucher-login', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ code: code, mac: mac })
+    }).then(function(r){ return r.json().then(function(j){ return { ok: r.ok, j: j }; }); })
+      .then(function(o){
+        if (!o.ok) { msg.textContent = o.j.error || 'Could not connect.'; return; }
+        msg.textContent = 'Connecting... (' + o.j.devices_used + ' of ' + o.j.devices_allowed + ' devices)';
+        if (typeof rlHotspotLogin === 'function') rlHotspotLogin(o.j.radius_username, o.j.radius_password);
+        else msg.textContent = 'Connected. Reload the page.';
+      })
+      .catch(function(e){ msg.textContent = 'Network error: ' + e.message; });
+  });
+})();
+</script>
 
 </body>
 </html>

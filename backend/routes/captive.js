@@ -1802,6 +1802,64 @@ router.delete('/:ispId/tv/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+
+/* RL_VOUCHER_LOGIN: a second device could never use a multi-device voucher. It opens the portal
+   with no MAC binding and no session, so it was shown the purchase page — Simultaneous-Use was
+   written and enforceable, but nothing ever reached RADIUS to be allowed. This admits a device
+   when the voucher is still under its package limit, records it, registers MAC auto-login so it
+   reconnects on its own, and hands back the RADIUS credentials the portal logs in with. */
+router.post('/:ispId/voucher-login', async (req, res, next) => {
+  try {
+    const code = String(req.body.code || '').trim().toUpperCase();
+    const mac  = String(req.body.mac || '').trim().toUpperCase();
+    if (!code) return res.status(400).json({ error: 'Enter your code.' });
+
+    const v = (await query(
+      `SELECT hv.*, COALESCE(hp.simultaneous_sessions, 1) AS max_devices, hp.name AS package_name
+         FROM hotspot_vouchers hv
+         LEFT JOIN hotspot_packages hp ON hp.id = hv.package_id
+        WHERE hv.isp_id = $1::uuid AND UPPER(hv.code) = $2 LIMIT 1`,
+      [req.params.ispId, code])).rows[0];
+
+    if (!v) return res.status(404).json({ error: 'That code was not found. Check it and try again.' });
+    if (v.is_tv) return res.status(400).json({ error: 'That code belongs to a TV. It connects automatically.' });
+    if (v.expires_at && new Date(v.expires_at) <= new Date())
+      return res.status(400).json({ error: 'That code has expired. Buy a package to continue.' });
+    if (v.status !== 'active')
+      return res.status(400).json({ error: 'That code is not active yet. If you have just paid, wait a moment.' });
+
+    const known = (await query('SELECT mac FROM hotspot_voucher_devices WHERE voucher_id = $1::uuid', [v.id])).rows
+                    .map(r => String(r.mac).toUpperCase());
+    const limit = parseInt(v.max_devices, 10) || 1;
+
+    if (mac && !known.includes(mac)) {
+      if (known.length >= limit) {
+        return res.status(403).json({
+          error: 'This code already has ' + known.length + ' device' + (known.length > 1 ? 's' : '') +
+                 ' connected. The ' + (v.package_name || 'package') + ' allows ' + limit + '.'
+        });
+      }
+      await query('INSERT INTO hotspot_voucher_devices (voucher_id, mac) VALUES ($1::uuid,$2) ON CONFLICT DO NOTHING', [v.id, mac]);
+      if (!v.used_by_mac) await query('UPDATE hotspot_vouchers SET used_by_mac=$1 WHERE id=$2::uuid', [mac, v.id]).catch(()=>{});
+      try { await require('../utils/macAuth').registerMACAuth(v.id, mac); } catch (e) { logger.warn('[voucher-login] mac auth: ' + e.message); }
+      logger.info('[voucher-login] ' + code + ' admitted ' + mac + ' (' + (known.length + 1) + '/' + limit + ')');
+    } else if (mac) {
+      await query('UPDATE hotspot_voucher_devices SET last_seen=now() WHERE voucher_id=$1::uuid AND mac=$2', [v.id, mac]).catch(()=>{});
+    }
+
+    const shortIsp = String(v.isp_id).replace(/-/g, '').slice(0, 8).toLowerCase();
+    res.json({
+      ok: true,
+      voucher_code: v.code,
+      radius_username: v.code + '@' + shortIsp,
+      radius_password: v.password || v.code,
+      devices_used: Math.min(known.length + (mac && !known.includes(mac) ? 1 : 0), limit),
+      devices_allowed: limit,
+      expires_at: v.expires_at
+    });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
 // RL_PAYMENT_SWEEP: the cron sweep reuses this to activate a recovered hotspot voucher.
 module.exports.syncRadiusForVoucher = syncRadiusForVoucher;
