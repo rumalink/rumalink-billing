@@ -613,252 +613,160 @@ router.get('/transactions', async (req, res, next) => {
 router.get('/sessions/active', async (req, res) => {
   const _logger = require('../utils/logger');
   try {
-    /* RL_TYPE_NORMALISE: a repeated ?type= arrives as an array; take the last value. */
+    /* RL_SESSIONS_BATCHED: this used to run ~65 round trips for ~47 sessions — a voucher query per
+       hotspot session, and for every PPPoE session both a router request for interface bytes and a
+       subscriber query. It also collected PPPoE twice, from the pppoe_sessions table and again from
+       /ppp/active, so the totals disagreed with the tabs. Now each router is read once and every
+       lookup is resolved in a single query. */
     const _rawT = req.query.type;
     const type = (Array.isArray(_rawT) ? _rawT[_rawT.length - 1] : _rawT) || 'all';
+    const axios = require('axios');
+    const mt = require('../utils/mikrotik');
     let sessions = [];
-    _logger.info(`[ACTIVE-SESS] start ispId=${req.user.ispId} type=${type}`);
 
-    // Get all NAS devices with WG tunnel for this ISP
     const nasList = await query(
-      `SELECT id, name, wireguard_ip FROM nas_devices
-       WHERE isp_id = $1::uuid AND wireguard_ip IS NOT NULL
-         AND (last_seen IS NULL OR last_seen > NOW() - INTERVAL '10 minutes') /* RL_ACTIVESESS_PERF: skip stale routers */`,
-      [req.user.ispId]
-    );
-    _logger.info(`[ACTIVE-SESS] found ${nasList.rows.length} NAS device(s) with WG`);
+      `SELECT id, name, wireguard_ip, mikrotik_api_user, mikrotik_api_password
+         FROM nas_devices
+        WHERE isp_id = $1::uuid AND wireguard_ip IS NOT NULL
+          AND (last_seen IS NULL OR last_seen > NOW() - INTERVAL '10 minutes')`,
+      [req.user.ispId]);
 
-    // For each router, query its live hotspot sessions
-    if (type === 'all' || type === 'hotspot') {
-      const mt = require('../utils/mikrotik');
-      /* RL_ACTIVESESS_PERF: query all routers in parallel; one slow/dead router
-         can't block the others (each already has an 8s client timeout). */
-      await Promise.allSettled(nasList.rows.map(async (nas) => {
-        _logger.info(`[ACTIVE-SESS] querying NAS ${nas.name} (${nas.id}) at ${nas.wireguard_ip}`);
+    /* every router in parallel; one slow router cannot hold up the rest */
+    const perRouter = await Promise.allSettled(nasList.rows.map(async (nas) => {
+      const baseURL = 'http://' + nas.wireguard_ip + '/rest';
+      const auth = { username: nas.mikrotik_api_user, password: nas.mikrotik_api_password };
+      const out = { nas, hotspot: [], ppp: [], ifaces: [] };
+      if (type === 'all' || type === 'hotspot') {
+        try { out.hotspot = await mt.liveHotspotSessions(nas.id); } catch (e) {}
+      }
+      if (type === 'all' || type === 'pppoe') {
         try {
-          const routerSessions = await mt.liveHotspotSessions(nas.id);
-          _logger.info(`[ACTIVE-SESS] NAS ${nas.name} returned ${routerSessions.length} session(s)`);
-          for (const s of routerSessions) {
-            let voucherInfo = {};
-            let displayCode = String(s.user || '').split('@')[0];
-            const _isMac = /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(String(s.user || ''));
-            try {
-              if (_isMac) {
-                // RL_MAC_SESSION_DISPLAY: MAC-auth session -> resolve voucher by used_by_mac (prefer active)
-                const vRes = await query(
-                  `SELECT v.code, v.buyer_phone, v.expires_at, hp.name as package_name
-                   FROM hotspot_vouchers v
-                   LEFT JOIN hotspot_packages hp ON hp.id = v.package_id
-                   WHERE v.isp_id = $1::uuid AND UPPER(v.used_by_mac) = UPPER($2) AND (v.is_tv IS NOT TRUE OR v.is_tv IS NULL) /* RL_TV_EXCLUDE_SESS */
-                   ORDER BY (v.status='active') DESC, v.expires_at DESC NULLS LAST LIMIT 1`,
-                  [req.user.ispId, String(s.user || '')]
-                );
-                if (vRes.rows[0]) { voucherInfo = vRes.rows[0]; displayCode = vRes.rows[0].code || displayCode; }
-              } else {
-                const vRes = await query(
-                  `SELECT v.buyer_phone, v.expires_at, hp.name as package_name
-                   FROM hotspot_vouchers v
-                   LEFT JOIN hotspot_packages hp ON hp.id = v.package_id
-                   WHERE v.isp_id = $1::uuid AND UPPER(v.code) = UPPER($2) LIMIT 1`,
-                  [req.user.ispId, String(s.user || '').split('@')[0]] /* RL_REALM_DISPLAY */
-                );
-                if (vRes.rows[0]) voucherInfo = vRes.rows[0];
-              }
-            } catch(e) {
-              _logger.warn(`[ACTIVE-SESS] voucher lookup failed for ${s.user}: ${e.message}`);
-            }
-            sessions.push({
-              type: 'hotspot',
-              id: s.id,
-              username: displayCode, /* RL_MAC_SESSION_DISPLAY: show voucher code for MAC sessions */
-              phone: voucherInfo.buyer_phone || null,
-              mac_address: s.mac_address,
-              ip_address: s.address,
-              start_time: null,
-              uptime: s.uptime,
-              bytes_in: s.bytes_in,
-              bytes_out: s.bytes_out,
-              package_name: voucherInfo.package_name || null,
-              expires_at: voucherInfo.expires_at || null,
-              source: 'router',
-              router_name: nas.name
-            });
-          }
-        } catch (e) {
-          _logger.error(`[ACTIVE-SESS] NAS ${nas.name} REST failed: ${e.message} (stack: ${e.stack?.split('\n')[0]})`);
-        }
-      })); /* RL_ACTIVESESS_PERF: end parallel map */
-    }
+          const r = await axios.get(baseURL + '/ppp/active', { auth, timeout: 8000, validateStatus: () => true });
+          if (r.status === 200 && Array.isArray(r.data)) out.ppp = r.data;
+        } catch (e) {}
+        /* one call for ALL interfaces instead of one per session */
+        try {
+          const r2 = await axios.get(baseURL + '/interface', { auth, timeout: 8000, validateStatus: () => true });
+          if (r2.status === 200 && Array.isArray(r2.data)) out.ifaces = r2.data;
+        } catch (e) {}
+      }
+      return out;
+    }));
 
-    if (type === 'all' || type === 'pppoe') {
-      try {
-        const r = await query(`
-          SELECT 'pppoe' as type, ps.id, ps.username, sub.phone,
-                 ps.caller_id as mac_address, ps.ip_address, ps.start_time,
-                 ps.bytes_in, ps.bytes_out, pkg.name as package_name
-          FROM pppoe_sessions ps
-          LEFT JOIN pppoe_subscribers sub ON sub.username = ps.username AND sub.isp_id = $1::uuid
-          LEFT JOIN pppoe_packages pkg ON pkg.id = sub.package_id
-          WHERE ps.isp_id = $1::uuid AND ps.status = 'active'
-          ORDER BY ps.start_time DESC LIMIT 100`, [req.user.ispId]);
-        sessions = sessions.concat(r.rows);
-      } catch(e) {
-        _logger.warn(`[ACTIVE-SESS] pppoe query failed: ${e.message}`);
+    const routers = perRouter.filter(r => r.status === 'fulfilled').map(r => r.value);
+
+    /* ---- resolve every hotspot session in one pass ---- */
+    const codes = new Set(), macs = new Set();
+    routers.forEach(r => r.hotspot.forEach(sn => {
+      const u = String(sn.user || '');
+      if (/^([0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(u)) macs.add(u.toUpperCase());
+      else codes.add(u.split('@')[0].toUpperCase());
+    }));
+
+    const byCode = new Map(), byMac = new Map();
+    if (codes.size || macs.size) {
+      const vr = await query(
+        `SELECT v.code, v.buyer_phone, v.expires_at, v.used_by_mac, hp.name AS package_name
+           FROM hotspot_vouchers v
+           LEFT JOIN hotspot_packages hp ON hp.id = v.package_id
+          WHERE v.isp_id = $1::uuid
+            AND (v.is_tv IS NOT TRUE OR v.is_tv IS NULL)
+            AND (UPPER(v.code) = ANY($2::text[]) OR UPPER(v.used_by_mac) = ANY($3::text[]))
+          ORDER BY (v.status = 'active') DESC, v.expires_at DESC NULLS LAST`,
+        [req.user.ispId, Array.from(codes), Array.from(macs)]);
+      for (const row of vr.rows) {
+        const c = String(row.code || '').toUpperCase();
+        if (c && !byCode.has(c)) byCode.set(c, row);
+        const m2 = String(row.used_by_mac || '').toUpperCase();
+        if (m2 && !byMac.has(m2)) byMac.set(m2, row);
       }
     }
 
-    _logger.info(`[ACTIVE-SESS] DONE returning ${sessions.length} session(s)`);
-    // v62.38b: Also fetch live PPPoE sessions from Mikrotik /ppp/active
-    if (type === 'all' || type === 'pppoe') {
-      const axios = require('axios');
-      for (const nas of nasList.rows) {
-        try {
-          const nasCredRes = await query(
-            `SELECT mikrotik_api_user, mikrotik_api_password FROM nas_devices WHERE id = $1::uuid LIMIT 1`,
-            [nas.id]
-          );
-          if (nasCredRes.rows.length === 0) continue;
-          const cred = nasCredRes.rows[0];
-          const baseURL = 'http://' + nas.wireguard_ip + '/rest';
-          const auth = { username: cred.mikrotik_api_user, password: cred.mikrotik_api_password };
-          
-          const pppActive = await axios.get(baseURL + '/ppp/active', { auth, timeout: 5000, validateStatus: () => true });
-          if (pppActive.status !== 200 || !Array.isArray(pppActive.data)) continue;
-          
-          for (const s of pppActive.data) {
-            let bytesIn = 0, bytesOut = 0;
-            try {
-              const ifResp = await axios.get(baseURL + '/interface?name=<pppoe-' + s.name + '>', { auth, timeout: 3000, validateStatus: () => true });
-              if (ifResp.status === 200 && Array.isArray(ifResp.data) && ifResp.data.length > 0) {
-                bytesIn = Number(ifResp.data[0]['rx-byte']) || 0;
-                bytesOut = Number(ifResp.data[0]['tx-byte']) || 0;
-              }
-            } catch(_) {}
-            
-            let subInfo = { full_name: '', phone: '', package_name: '', next_billing_date: null };
-            try {
-              const sr = await query(
-                `SELECT ps.full_name, ps.phone, ps.next_billing_date, pp.name as package_name
-                 FROM pppoe_subscribers ps
-                 JOIN pppoe_packages pp ON pp.id = ps.package_id
-                 WHERE ps.isp_id = $1::uuid AND ps.username = $2
-                 LIMIT 1`,
-                [req.user.ispId, s.name]
-              );
-              if (sr.rows.length > 0) subInfo = sr.rows[0];
-            } catch(_) {}
-            
-            sessions.push({
-              type: 'pppoe',
-              username: s.name,
-              phone: subInfo.phone || '',
-              full_name: subInfo.full_name || '',
-              ip_address: s.address || '',
-              mac_address: s['caller-id'] || '',
-              package_name: subInfo.package_name || '',
-              uptime: s.uptime || '',
-              start_time: null,
-              expires_at: subInfo.next_billing_date,
-              bytes_in: bytesIn,
-              bytes_out: bytesOut,
-              voucher_code: null,
-              nas_id: nas.id,
-              nas_name: nas.name,
-              session_id: s['.id']
-            });
-          }
-        } catch(e) { /* skip unreachable NAS */ }
-      }
-    }
-    
-
-    // RL_TV_ACTIVE_SESSIONS: bound TVs use bypass binding (no hotspot session), so add them here.
-    // Also de-dupe: if a TV MAC already appeared as a router session, tag it tv_hotspot instead.
-    try {
-      const tvRows = (await query(
-        "SELECT bd.name, bd.mac_address, bd.bound_ip, bd.expires_at, hp.name AS package_name," + /* RL_TV_SESS_PHONE */
-        " COALESCE(bd.buyer_phone, v.buyer_phone, p.phone_number) AS purchase_phone, v.code AS voucher_code" +
-        " FROM hotspot_bound_devices bd LEFT JOIN hotspot_packages hp ON hp.id=bd.package_id" +
-        " LEFT JOIN hotspot_vouchers v ON v.id=bd.active_voucher_id LEFT JOIN payments p ON p.id=v.payment_id" +
-        " WHERE bd.isp_id=$1::uuid AND bd.is_bound=true AND (bd.expires_at IS NULL OR bd.expires_at > NOW())",
-        [req.user.ispId])).rows;
-      const macSet = new Set(tvRows.map(t => String(t.mac_address||'').toUpperCase()));
-      // retag any existing router session that is actually a bound TV
-      sessions = sessions.map(s => {
-        if (s.mac_address && macSet.has(String(s.mac_address).toUpperCase())) {
-          const tv = tvRows.find(t => String(t.mac_address).toUpperCase() === String(s.mac_address).toUpperCase());
-          return Object.assign({}, s, { type: 'tv_hotspot', username: tv ? tv.name : s.username, is_tv: true });
-        }
-        return s;
+    routers.forEach(r => r.hotspot.forEach(sn => {
+      const raw = String(sn.user || '');
+      const isMac = /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(raw);
+      const info = isMac ? (byMac.get(raw.toUpperCase()) || {})
+                         : (byCode.get(raw.split('@')[0].toUpperCase()) || {});
+      sessions.push({
+        type: 'hotspot',
+        id: sn.id,
+        username: info.code || raw.split('@')[0],
+        phone: info.buyer_phone || null,
+        mac_address: sn.mac_address,
+        ip_address: sn.address,
+        start_time: null,
+        uptime: sn.uptime,
+        bytes_in: sn.bytes_in,
+        bytes_out: sn.bytes_out,
+        package_name: info.package_name || null,
+        expires_at: info.expires_at || null,
+        source: 'router',
+        router_name: r.nas.name
       });
-      const seen = new Set(sessions.filter(s => s.mac_address).map(s => String(s.mac_address).toUpperCase()));
-      for (const tv of tvRows) {
-        const mac = String(tv.mac_address||'').toUpperCase();
-        if (seen.has(mac)) continue;  // already shown (retagged above)
-        sessions.push({
-          type: 'tv_hotspot',
-          id: 'tv-' + mac.replace(/:/g,''),
-          username: tv.name,
-          phone: tv.purchase_phone || null,
-          voucher_code: tv.voucher_code || null,
-          mac_address: tv.mac_address,
-          ip_address: tv.bound_ip,
-          start_time: null,
-          uptime: null,
-          bytes_in: 0, /* RL_TV_SESS_ROUTER: live usage shown in lifecycle */
-          bytes_out: 0,
-          package_name: tv.package_name || null,
-          expires_at: tv.expires_at || null,
-          source: 'tv-binding',
-          router_name: null,
-          is_tv: true
-        });
+    }));
+
+    /* ---- PPPoE, from the router only, resolved in one query ---- */
+    if (type === 'all' || type === 'pppoe') {
+      const names = new Set();
+      routers.forEach(r => r.ppp.forEach(sn => { if (sn.name) names.add(String(sn.name)); }));
+
+      const subs = new Map();
+      if (names.size) {
+        const sr = await query(
+          `SELECT ps.username, ps.full_name, ps.phone, ps.next_billing_date, pp.name AS package_name
+             FROM pppoe_subscribers ps
+             LEFT JOIN pppoe_packages pp ON pp.id = ps.package_id
+            WHERE ps.isp_id = $1::uuid AND ps.username = ANY($2::text[])`,
+          [req.user.ispId, Array.from(names)]);
+        for (const row of sr.rows) subs.set(String(row.username), row);
       }
-    } catch (e) { _logger.warn('[ACTIVE-SESS] TV inject: ' + e.message); }
 
-    // v62.38b: Ensure every session has a type field
-    sessions = sessions.map(s => ({ ...s, type: s.type || 'hotspot' }));
+      const seen = new Set();   /* the table and the router used to both contribute the same person */
+      routers.forEach(r => {
+        const ifMap = new Map();
+        r.ifaces.forEach(i => ifMap.set(String(i.name || ''), i));
+        r.ppp.forEach(sn => {
+          const uname = String(sn.name || '');
+          if (!uname || seen.has(uname)) return;
+          seen.add(uname);
+          const info = subs.get(uname) || {};
+          const iface = ifMap.get('<pppoe-' + uname + '>') || {};
+          sessions.push({
+            type: 'pppoe',
+            id: sn['.id'] || uname,
+            username: uname,
+            phone: info.phone || '',
+            full_name: info.full_name || '',
+            mac_address: sn['caller-id'] || '',
+            ip_address: sn.address || '',
+            start_time: null,
+            uptime: sn.uptime || '',
+            bytes_in: Number(iface['rx-byte']) || 0,
+            bytes_out: Number(iface['tx-byte']) || 0,
+            package_name: info.package_name || '',
+            expires_at: info.next_billing_date || null,
+            source: 'router',
+            router_name: r.nas.name
+          });
+        });
+      });
+    }
 
-    // RL_AS_TODAY_TOTALS: today's data by service from radacct (matches user pages).
-    let today_totals = { hotspot: 0, pppoe: 0, total: 0 };
-    try {
-      /* RL_TOTALS_FROM_USAGE_DAILY: read the SAME source the user pages read.
-         Raw radacct is wrong here: interim updates lag (an open session can report 22 MB
-         while the router shows 9 GB), and `acctstarttime >= today` silently drops sessions
-         that started yesterday and are still running. usage_daily is collector-fed, ISP-
-         scoped and keyed to the Nairobi day — it is what /usage/today-split and the user
-         pages (RUMALINK_UD_FINAL) use, so the cards now agree with them by construction. */
-      const ttRes = await query(`
-        SELECT
-          COALESCE(SUM(u.bytes_in + u.bytes_out) FILTER (WHERE ps.username IS NOT NULL), 0)::bigint AS pppoe_bytes,
-          COALESCE(SUM(u.bytes_in + u.bytes_out) FILTER (WHERE ps.username IS NULL), 0)::bigint     AS hotspot_bytes
-        FROM usage_daily u
-        LEFT JOIN pppoe_subscribers ps
-          ON ps.username = u.username AND ps.isp_id = $1::uuid
-        WHERE u.isp_id = $1::uuid
-          AND u.usage_day = (now() AT TIME ZONE 'Africa/Nairobi')::date
-      `, [req.user.ispId]);
-      const hb = Number(ttRes.rows[0]?.hotspot_bytes || 0);
-      const pb = Number(ttRes.rows[0]?.pppoe_bytes || 0);
-      today_totals = { hotspot: hb, pppoe: pb, total: hb + pb };
-      /* RL_TV_USAGE_ROUTER_TOTAL: bypass TVs have no radacct; sum their QUEUE byte counters. */
-      try {
-        const tvu = require('../utils/tv-usage');
-        const tvs = (await query("SELECT mac_address FROM hotspot_bound_devices WHERE isp_id=$1::uuid AND is_bound=true", [req.user.ispId])).rows;
-        let tvBytes = 0;
-        for (const t of tvs) { const rs = await tvu.tvRouterStats(req.user.ispId, t.mac_address); tvBytes += (rs.bytes_in + rs.bytes_out); }
-        if (tvBytes > 0) { today_totals.hotspot += tvBytes; today_totals.total += tvBytes; }
-      } catch (e) { _logger.warn('[ACTIVE-SESS] TV usage: ' + e.message); }
-    } catch (e) { _logger.warn('[ACTIVE-SESS] today_totals: ' + e.message); }
-
-    res.json({ sessions, today_totals /* RL_AS_TODAY_TOTALS */ });
+    _logger.info('[ACTIVE-SESS] returning ' + sessions.length + ' session(s) from ' + routers.length + ' router(s)');
+    res.json({
+      sessions: sessions,
+      total: sessions.length,
+      counts: {
+        all: sessions.length,
+        hotspot: sessions.filter(x => x.type === 'hotspot').length,
+        pppoe: sessions.filter(x => x.type === 'pppoe').length
+      }
+    });
   } catch (err) {
-    _logger.error(`[ACTIVE-SESS] route error: ${err.message}`);
+    require('../utils/logger').error('sessions/active:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
-
-
 // ─── Recent payments with linked voucher + package + payer info ───
 router.get('/recent', async (req, res) => {
   try {
