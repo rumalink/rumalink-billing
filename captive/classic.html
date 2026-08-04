@@ -1352,28 +1352,67 @@ function rlClearTv(){ rlSelectedTv=null; window.rlSelectedTv=null; rlPersistTvSe
 
 
 
+
+
+
 <script>
-/* RL_CODE_LOGIN_UI */
+/* RL_CODE_LOGIN_UI v2 — resolve everything from the page instead of assumed globals.
+   The first version used window.API / window.ISP_ID / rlClientMac(), none of which exist here,
+   so the fetch never went anywhere and the button appeared dead. */
 (function(){
+  function qs(k){ try { return new URLSearchParams(location.search).get(k) || ''; } catch(e){ return ''; } }
+  function resolveIsp(){
+    var cands = [window.ISP_ID, window.ispId, window.RL_ISP_ID, window.RL_ISP,
+                 qs('isp'), qs('ispId'), qs('isp_id')];
+    for (var i=0;i<cands.length;i++){ if (cands[i]) return String(cands[i]); }
+    var m = (location.pathname + location.search).match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+    if (m) return m[0];
+    // last resort: an isp uuid embedded anywhere in the page's own scripts
+    var h = document.documentElement.innerHTML.match(/captive\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+    return h ? h[1] : '';
+  }
+  function resolveApi(){
+    if (window.API) return window.API;
+    if (window.API_BASE) return window.API_BASE;
+    return '/api';
+  }
+  function resolveMac(){
+    var cands = [qs('mac'), qs('client_mac'), qs('client-mac'), window.RL_MAC, window.CLIENT_MAC];
+    for (var i=0;i<cands.length;i++){ if (cands[i]) return String(cands[i]).toUpperCase(); }
+    return '';
+  }
+
   var btn = document.getElementById('cl-btn');
   if (!btn) return;
+  var msg = document.getElementById('cl-msg');
+
   btn.addEventListener('click', function(){
     var code = (document.getElementById('cl-code').value || '').trim();
-    var msg  = document.getElementById('cl-msg');
     if (!code) { msg.textContent = 'Enter your code.'; return; }
+
+    var isp = resolveIsp(), api = resolveApi(), mac = resolveMac();
+    console.log('[code-login] isp=', isp, 'api=', api, 'mac=', mac);
+    if (!isp) { msg.textContent = 'Could not identify this hotspot. Please reload the page.'; return; }
+
     msg.textContent = 'Checking...';
-    var mac = (typeof rlClientMac === 'function' ? rlClientMac() : (window.RL_MAC || ''));
-    fetch((window.API || '/api') + '/captive/' + window.ISP_ID + '/voucher-login', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
+    fetch(api + '/captive/' + isp + '/voucher-login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ code: code, mac: mac })
-    }).then(function(r){ return r.json().then(function(j){ return { ok: r.ok, j: j }; }); })
-      .then(function(o){
-        if (!o.ok) { msg.textContent = o.j.error || 'Could not connect.'; return; }
-        msg.textContent = 'Connecting... (' + o.j.devices_used + ' of ' + o.j.devices_allowed + ' devices)';
-        if (typeof rlHotspotLogin === 'function') rlHotspotLogin(o.j.radius_username, o.j.radius_password);
-        else msg.textContent = 'Connected. Reload the page.';
-      })
-      .catch(function(e){ msg.textContent = 'Network error: ' + e.message; });
+    })
+    .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, status:r.status, j:j}; }); })
+    .then(function(o){
+      console.log('[code-login] response', o.status, o.j);
+      if (!o.ok) { msg.textContent = (o.j && o.j.error) ? o.j.error : ('Could not connect (' + o.status + ').'); return; }
+      msg.textContent = 'Connecting... (' + o.j.devices_used + ' of ' + o.j.devices_allowed + ' devices)';
+      if (typeof rlHotspotLogin === 'function') {
+        rlHotspotLogin(o.j.radius_username, o.j.radius_password);
+      } else if (typeof window.rlHotspotLogin === 'function') {
+        window.rlHotspotLogin(o.j.radius_username, o.j.radius_password);
+      } else {
+        msg.textContent = 'Code accepted. Reconnect to the WiFi to finish.';
+      }
+    })
+    .catch(function(e){ console.error('[code-login]', e); msg.textContent = 'Network error: ' + e.message; });
   });
 })();
 </script>
