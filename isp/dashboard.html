@@ -550,7 +550,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
       <div style="padding:20px;max-width:1400px;margin:0 auto">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px">
           <h2 style="margin:0">👥 All Users</h2>
-          <input type="search" placeholder="Search by username, phone, name…" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);padding:9px 14px;border-radius:8px;color:#fff;min-width:300px"/>
+          <input type="search" placeholder="Search by username, phone, name…" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);padding:9px 14px;border-radius:8px;color:#fff;min-width:300px" autocomplete="off" spellcheck="false" />
         </div>
         <div style="display:flex;gap:8px;margin-bottom:18px" id="rl-us-tabs">
           <button class="rl-us-tab" data-user-filter="all" style="background:#00d4aa;color:#0d1530;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600" data-label="All">All <span class="cnt">0</span></button>
@@ -848,15 +848,15 @@ tr:hover td{background:rgba(255,255,255,.015)}
       <!-- PROFILE TAB -->
       <div class="stab-content active" id="stab-profile">
         <div class="fg2">
-          <div class="fg"><label>Company Name</label><input type="text" id="set-company"/></div>
-          <div class="fg"><label>Owner Name</label><input type="text" id="set-owner"/></div>
+          <div class="fg"><label>Company Name</label><input type="text" id="set-company" autocomplete="off" spellcheck="false" /></div>
+          <div class="fg"><label>Owner Name</label><input type="text" id="set-owner" autocomplete="off" spellcheck="false" /></div>
         </div>
         <div class="fg2">
-          <div class="fg"><label>Phone</label><input type="text" id="set-phone"/></div>
-          <div class="fg"><label>County</label><input type="text" id="set-county"/></div>
+          <div class="fg"><label>Phone</label><input type="text" id="set-phone" autocomplete="off" spellcheck="false" /></div>
+          <div class="fg"><label>County</label><input type="text" id="set-county" autocomplete="off" spellcheck="false" /></div>
         </div>
-        <div class="fg"><label>Town / Area</label><input type="text" id="set-town"/></div>
-        <div class="fg"><label>Address</label><input type="text" id="set-address"/></div>
+        <div class="fg"><label>Town / Area</label><input type="text" id="set-town" autocomplete="off" spellcheck="false" /></div>
+        <div class="fg"><label>Address</label><input type="text" id="set-address" autocomplete="off" spellcheck="false" /></div>
         <button class="btn btn-teal" onclick="saveProfile()">💾 Save Profile</button>
         <div style="margin-top:22px;padding-top:22px;border-top:1px solid var(--border)">
           <div class="fg"><label>New Password (leave blank to keep current)</label><input type="password" id="set-newpw" placeholder="Min 8 characters"/></div>
@@ -881,8 +881,8 @@ tr:hover td{background:rgba(255,255,255,.015)}
         <div style="border-top:1px solid var(--border);padding-top:20px">
           <h3 style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:16px">Portal Customization</h3>
           <div class="fg2">
-            <div class="fg"><label>Welcome Title</label><input type="text" id="portal-title" placeholder="Welcome! Connect to WiFi"/></div>
-            <div class="fg"><label>Welcome Subtitle</label><input type="text" id="portal-sub" placeholder="Select a package to get started"/></div>
+            <div class="fg"><label>Welcome Title</label><input type="text" id="portal-title" placeholder="Welcome! Connect to WiFi" autocomplete="off" spellcheck="false" /></div>
+            <div class="fg"><label>Welcome Subtitle</label><input type="text" id="portal-sub" placeholder="Select a package to get started" autocomplete="off" spellcheck="false" /></div>
           </div>
           <div class="fg2">
             <div class="fg"><label>Primary Color</label><input type="color" id="portal-color" value="#00d4aa" style="height:42px;padding:4px 8px;cursor:pointer"/></div>
@@ -894,7 +894,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
             <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="portal-tv-mode" style="width:auto" checked/> Show QR Code for Smart TV customers</label></div>
             <div class="fg2">
               <div class="fg"><label>Support Phone Number</label><input type="tel" id="portal-support-number" placeholder="e.g. 0700123456"/><div style="font-size:.72rem;color:var(--muted);margin-top:3px">Shown as a call button on the captive portal</div></div>
-              <div class="fg"><label>Support Label</label><input type="text" id="portal-support-label" placeholder="Need Help? Call Us"/></div>
+              <div class="fg"><label>Support Label</label><input type="text" id="portal-support-label" placeholder="Need Help? Call Us" autocomplete="off" spellcheck="false" /></div>
             </div>
           </div>
           <!-- RL_NOTIF_BANNER: notification/maintenance banner -->
@@ -903,7 +903,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
             <p style="color:var(--muted);font-size:.84rem;margin-bottom:16px">Show a message to everyone on your captive portal (e.g. maintenance notice) — no SMS needed.</p>
             <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="notif-enabled" style="width:auto"/> Enable banner</label></div>
             <div class="fg2">
-              <div class="fg"><label>Title</label><input type="text" id="notif-title" placeholder="e.g. Scheduled Maintenance"/></div>
+              <div class="fg"><label>Title</label><input type="text" id="notif-title" placeholder="e.g. Scheduled Maintenance" autocomplete="off" spellcheck="false" /></div>
               <div class="fg"><label>Severity</label><select id="notif-severity"><option value="info">Info (blue)</option><option value="warning">Warning (amber)</option><option value="maintenance">Maintenance (red)</option></select></div>
             </div>
             <div class="fg"><label>Message</label><textarea id="notif-message" rows="2" placeholder="e.g. We're upgrading our network tonight from 1–3 AM. Service may be intermittent."></textarea></div>
@@ -937,7 +937,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
             <!-- VIDEO -->
             <div id="media-video-box">
               <div class="fg"><label>Video URL (MP4/WEBM, or a hosted link)</label>
-                <input type="text" id="media-video-url" placeholder="https://... or upload below"/>
+                <input type="text" id="media-video-url" placeholder="https://... or upload below" autocomplete="off" spellcheck="false" />
               </div>
               <div class="fg">
                 <input type="file" id="media-video-file" accept="video/mp4,video/webm" style="font-size:.82rem"/>
@@ -952,7 +952,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
                 <div id="media-images-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
               </div>
               <div class="fg">
-                <input type="text" id="media-image-url" placeholder="Paste an image URL…"/>
+                <input type="text" id="media-image-url" placeholder="Paste an image URL…" autocomplete="off" spellcheck="false" />
                 <button class="btn btn-sm" type="button" onclick="rlAddImageUrl()">+ Add URL</button>
               </div>
               <div class="fg">
@@ -1006,9 +1006,9 @@ tr:hover td{background:rgba(255,255,255,.015)}
         </div>
         <div id="sms-gateway-fields" style="display:none">
           <div class="fg"><label>API Key / Token</label><input type="password" id="sms-api-key" placeholder="Your gateway API key"/></div>
-          <div id="sms-username-field" class="fg" style="display:none"><label>Username / Account Name</label><input type="text" id="sms-username" placeholder="Your gateway username"/></div>
-          <div id="sms-partnerid-field" class="fg" style="display:none"><label>Partner ID</label><input type="text" id="sms-partner-id" placeholder="Partner ID (BongaSMS)"/></div>
-          <div class="fg"><label>Sender ID / From Name</label><input type="text" id="sms-sender-id" placeholder="e.g. YourISP (max 11 chars)" maxlength="11"/></div>
+          <div id="sms-username-field" class="fg" style="display:none"><label>Username / Account Name</label><input type="text" id="sms-username" placeholder="Your gateway username" autocomplete="off" spellcheck="false" /></div>
+          <div id="sms-partnerid-field" class="fg" style="display:none"><label>Partner ID</label><input type="text" id="sms-partner-id" placeholder="Partner ID (BongaSMS)" autocomplete="off" spellcheck="false" /></div>
+          <div class="fg"><label>Sender ID / From Name</label><input type="text" id="sms-sender-id" placeholder="e.g. YourISP (max 11 chars)" maxlength="11" autocomplete="off" spellcheck="false" /></div>
           <div class="fg">
             <label>Test Phone Number</label>
             <div style="display:flex;gap:10px">
@@ -1036,14 +1036,14 @@ tr:hover td{background:rgba(255,255,255,.015)}
         <h3 style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:16px">API Access</h3>
         <div class="fg"><label>Your API Key</label>
           <div style="display:flex;gap:8px">
-            <input type="text" id="set-apikey" readonly style="color:var(--muted);flex:1"/>
+            <input type="text" id="set-apikey" readonly style="color:var(--muted);flex:1" autocomplete="off" spellcheck="false" />
             <button class="btn btn-outline btn-sm" onclick="copyText(document.getElementById('set-apikey').value)">📋</button>
             <button class="btn btn-outline btn-sm" onclick="regenApiKey()">🔄 Regenerate</button>
           </div>
         </div>
         <div class="fg"><label>Captive Portal URL (share with your router config)</label>
           <div style="display:flex;gap:8px">
-            <input type="text" id="portal-url" readonly style="color:var(--muted);flex:1"/>
+            <input type="text" id="portal-url" readonly style="color:var(--muted);flex:1" autocomplete="off" spellcheck="false" />
             <button class="btn btn-outline btn-sm" onclick="copyText(document.getElementById('portal-url').value)">📋</button>
           </div>
         </div>
@@ -1117,24 +1117,24 @@ tr:hover td{background:rgba(255,255,255,.015)}
 
     <!-- Step 1: Configure device -->
     <div id="pstep-1-body">
-      <div class="fg"><label>Device / Location Name *</label><input type="text" id="dev-name" placeholder="e.g. Main Router – Westlands"/></div>
-      <div class="fg"><label>Description (optional)</label><input type="text" id="dev-desc" placeholder="e.g. Covers Westlands estate"/></div>
+      <div class="fg"><label>Device / Location Name *</label><input type="text" id="dev-name" placeholder="e.g. Main Router – Westlands" autocomplete="off" spellcheck="false" /></div>
+      <div class="fg"><label>Description (optional)</label><input type="text" id="dev-desc" placeholder="e.g. Covers Westlands estate" autocomplete="off" spellcheck="false" /></div>
 
       <div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:12px">
         <div style="font-size:.82rem;font-weight:600;margin-bottom:10px;color:var(--text)">🌐 Network Configuration</div>
         <div class="fg2">
-          <div class="fg"><label>WAN Interface</label><input type="text" id="dev-wan" placeholder="ether1" value="ether1"/></div>
-          <div class="fg"><label>Hotspot Interface</label><input type="text" id="dev-hotspot-iface" placeholder="bridge-local" value="bridge-local"/></div>
+          <div class="fg"><label>WAN Interface</label><input type="text" id="dev-wan" placeholder="ether1" value="ether1" autocomplete="off" spellcheck="false" /></div>
+          <div class="fg"><label>Hotspot Interface</label><input type="text" id="dev-hotspot-iface" placeholder="bridge-local" value="bridge-local" autocomplete="off" spellcheck="false" /></div>
         </div>
         <div class="fg2">
-          <div class="fg"><label>Gateway IP</label><input type="text" id="dev-gateway" placeholder="192.168.88.1" value="192.168.88.1"/></div>
-          <div class="fg"><label>Network</label><input type="text" id="dev-network" placeholder="192.168.88.0/24" value="192.168.88.0/24"/></div>
+          <div class="fg"><label>Gateway IP</label><input type="text" id="dev-gateway" placeholder="192.168.88.1" value="192.168.88.1" autocomplete="off" spellcheck="false" /></div>
+          <div class="fg"><label>Network</label><input type="text" id="dev-network" placeholder="192.168.88.0/24" value="192.168.88.0/24" autocomplete="off" spellcheck="false" /></div>
         </div>
         <div class="fg2">
-          <div class="fg"><label>DHCP Pool Start</label><input type="text" id="dev-pool-start" placeholder="192.168.88.10" value="192.168.88.10"/></div>
-          <div class="fg"><label>DHCP Pool End</label><input type="text" id="dev-pool-end" placeholder="192.168.88.250" value="192.168.88.250"/></div>
+          <div class="fg"><label>DHCP Pool Start</label><input type="text" id="dev-pool-start" placeholder="192.168.88.10" value="192.168.88.10" autocomplete="off" spellcheck="false" /></div>
+          <div class="fg"><label>DHCP Pool End</label><input type="text" id="dev-pool-end" placeholder="192.168.88.250" value="192.168.88.250" autocomplete="off" spellcheck="false" /></div>
         </div>
-        <div class="fg"><label>Ports to Bridge (comma-separated)</label><input type="text" id="dev-ports" placeholder="ether2,ether3,ether4,wlan1" value="ether2,ether3,ether4,wlan1"/><div style="font-size:.72rem;color:var(--muted);margin-top:3px">These ports will be bridged together for the hotspot LAN</div></div>
+        <div class="fg"><label>Ports to Bridge (comma-separated)</label><input type="text" id="dev-ports" placeholder="ether2,ether3,ether4,wlan1" value="ether2,ether3,ether4,wlan1" autocomplete="off" spellcheck="false" /><div style="font-size:.72rem;color:var(--muted);margin-top:3px">These ports will be bridged together for the hotspot LAN</div></div>
       </div>
 
       <div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:10px">
@@ -1189,7 +1189,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
     <div class="fg"><label>Package</label><select id="v-pkg-sel"></select></div>
     <div class="fg2">
       <div class="fg"><label>Quantity (max 500)</label><input type="number" id="v-qty" value="10" min="1" max="500"/></div>
-      <div class="fg"><label>Code Prefix (optional)</label><input type="text" id="v-prefix" placeholder="e.g. WL" maxlength="5"/></div>
+      <div class="fg"><label>Code Prefix (optional)</label><input type="text" id="v-prefix" placeholder="e.g. WL" maxlength="5" autocomplete="off" spellcheck="false" /></div>
     </div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('modal-vouchers')">Cancel</button><button class="btn btn-teal" onclick="generateVouchers()">🎟️ Generate</button></div>
   </div>
@@ -1202,11 +1202,11 @@ tr:hover td{background:rgba(255,255,255,.015)}
   <div class="modal">
     <h2>Add Hotspot User</h2>
     <div class="sub">Create a single hotspot voucher manually — either for testing (free) or a customer paying outside M-Pesa.</div>
-    <div class="fg"><label>Code <span style="color:var(--muted);font-weight:normal;font-size:.82rem">(leave blank to auto-generate next K-code)</span></label><input type="text" id="hsu-code" placeholder="auto" maxlength="20" style="text-transform:uppercase"/></div>
+    <div class="fg"><label>Code <span style="color:var(--muted);font-weight:normal;font-size:.82rem">(leave blank to auto-generate next K-code)</span></label><input type="text" id="hsu-code" placeholder="auto" maxlength="20" style="text-transform:uppercase" autocomplete="off" spellcheck="false" /></div>
     <div class="fg"><label>Package</label><select id="hsu-pkg"></select></div>
     <div class="fg2">
       <div class="fg"><label>Buyer Phone <span style="color:var(--muted);font-weight:normal;font-size:.82rem">(optional)</span></label><input type="tel" id="hsu-phone" placeholder="07XXXXXXXX"/></div>
-      <div class="fg"><label>MAC Address <span style="color:var(--muted);font-weight:normal;font-size:.82rem">(optional)</span></label><input type="text" id="hsu-mac" placeholder="AA:BB:CC:DD:EE:FF"/></div>
+      <div class="fg"><label>MAC Address <span style="color:var(--muted);font-weight:normal;font-size:.82rem">(optional)</span></label><input type="text" id="hsu-mac" placeholder="AA:BB:CC:DD:EE:FF" autocomplete="off" spellcheck="false" /></div>
     </div>
     <div style="margin:12px 0;padding:10px;background:rgba(243,156,18,.08);border-radius:6px;border:1px solid rgba(243,156,18,.2)">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
@@ -1223,21 +1223,21 @@ tr:hover td{background:rgba(255,255,255,.015)}
     <h2>Add PPPoE Subscriber</h2>
     <div class="sub">Credentials will be sent to the subscriber via SMS after creation.</div>
     <div class="fg2">
-      <div class="fg"><label>Full Name *</label><input type="text" id="sub-name" placeholder="e.g. John Mwangi"/></div>
+      <div class="fg"><label>Full Name *</label><input type="text" id="sub-name" placeholder="e.g. John Mwangi" autocomplete="off" spellcheck="false" /></div>
       <div class="fg"><label>Phone *</label><input type="tel" id="sub-phone" placeholder="0712345678"/></div>
     </div>
     <div class="fg2">
-      <div class="fg"><label>Username *</label><input type="text" id="sub-username" placeholder="e.g. john.mwangi"/></div>
-      <div class="fg"><label>Password *</label><input type="text" id="sub-password"/></div>
+      <div class="fg"><label>Username *</label><input type="text" id="sub-username" placeholder="e.g. john.mwangi" autocomplete="off" spellcheck="false" /></div>
+      <div class="fg"><label>Password *</label><input type="text" id="sub-password" autocomplete="off" spellcheck="false" /></div>
     </div>
     <div class="fg2">
       <div class="fg"><label>Email</label><input type="email" id="sub-email"/></div>
-      <div class="fg"><label>ID Number</label><input type="text" id="sub-idno"/></div>
+      <div class="fg"><label>ID Number</label><input type="text" id="sub-idno" autocomplete="off" spellcheck="false" /></div>
     </div>
     <div class="fg"><label>Package *</label><select id="sub-pkg"></select></div>
     <div class="fg2">
-      <div class="fg"><label>County</label><input type="text" id="sub-county"/></div>
-      <div class="fg"><label>Town</label><input type="text" id="sub-town"/></div>
+      <div class="fg"><label>County</label><input type="text" id="sub-county" autocomplete="off" spellcheck="false" /></div>
+      <div class="fg"><label>Town</label><input type="text" id="sub-town" autocomplete="off" spellcheck="false" /></div>
     </div>
     <div style="margin:12px 0;padding:10px;background:rgba(243,156,18,.08);border-radius:6px;border:1px solid rgba(243,156,18,.2)">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
@@ -1258,8 +1258,8 @@ tr:hover td{background:rgba(255,255,255,.015)}
     <div class="fg"><label>Payment Method *</label>
       <select id="pay-method"><option value="cash">Cash</option><option value="bank">Bank Transfer</option><option value="mpesa">MPesa (Manual)</option><option value="other">Other</option></select>
     </div>
-    <div class="fg"><label>Reference / Receipt</label><input type="text" id="pay-ref" placeholder="e.g. QAB1234XYZ"/></div>
-    <div class="fg"><label>Description</label><input type="text" id="pay-desc" placeholder="e.g. Monthly subscription – John Mwangi"/></div>
+    <div class="fg"><label>Reference / Receipt</label><input type="text" id="pay-ref" placeholder="e.g. QAB1234XYZ" autocomplete="off" spellcheck="false" /></div>
+    <div class="fg"><label>Description</label><input type="text" id="pay-desc" placeholder="e.g. Monthly subscription – John Mwangi" autocomplete="off" spellcheck="false" /></div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('modal-payment')">Cancel</button><button class="btn btn-teal" onclick="recordPayment()">✓ Record</button></div>
   </div>
 </div>
@@ -1270,7 +1270,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
     <h2>Pay License Fee</h2>
     <div class="sub" id="lpay-sub">Enter the M-Pesa number to receive the STK prompt.</div>
     <div id="lpay-form">
-      <div class="fg"><label>Amount Due</label><input type="text" id="lpay-amount" readonly style="color:var(--teal);font-weight:700"/></div>
+      <div class="fg"><label>Amount Due</label><input type="text" id="lpay-amount" readonly style="color:var(--teal);font-weight:700" autocomplete="off" spellcheck="false" /></div>
       <div class="fg"><label>M-Pesa Phone *</label><input type="tel" id="lpay-phone" placeholder="e.g. 0712345678"/></div>
       <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('modal-license-pay')">Cancel</button><button class="btn btn-amber" id="lpay-btn" onclick="submitLicensePay()">Send M-Pesa Prompt</button></div>
     </div>
@@ -1295,14 +1295,14 @@ tr:hover td{background:rgba(255,255,255,.015)}
         <option value="intasend">IntaSend (aggregator — no M-Pesa API needed) <!-- RL_INTASEND_PAYMETHOD --></option>
       </select>
     </div>
-    <div class="fg"><label>Display Label</label><input type="text" id="pm-label" placeholder="e.g. MPesa Paybill 522522"/></div>
+    <div class="fg"><label>Display Label</label><input type="text" id="pm-label" placeholder="e.g. MPesa Paybill 522522" autocomplete="off" spellcheck="false" /></div>
 
     <!-- MPesa STK fields -->
     <div id="pm-fields-stk" style="display:none">
       <div class="fg"><label style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="pm-use-admin" onchange="toggleAdminCreds()" style="width:auto"/> Use RumaLink platform credentials (no API keys needed)</label></div>
       <div id="pm-own-creds">
-        <div class="fg"><label>Business Short Code</label><input type="text" id="pm-shortcode" placeholder="e.g. 174379"/></div>
-        <div class="fg"><label>Consumer Key</label><input type="text" id="pm-ck" placeholder="From Safaricom Developer Portal"/></div>
+        <div class="fg"><label>Business Short Code</label><input type="text" id="pm-shortcode" placeholder="e.g. 174379" autocomplete="off" spellcheck="false" /></div>
+        <div class="fg"><label>Consumer Key</label><input type="text" id="pm-ck" placeholder="From Safaricom Developer Portal" autocomplete="off" spellcheck="false" /></div>
         <div class="fg"><label>Consumer Secret</label><input type="password" id="pm-cs"/></div>
         <div class="fg"><label>Passkey</label><input type="password" id="pm-passkey"/></div>
         <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="pm-sandbox" style="width:auto"/> Sandbox / Test mode</label></div>
@@ -1316,37 +1316,37 @@ tr:hover td{background:rgba(255,255,255,.015)}
             <option value="bank">Bank Account</option>
           </select>
         </div>
-        <div class="fg"><label>Account Number / Till / Paybill</label><input type="text" id="pm-fwd-number" placeholder="e.g. 5123456"/></div>
-        <div class="fg"><label>Account Name</label><input type="text" id="pm-fwd-name" placeholder="Your business name"/></div>
+        <div class="fg"><label>Account Number / Till / Paybill</label><input type="text" id="pm-fwd-number" placeholder="e.g. 5123456" autocomplete="off" spellcheck="false" /></div>
+        <div class="fg"><label>Account Name</label><input type="text" id="pm-fwd-name" placeholder="Your business name" autocomplete="off" spellcheck="false" /></div>
       </div>
     </div>
 
     <!-- Till fields -->
     <div id="pm-fields-till" style="display:none">
-      <div class="fg"><label>Till Number *</label><input type="text" id="pm-till" placeholder="e.g. 5123456"/></div>
+      <div class="fg"><label>Till Number *</label><input type="text" id="pm-till" placeholder="e.g. 5123456" autocomplete="off" spellcheck="false" /></div>
     </div>
 
     <!-- Paybill fields -->
     <div id="pm-fields-paybill" style="display:none">
-      <div class="fg"><label>Paybill Number *</label><input type="text" id="pm-paybill" placeholder="e.g. 522522"/></div>
-      <div class="fg"><label>Account Reference</label><input type="text" id="pm-acc-ref" placeholder="e.g. username or phone number"/></div>
+      <div class="fg"><label>Paybill Number *</label><input type="text" id="pm-paybill" placeholder="e.g. 522522" autocomplete="off" spellcheck="false" /></div>
+      <div class="fg"><label>Account Reference</label><input type="text" id="pm-acc-ref" placeholder="e.g. username or phone number" autocomplete="off" spellcheck="false" /></div>
     </div>
 
     <!-- Bank fields -->
     <div id="pm-fields-bank" style="display:none">
-      <div class="fg"><label>Bank Name *</label><input type="text" id="pm-bank-name" placeholder="e.g. Equity Bank"/></div>
+      <div class="fg"><label>Bank Name *</label><input type="text" id="pm-bank-name" placeholder="e.g. Equity Bank" autocomplete="off" spellcheck="false" /></div>
       <div class="fg2">
-        <div class="fg"><label>Account Number</label><input type="text" id="pm-bank-acc"/></div>
-        <div class="fg"><label>Account Name</label><input type="text" id="pm-bank-accname"/></div>
+        <div class="fg"><label>Account Number</label><input type="text" id="pm-bank-acc" autocomplete="off" spellcheck="false" /></div>
+        <div class="fg"><label>Account Name</label><input type="text" id="pm-bank-accname" autocomplete="off" spellcheck="false" /></div>
       </div>
-      <div class="fg"><label>Branch</label><input type="text" id="pm-bank-branch" placeholder="e.g. Nairobi CBD"/></div>
+      <div class="fg"><label>Branch</label><input type="text" id="pm-bank-branch" placeholder="e.g. Nairobi CBD" autocomplete="off" spellcheck="false" /></div>
     </div>
 
     <!-- Equity Bank fields -->
     <div id="pm-fields-equity" style="display:none">
       <p style="color:var(--teal);font-size:.82rem;background:rgba(0,212,170,.06);border:1px solid rgba(0,212,170,.18);border-radius:8px;padding:10px;margin-bottom:14px">⚡ Customers pay by M-Pesa STK and the money settles <strong>instantly into your Equity account</strong>. RumaLink never holds your funds — the payer's name and phone appear on your Equity statement.</p>
-      <div class="fg"><label>Equity Account Number *</label><input type="text" id="pm-equity-acc" placeholder="Your Equity Bank account number"/></div>
-      <div class="fg"><label>Account Name *</label><input type="text" id="pm-equity-name" placeholder="Name on the Equity account"/></div>
+      <div class="fg"><label>Equity Account Number *</label><input type="text" id="pm-equity-acc" placeholder="Your Equity Bank account number" autocomplete="off" spellcheck="false" /></div>
+      <div class="fg"><label>Account Name *</label><input type="text" id="pm-equity-name" placeholder="Name on the Equity account" autocomplete="off" spellcheck="false" /></div>
     </div>
 
     <div id="pm-fields-intasend" style="display:none;background:rgba(0,212,170,.06);border:1px solid rgba(0,212,170,.25);border-radius:10px;padding:14px;margin-bottom:14px">
@@ -1393,7 +1393,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
 <div class="modal-overlay" id="modal-ticket">
   <div class="modal">
     <h2>Open Support Ticket</h2>
-    <div class="fg"><label>Subject</label><input type="text" id="ticket-subject"/></div>
+    <div class="fg"><label>Subject</label><input type="text" id="ticket-subject" autocomplete="off" spellcheck="false" /></div>
     <div class="fg"><label>Priority</label><select id="ticket-pri"><option value="low">Low</option><option value="normal" selected>Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
     <div class="fg"><label>Message</label><textarea id="ticket-msg" rows="5" style="resize:vertical"></textarea></div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('modal-ticket')">Cancel</button><button class="btn btn-teal" onclick="submitTicket()">Submit</button></div>
@@ -2219,14 +2219,14 @@ async function loadHSPackages(){
 function openHSPackageModal(){
   const html=`<div class="modal">
     <h2>New Hotspot Package</h2>
-    <div class="fg2"><div class="fg"><label>Name *</label><input id="hsp-name" placeholder="e.g. 1 Hour Premium"/></div><div class="fg"><label>Price (KES) *</label><input id="hsp-price" type="number" placeholder="50"/></div></div>
+    <div class="fg2"><div class="fg"><label>Name *</label><input id="hsp-name" placeholder="e.g. 1 Hour Premium" autocomplete="off" spellcheck="false" /></div><div class="fg"><label>Price (KES) *</label><input id="hsp-price" type="number" placeholder="50"/></div></div>
     <div class="fg2"><div class="fg"><label>Duration (hours)</label><input id="hsp-hrs" type="number" placeholder="1 (blank=unlimited)"/></div><div class="fg"><label>Download Mbps</label><input id="hsp-down" type="number" placeholder="5 (blank=unlimited)"/></div></div>
     <div class="fg2"><div class="fg"><label>Upload Mbps</label><input id="hsp-up" type="number"/></div><div class="fg"><label>Data Limit (MB)</label><input id="hsp-data" type="number" placeholder="blank=unlimited"/></div></div>
     <!-- RL_SIMUL_FIELD: how many devices may use ONE voucher at the same time.
          Enforced by RADIUS (Simultaneous-Use); 1 keeps today's behaviour. -->
     <label>Devices allowed at once</label>
     <input id="hsp-devices" type="number" min="1" max="10" value="1" placeholder="1"/>
-    <div class="fg"><label>MikroTik Profile Name</label><input id="hsp-profile" placeholder="e.g. hotspot-1hr"/></div>
+    <div class="fg"><label>MikroTik Profile Name</label><input id="hsp-profile" placeholder="e.g. hotspot-1hr" autocomplete="off" spellcheck="false" /></div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button><button class="btn btn-teal" onclick="saveHSPkg()">Create</button></div>
   </div>`;
   const ov=document.createElement('div');ov.className='modal-overlay open';ov.innerHTML=html;
@@ -2292,10 +2292,10 @@ async function loadPPPoEPackages() {
 function openPPPoEPackageModal(){
   const html=`<div class="modal">
     <h2>New PPPoE Package</h2>
-    <div class="fg2"><div class="fg"><label>Name *</label><input id="pp-name" placeholder="e.g. Home 10Mbps"/></div><div class="fg"><label>Price/Month (KES) *</label><input id="pp-price" type="number" placeholder="1500"/></div></div>
+    <div class="fg2"><div class="fg"><label>Name *</label><input id="pp-name" placeholder="e.g. Home 10Mbps" autocomplete="off" spellcheck="false" /></div><div class="fg"><label>Price/Month (KES) *</label><input id="pp-price" type="number" placeholder="1500"/></div></div>
     <div class="fg2"><div class="fg"><label>Download Mbps</label><input id="pp-down" type="number" placeholder="10"/></div><div class="fg"><label>Upload Mbps</label><input id="pp-up" type="number" placeholder="5"/></div></div>
-    <div class="fg2"><div class="fg"><label>Data Limit (GB)</label><input id="pp-data" type="number" placeholder="blank=unlimited"/></div><div class="fg"><label>MikroTik Profile</label><input id="pp-profile" placeholder="e.g. pppoe-10M"/></div></div>
-    <div class="fg"><label>IP Pool</label><input id="pp-pool" placeholder="e.g. pppoe-pool"/></div>
+    <div class="fg2"><div class="fg"><label>Data Limit (GB)</label><input id="pp-data" type="number" placeholder="blank=unlimited"/></div><div class="fg"><label>MikroTik Profile</label><input id="pp-profile" placeholder="e.g. pppoe-10M" autocomplete="off" spellcheck="false" /></div></div>
+    <div class="fg"><label>IP Pool</label><input id="pp-pool" placeholder="e.g. pppoe-pool" autocomplete="off" spellcheck="false" /></div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button><button class="btn btn-teal" onclick="savePPPoEPkg()">Create</button></div>
   </div>`;
   const ov=document.createElement('div');ov.className='modal-overlay open';ov.innerHTML=html;
@@ -3090,9 +3090,9 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
 
       <div id="rl-pstep1">
         <div class="form-group"><label>Device / Location Name *</label>
-          <input id="rl-dev-name" type="text" placeholder="e.g. Main Router - Westlands"/></div>
+          <input id="rl-dev-name" type="text" placeholder="e.g. Main Router - Westlands" autocomplete="off" spellcheck="false" /></div>
         <div class="form-group"><label>Description (optional)</label>
-          <input id="rl-dev-desc" type="text" placeholder="e.g. Covers Westlands estate"/></div>
+          <input id="rl-dev-desc" type="text" placeholder="e.g. Covers Westlands estate" autocomplete="off" spellcheck="false" /></div>
         <div class="modal-actions">
           <button class="btn btn-outline" onclick="closeModal('modal-device')">Cancel</button>
           <button class="btn btn-teal" onclick="rlCreateDevice()">Generate Link →</button>
@@ -3198,8 +3198,8 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
           '<input id="rl-wan-pass" class="form-input" placeholder="PPPoE password" autocomplete="off"/>' +
         '</div>' +
         '<div id="rl-wan-static" class="fg" style="display:none;flex-direction:column;gap:8px">' +
-          '<input id="rl-wan-sip" class="form-input" placeholder="Static IP e.g. 197.0.0.2/30"/>' +
-          '<input id="rl-wan-sgw" class="form-input" placeholder="Gateway e.g. 197.0.0.1"/>' +
+          '<input id="rl-wan-sip" class="form-input" placeholder="Static IP e.g. 197.0.0.2/30" autocomplete="off" spellcheck="false" />' +
+          '<input id="rl-wan-sgw" class="form-input" placeholder="Gateway e.g. 197.0.0.1" autocomplete="off" spellcheck="false" />' +
         '</div>' +
         '<div class="fg"><label>Hotspot LAN ports</label>' +
           '<div id="rl-lan-ports" class="rl-lan-grid" style="display:flex;flex-wrap:wrap;gap:8px"></div>' +
@@ -3376,11 +3376,11 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
       <div id="rl-pstep1">
         <div class="form-group" style="margin-bottom:12px">
           <label style="display:block;margin-bottom:4px">Device / Location Name *</label>
-          <input id="rl-dev-name" type="text" placeholder="e.g. Main Router - Westlands" style="width:100%;padding:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:inherit;border-radius:6px;box-sizing:border-box"/>
+          <input id="rl-dev-name" type="text" placeholder="e.g. Main Router - Westlands" style="width:100%;padding:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:inherit;border-radius:6px;box-sizing:border-box" autocomplete="off" spellcheck="false" />
         </div>
         <div class="form-group" style="margin-bottom:12px">
           <label style="display:block;margin-bottom:4px">Description (optional)</label>
-          <input id="rl-dev-desc" type="text" placeholder="e.g. Covers Westlands estate" style="width:100%;padding:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:inherit;border-radius:6px;box-sizing:border-box"/>
+          <input id="rl-dev-desc" type="text" placeholder="e.g. Covers Westlands estate" style="width:100%;padding:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:inherit;border-radius:6px;box-sizing:border-box" autocomplete="off" spellcheck="false" />
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
           <button class="btn btn-outline" onclick="(window.closeModal&&closeModal('modal-device'))||document.getElementById('modal-device').classList.remove('open')">Cancel</button>
@@ -3846,8 +3846,8 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
       + '<div style="background:#0d1530;border:1px solid rgba(0,212,170,.25);border-radius:14px;padding:24px;max-width:540px;width:100%;max-height:88vh;overflow-y:auto;color:#fff;font-family:sans-serif">'
       + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px"><h2 style="margin:0">📦 Edit Package</h2><button onclick="document.getElementById(\'rl-pkg-mod\').remove()" style="background:none;border:none;color:#888;font-size:1.4rem;cursor:pointer">×</button></div>'
       + '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
-      + '    <label style="grid-column:1/-1"><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Name</div><input id="pk-name" value="' + esc(pkg.name||'') + '" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box"/></label>'
-      + '    <label style="grid-column:1/-1"><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Description</div><input id="pk-desc" value="' + esc(pkg.description||'') + '" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box"/></label>'
+      + '    <label style="grid-column:1/-1"><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Name</div><input id="pk-name" value="' + esc(pkg.name||'') + '" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box" autocomplete="off" spellcheck="false" /></label>'
+      + '    <label style="grid-column:1/-1"><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Description</div><input id="pk-desc" value="' + esc(pkg.description||'') + '" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box" autocomplete="off" spellcheck="false" /></label>'
       + '    <label><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Price (KES)</div><input id="pk-price" type="number" step="0.01" value="' + (pkg.price||0) + '" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box"/></label>'
       + '    <label><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Duration (hours)</div><input id="pk-hours" type="number" value="' + (pkg.duration_hours||'') + '" placeholder="empty=unlimited" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box"/></label>'
       + '    <label><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Down (Mbps)</div><input id="pk-down" type="number" value="' + (pkg.bandwidth_down_mbps||'') + '" placeholder="empty=unlimited" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box"/></label>'
@@ -4390,7 +4390,9 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
     var tbody = findTbody();
     if (!tbody) return;
     var rows = state.users;
-    if (state.filter !== 'all') rows = rows.filter(function(u){ return u.type === state.filter; });
+    /* RL_SERVER_SIDE_FILTER: the server has already returned only this type. Filtering again
+       here would drop TVs from the Hotspot tab (their type is tv_hotspot) and re-introduce
+       the page-one problem. One filter, on the server. */
     if (state.search) {
       var q = state.search.toLowerCase();
       rows = rows.filter(function(u){
@@ -4448,7 +4450,12 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
       var qs = '';
       if (state.search) qs += '&search=' + encodeURIComponent(state.search);
       qs += '&offset=' + state.offset + '&limit=' + state.pageSize;
-      var d = await api('/isp/users?type=all' + qs);
+      /* RL_SERVER_SIDE_FILTER: this always asked for type=all and paged 50 rows, then the
+         browser filtered that page by type. With 149 hotspot vouchers newest-first, page one
+         held no PPPoE rows, so the PPPoE tab filtered an empty set and reported no users.
+         Ask the server for the type instead — it queries and pages within it, so every tab
+         returns its full list. */
+      var d = await api('/isp/users?type=' + (state.filter || 'all') + qs);
       state.users = d.users || [];
       state.total = d.total || state.users.length;
       state.counts = d.counts || {all:0,hotspot:0,pppoe:0,online:0};
@@ -4536,12 +4543,13 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
       var page = findUsersPage();
       if (page && page.contains(tab)) {
         state.filter = tab.getAttribute('data-user-filter');
+        state.offset = 0; /* RL_SERVER_SIDE_FILTER: new type, start at page one */
         findTabs().forEach(function(b){
           b.style.background = b === tab ? '#00d4aa' : 'rgba(255,255,255,.05)';
           b.style.color = b === tab ? '#0d1530' : '#fff';
           b.style.border = b === tab ? 'none' : '1px solid rgba(255,255,255,.15)';
         });
-        renderRows();
+        loadUsers();
         return;
       }
     }
@@ -4604,11 +4612,11 @@ async function editPPPoEPackage(packageId) {
     const html = `<div class="modal">
       <h2>Edit PPPoE Package</h2>
       <div class="sub">${safe(p.name)}</div>
-      <div class="fg2"><div class="fg"><label>Name *</label><input id="pp-edit-name" value="${safe(p.name)}"/></div><div class="fg"><label>Price (KES) *</label><input id="pp-edit-price" type="number" value="${p.price||''}"/></div></div>
+      <div class="fg2"><div class="fg"><label>Name *</label><input id="pp-edit-name" value="${safe(p.name)}" autocomplete="off" spellcheck="false" /></div><div class="fg"><label>Price (KES) *</label><input id="pp-edit-price" type="number" value="${p.price||''}"/></div></div>
       <div class="fg2"><div class="fg"><label>Download Mbps</label><input id="pp-edit-down" type="number" value="${p.bandwidth_down_mbps||''}"/></div><div class="fg"><label>Upload Mbps</label><input id="pp-edit-up" type="number" value="${p.bandwidth_up_mbps||''}"/></div></div>
-      <div class="fg2"><div class="fg"><label>Data Limit (GB, blank=unlimited)</label><input id="pp-edit-data" type="number" value="${p.data_limit_gb||''}"/></div><div class="fg"><label>MikroTik Profile</label><input id="pp-edit-profile" value="${safe(p.mikrotik_profile)}"/></div></div>
-      <div class="fg2"><div class="fg"><label>Billing Cycle</label><select id="pp-edit-cycle"><option value="monthly"${sel(p.billing_cycle,'monthly')}>Monthly</option><option value="weekly"${sel(p.billing_cycle,'weekly')}>Weekly</option><option value="daily"${sel(p.billing_cycle,'daily')}>Daily</option></select></div><div class="fg"><label>IP Pool</label><input id="pp-edit-pool" value="${safe(p.address_pool)}"/></div></div>
-      <div class="fg"><label>Description</label><input id="pp-edit-desc" value="${safe(p.description)}"/></div>
+      <div class="fg2"><div class="fg"><label>Data Limit (GB, blank=unlimited)</label><input id="pp-edit-data" type="number" value="${p.data_limit_gb||''}"/></div><div class="fg"><label>MikroTik Profile</label><input id="pp-edit-profile" value="${safe(p.mikrotik_profile)}" autocomplete="off" spellcheck="false" /></div></div>
+      <div class="fg2"><div class="fg"><label>Billing Cycle</label><select id="pp-edit-cycle"><option value="monthly"${sel(p.billing_cycle,'monthly')}>Monthly</option><option value="weekly"${sel(p.billing_cycle,'weekly')}>Weekly</option><option value="daily"${sel(p.billing_cycle,'daily')}>Daily</option></select></div><div class="fg"><label>IP Pool</label><input id="pp-edit-pool" value="${safe(p.address_pool)}" autocomplete="off" spellcheck="false" /></div></div>
+      <div class="fg"><label>Description</label><input id="pp-edit-desc" value="${safe(p.description)}" autocomplete="off" spellcheck="false" /></div>
       <div class="modal-actions"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button><button class="btn btn-teal" onclick="savePPPoEPackageEdit('${p.id}')">Save Changes</button></div>
     </div>`;
     const ov = document.createElement('div');
@@ -4837,9 +4845,9 @@ async function loadActiveSessionsUsage(){
   window.wdMethodChanged = function(){
     const m = document.getElementById('wd-method').value;
     const dest = document.getElementById('wd-dest');
-    if (m==='mpesa') dest.innerHTML = '<input id="wd-phone" placeholder="Phone e.g. 0712345678" style="width:100%;padding:10px;border-radius:8px;background:var(--mid);border:1px solid var(--border);color:var(--white)"/>';
-    else if (m==='b2b') dest.innerHTML = '<input id="wd-paybill" placeholder="Paybill/Till number" style="width:100%;padding:10px;border-radius:8px;background:var(--mid);border:1px solid var(--border);color:var(--white)"/><input id="wd-acctref" placeholder="Account reference (optional)" style="width:100%;padding:10px;border-radius:8px;background:var(--mid);border:1px solid var(--border);color:var(--white)"/>';
-    else dest.innerHTML = '<input id="wd-bankname" placeholder="Bank name" style="width:100%;padding:10px;border-radius:8px;background:var(--mid);border:1px solid var(--border);color:var(--white)"/><input id="wd-acctname" placeholder="Account name" style="width:100%;padding:10px;border-radius:8px;background:var(--mid);border:1px solid var(--border);color:var(--white)"/><input id="wd-acctnum" placeholder="Account number" style="width:100%;padding:10px;border-radius:8px;background:var(--mid);border:1px solid var(--border);color:var(--white)"/><input id="wd-bankcode" placeholder="Bank code" style="width:100%;padding:10px;border-radius:8px;background:var(--mid);border:1px solid var(--border);color:var(--white)"/>';
+    if (m==='mpesa') dest.innerHTML = '<input id="wd-phone" placeholder="Phone e.g. 0712345678" style="width:100%;padding:10px;border-radius:8px;background:var(--mid);border:1px solid var(--border);color:var(--white)" autocomplete="off" spellcheck="false" />';
+    else if (m==='b2b') dest.innerHTML = '<input id="wd-paybill" placeholder="Paybill/Till number" style="width:100%;padding:10px;border-radius:8px;background:var(--mid);border:1px solid var(--border);color:var(--white)" autocomplete="off" spellcheck="false" /><input id="wd-acctref" placeholder="Account reference (optional)" style="width:100%;padding:10px;border-radius:8px;background:var(--mid);border:1px solid var(--border);color:var(--white)" autocomplete="off" spellcheck="false" />';
+    else dest.innerHTML = '<input id="wd-bankname" placeholder="Bank name" style="width:100%;padding:10px;border-radius:8px;background:var(--mid);border:1px solid var(--border);color:var(--white)" autocomplete="off" spellcheck="false" /><input id="wd-acctname" placeholder="Account name" style="width:100%;padding:10px;border-radius:8px;background:var(--mid);border:1px solid var(--border);color:var(--white)" autocomplete="off" spellcheck="false" /><input id="wd-acctnum" placeholder="Account number" style="width:100%;padding:10px;border-radius:8px;background:var(--mid);border:1px solid var(--border);color:var(--white)" autocomplete="off" spellcheck="false" /><input id="wd-bankcode" placeholder="Bank code" style="width:100%;padding:10px;border-radius:8px;background:var(--mid);border:1px solid var(--border);color:var(--white)" autocomplete="off" spellcheck="false" />';
     wdQuote();
   };
 
