@@ -705,7 +705,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
       <div class="panel">
         <div class="panel-head">
           <div style="display:flex;gap:10px">
-            <input type="text" id="sub-search" placeholder="Search name, username, phone…" style="background:var(--mid);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--white);font-size:.84rem;width:230px" oninput="loadSubscribers()"/>
+            <input type="text" id="sub-search" placeholder="Search name, username, phone…" style="background:var(--mid);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--white);font-size:.84rem;width:230px" oninput="loadSubscribers()"/ autocomplete="off" spellcheck="false">
             <select id="sub-filter" onchange="loadSubscribers()" style="background:var(--mid);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--white);font-size:.82rem">
               <option value="">All</option><option value="active">Active</option><option value="suspended">Suspended</option>
             </select>

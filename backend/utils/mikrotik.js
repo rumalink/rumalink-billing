@@ -59,16 +59,28 @@ async function testConnectivity(deviceId) {
   }
 }
 
+/* RL_LIVE_SESSIONS_CACHE: /isp/users and /isp/sessions/active both call this on every request,
+   so opening the users page, changing a filter or paging all waited on a MikroTik round trip —
+   and with several routers those add up. Who is online changes slowly compared with how often
+   these pages are drawn, so a few seconds of cache removes the wait without showing anything
+   meaningfully stale. */
+const _rlLiveCache = new Map();
+const _RL_LIVE_TTL = 8000;
+
 async function liveHotspotSessions(deviceId) {
+  const _ck = String(deviceId);
+  const _hit = _rlLiveCache.get(_ck);
+  if (_hit && (Date.now() - _hit.t) < _RL_LIVE_TTL) return _hit.v;
+
   const dev = await loadDevice(deviceId);
   const client = clientFor(dev);
   const r = await client.get('/ip/hotspot/active');
   if (r.status !== 200) throw new Error(`Router returned HTTP ${r.status}: ${JSON.stringify(r.data).substring(0,200)}`);
-  return (Array.isArray(r.data) ? r.data : []).map(s => ({
+  { const _v = (Array.isArray(r.data) ? r.data : []).map(s => ({
     id: s['.id'], user: s.user, address: s.address, mac_address: s['mac-address'],
     server: s.server, uptime: s.uptime, idle_time: s['idle-time'],
     bytes_in: parseInt(s['bytes-in']) || 0, bytes_out: parseInt(s['bytes-out']) || 0
-  }));
+  })); _rlLiveCache.set(_ck, { t: Date.now(), v: _v }); return _v; }
 }
 
 async function disconnectHotspotSession(deviceId, sessionId) {

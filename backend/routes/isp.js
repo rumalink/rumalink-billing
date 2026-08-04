@@ -918,6 +918,12 @@ router.get('/users', async (req, res) => {
     const search = (req.query.search || '').trim().toLowerCase();
     const limit = Math.min(parseInt(req.query.limit) || 50, 500);
     const offset = Math.max(parseInt(req.query.offset) || 0, 0); /* RL_USERS_PAGINATE */
+    /* RL_USERS_FETCH_ALL: each source query used LIMIT = the PAGE size, then the handler sliced
+       offset..offset+limit from the combined array. Only the first page of each source was ever
+       fetched, so page 2 re-sliced the same rows and anyone past row 50 of a source could not be
+       reached at all — and the counts were wrong for the same reason. Fetch the ISP's whole set
+       and let the slice below do the paging. */
+    const FETCH_CAP = 5000;
     let users = [];
 
     // Hotspot vouchers (only those tied to a payment - the real "users")
@@ -939,7 +945,7 @@ router.get('/users', async (req, res) => {
           AND (v.payment_id IS NOT NULL OR v.created_by_isp = true OR v.expires_at IS NOT NULL) /* RL_SHOW_ISP_CREATED: show paid OR ISP-created(import/test) OR dated vouchers */
           AND (v.is_tv IS NOT TRUE OR v.is_tv IS NULL) /* RL_TV_EXCLUDE_USERS */
         ORDER BY v.created_at DESC LIMIT $2
-      `, [req.user.ispId, limit]);
+      `, [req.user.ispId, FETCH_CAP]);
 
       for (const r of rows.rows) {
         users.push({
@@ -975,7 +981,7 @@ router.get('/users', async (req, res) => {
           " LEFT JOIN hotspot_vouchers v ON v.id=bd.active_voucher_id" +
           " LEFT JOIN payments p ON p.id=v.payment_id" +
           " WHERE bd.isp_id=$1::uuid ORDER BY bd.created_at DESC LIMIT $2",
-          [req.user.ispId, limit]);
+          [req.user.ispId, FETCH_CAP]);
         for (const r of tvRows.rows) {
           users.push({
             id: r.id,
@@ -1009,7 +1015,7 @@ router.get('/users', async (req, res) => {
           LEFT JOIN radcheck rc ON rc.username = s.username AND rc.attribute = 'Cleartext-Password'
           WHERE s.isp_id = $1::uuid
           ORDER BY s.created_at DESC LIMIT $2
-        `, [req.user.ispId, limit]);
+        `, [req.user.ispId, FETCH_CAP]);
         for (const row of r.rows) {
           users.push({
             id: row.id, type: 'pppoe',
