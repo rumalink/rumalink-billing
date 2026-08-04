@@ -107,6 +107,14 @@ async function persistConfig(nas, cfg) {
   // v62.46: keep FreeRADIUS clients.conf in sync
   triggerRadiusClientsSync();
 
+  /* RL_SYNC_AFTER_PROVISION: read the freshly provisioned router and store what it actually
+     runs, so the device page never shows placeholder addressing. Deferred a little to let
+     the script finish applying on the router. Database-only; nothing is pushed back. */
+  setTimeout(function () {
+    require('../utils/nas-config-sync').pass().catch(function (e) {
+      require('../utils/logger').warn('[provision] config sync: ' + e.message);
+    });
+  }, 20000);
   /* RL_NAS_ROW_ON_PROVISION: FreeRADIUS sources its client list from SQL (read_clients=yes).
      Without a row here a freshly provisioned router cannot authenticate ANYONE until the
      per-minute clients cron catches up. After a production reset — which truncates `nas` — that
