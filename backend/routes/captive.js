@@ -200,6 +200,37 @@ router.post('/:ispId/redeem', async (req, res, next) => {
     `, [code, req.params.ispId]);
 
     if (!voucher.rows[0]) return res.status(404).json({ error: 'Invalid or expired voucher code.' });
+    /* RL_REDEEM_DEVICE_LIMIT: a package may allow several devices on one code
+       (hotspot_packages.simultaneous_sessions). This route accepted ANY mac and recorded none,
+       so the limit was unenforced here — RADIUS Simultaneous-Use caps concurrent SESSIONS, but
+       it does not decide which devices may hold the code. Record each device, admit while under
+       the limit, and refuse beyond it with a message that says why. An unreadable mac is NOT
+       counted: with paying customers online, failing open is safer than locking someone out. */
+    try {
+      const _v = voucher.rows[0];
+      const _macRaw = String(mac || '').trim().toUpperCase();
+      const _mac = /^[0-9A-F]{2}([:-][0-9A-F]{2}){5}$/.test(_macRaw) ? _macRaw : '';
+      if (_mac) {
+        const _lim = (await query(
+          'SELECT COALESCE(hp.simultaneous_sessions,1) AS n FROM hotspot_vouchers hv ' +
+          'LEFT JOIN hotspot_packages hp ON hp.id=hv.package_id WHERE hv.id=$1::uuid', [_v.id])).rows[0];
+        const _max = _lim ? (parseInt(_lim.n, 10) || 1) : 1;
+        const _known = (await query('SELECT mac FROM hotspot_voucher_devices WHERE voucher_id=$1::uuid', [_v.id]))
+                         .rows.map(function (r) { return String(r.mac).toUpperCase(); });
+        if (!_known.includes(_mac)) {
+          if (_known.length >= _max) {
+            logger.info('[redeem] ' + _v.code + ' refused ' + _mac + ' (' + _known.length + '/' + _max + ')');
+            return res.status(403).json({ error: 'This code is already used by ' + _known.length +
+              ' device' + (_known.length > 1 ? 's' : '') + '. It allows ' + _max + '.' });
+          }
+          await query('INSERT INTO hotspot_voucher_devices (voucher_id, mac) VALUES ($1::uuid,$2) ON CONFLICT DO NOTHING', [_v.id, _mac]);
+          logger.info('[redeem] ' + _v.code + ' admitted ' + _mac + ' (' + (_known.length + 1) + '/' + _max + ')');
+        } else {
+          await query('UPDATE hotspot_voucher_devices SET last_seen=now() WHERE voucher_id=$1::uuid AND mac=$2', [_v.id, _mac]).catch(function () {});
+        }
+      }
+    } catch (e) { logger.warn('[redeem] device limit: ' + e.message); }
+
 
     const v = voucher.rows[0];
     let expiresAt = v.expires_at;
@@ -207,7 +238,9 @@ router.post('/:ispId/redeem', async (req, res, next) => {
     if (v.status === 'unused') {
       expiresAt = v.duration_hours ? new Date(Date.now() + v.duration_hours * 3600000) : null;
       await query(
-        `UPDATE hotspot_vouchers SET status='active', used_by_mac=$1, used_at=NOW(), expires_at=$2,
+        `/* RL_REDEEM_KEEP_EXPIRY: a second device redeeming the same code must not restart the
+           clock — COALESCE keeps the expiry the first device already paid for. */
+           UPDATE hotspot_vouchers SET status='active', used_by_mac=COALESCE(used_by_mac,$1), used_at=COALESCE(used_at,NOW()), expires_at=COALESCE(expires_at,$2),
          buyer_phone=COALESCE($3,buyer_phone), updated_at=NOW() WHERE id=$4::uuid`,
         [mac, expiresAt, phone, v.id]
       );

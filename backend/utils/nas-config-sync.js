@@ -58,6 +58,10 @@ async function readRouter(dev) {
     wan_interface: wan,
     dns_servers: net ? (net['dns-server'] || null) : null,
     hotspot_profile: server.profile || null,
+    /* the device page reads these column names, not the hotspot_* ones */
+    gateway_ip: gateway,
+    ip_pool_start: ranges[0] || null,
+    ip_pool_end: ranges[1] || null,
   };
 }
 
