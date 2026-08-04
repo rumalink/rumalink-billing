@@ -34,7 +34,7 @@ async function sendSmsCompat(phone, message, isp) {
 async function sendPurchaseSms(paymentId, receipt) {
   try {
     const r = await query(
-      "SELECT v.code, v.password, v.buyer_phone, v.expires_at, v.isp_id, v.is_tv, v.tv_mac, " +
+      "SELECT v.code, v.password, v.buyer_phone, v.expires_at, v.isp_id, v.is_tv, v.tv_mac, p.metadata AS pay_meta, " +
       "       (SELECT name FROM hotspot_bound_devices bd WHERE UPPER(bd.mac_address)=UPPER(v.tv_mac) LIMIT 1) AS tv_name, " +
       "       hp.name AS pkg_name, p.amount, p.transaction_id, " +
       "       COALESCE(p.metadata->>'rl_purchase_sms','') AS already " +
@@ -58,7 +58,22 @@ async function sendPurchaseSms(paymentId, receipt) {
     /* RL_TV_SMS: a television is bypassed at the router and never signs in, so sending it a
        username and password describes something the customer cannot do and invites them to try.
        Name the device instead and say plainly that nothing is required of them. */
-    const lines = v.is_tv
+    /* RL_TV_SMS_FAILSAFE: this decided purely on v.is_tv. When a voucher was left unmarked — the
+       payment metadata was correct, the voucher flag was not — the PHONE template fired and sent a
+       username and password for a television, which the buyer can then use on any device. The
+       payment's own is_tv is an independent signal for the same fact, so honour both and let the
+       safe answer win: if either says television, no credentials go out. */
+    let _payMeta = v.pay_meta;
+    try { if (typeof _payMeta === 'string') _payMeta = JSON.parse(_payMeta); } catch (e) { _payMeta = null; }
+    const _isTv = !!(v.is_tv || (_payMeta && (_payMeta.is_tv === true || _payMeta.is_tv === 'true')));
+    if (_isTv && !v.is_tv) {
+      logger.warn('[purchase-sms] ' + v.code + ' was not marked as a TV but its payment is — sending TV wording and correcting the voucher');
+      try {
+        await query("UPDATE hotspot_vouchers SET is_tv=true, tv_mac=COALESCE(tv_mac,$1) WHERE id=$2::uuid",
+          [(_payMeta && _payMeta.tv_mac) || null, v.id]);
+      } catch (e) { logger.warn('[purchase-sms] tv correction: ' + e.message); }
+    }
+    const lines = _isTv
       ? [
           (isp.company_name || 'WiFi') + ': ' + (v.pkg_name || 'Package') + ' activated for ' + (v.tv_name || 'your TV') + '.',
           'It connects automatically — no login needed.',
