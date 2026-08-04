@@ -314,7 +314,6 @@ input[type="tel"]{-webkit-appearance:none}
 
   <div class="divider">Pay & Connect</div>
 
-  
   <div id="pay-section">
     <div class="input-group">
       <label>M-Pesa Phone Number</label>
@@ -697,15 +696,6 @@ function startPaymentPolling() {
         clearInterval(countdown);
         document.getElementById('pay-status').style.display = 'none';
         /* RL_AUTOLOGIN_BRIDGE: connect the phone instead of just announcing the voucher. */
-        /* RL_TV_NO_AUTOLOGIN: a TV purchase must not connect this phone. The server no longer returns
-           credentials for a TV voucher, so the check below already fails safely — this just makes the
-           message accurate instead of a generic voucher notice. */
-        if (json.is_tv) {
-          showMsg('\u2705 Payment received! Your TV is now connected. It comes online automatically \u2014 no login needed.', 'success');
-          document.getElementById('pay-section').style.display = 'none';
-          setLoading(false);
-          return;
-        }
         var _ru = json.radius_username, _rp = json.radius_password;
         if (window.rlHotspotLogin && window.rlHasLoginUrl && _ru && _rp) {
           showMsg('✅ Payment received! Connecting this phone to the internet…', 'success');
@@ -807,23 +797,18 @@ function showTVPage() {
 }
 
 // ── Helpers ──────────────────────────────────────────────────
-/* RL_GETMAC_FIX: this fetched a hardcoded http://192.168.88.1/login?mac — MikroTik's FACTORY
-   DEFAULT gateway. This hotspot runs on 10.100.0.0/24, so the request always failed and the
-   function returned the string 'unknown'. Every /pay and /redeem call carried mac:"unknown",
-   so the device limit could not count devices and purchased_by_mac was polluted.
-   MikroTik puts the real MAC in the login URL; use that first, then the gateway derived from
-   link-login (never a guessed address), and only then give up. */
-/* RL_GETMAC_INSTANT: this must never block. An earlier version fetched the hotspot gateway
-   to ask for the MAC; the purchase path does `await getMac()` before /pay, so a slow or
-   intercepted request stalled the whole flow — the spinner appeared only after the STK push
-   had been answered. MikroTik already puts the MAC in the hotspot login URL, so read it from
-   there and return immediately. No network call, nothing to wait on. */
+/* RL_GETMAC_INSTANT: this awaited fetch('http://192.168.88.1/login?mac', { timeout: 2000 }).
+   `timeout` is not a fetch option, and 192.168.88.1 does not exist on this hotspot (it runs
+   10.100.0.1), so nothing answered and the request never settled — it hung. redeemVoucher()
+   and the payment path both await this before sending anything, so entering a code did
+   nothing at all: no request reached the server, no error appeared, the spinner just sat.
+   MikroTik already passes the MAC in the hotspot login URL. Read it there and return at
+   once — with no network call, there is nothing left to hang on. */
 async function getMac() {
   try {
     var q = new URLSearchParams(location.search);
     var m = q.get('mac') || q.get('client_mac') || q.get('client-mac') || '';
     if (/^[0-9A-Fa-f]{2}([:-][0-9A-Fa-f]{2}){5}$/.test(m)) return m.toUpperCase();
-    if (window.RL_MAC && /^[0-9A-Fa-f]{2}([:-][0-9A-Fa-f]{2}){5}$/.test(window.RL_MAC)) return String(window.RL_MAC).toUpperCase();
   } catch (e) {}
   return '';
 }
@@ -1351,15 +1336,6 @@ function rlPickTv(id){
 function rlClearTv(){ rlSelectedTv=null; window.rlSelectedTv=null; rlPersistTvSel(null); var sel=document.getElementById('rl-tv-selected'); if(sel){sel.style.display='none';sel.innerHTML='';} }
 </script>
 </script>
-
-
-
-
-
-
-
-
-
 
 
 
