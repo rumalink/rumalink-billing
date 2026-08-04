@@ -807,11 +807,30 @@ function showTVPage() {
 }
 
 // ── Helpers ──────────────────────────────────────────────────
+/* RL_GETMAC_FIX: this fetched a hardcoded http://192.168.88.1/login?mac — MikroTik's FACTORY
+   DEFAULT gateway. This hotspot runs on 10.100.0.0/24, so the request always failed and the
+   function returned the string 'unknown'. Every /pay and /redeem call carried mac:"unknown",
+   so the device limit could not count devices and purchased_by_mac was polluted.
+   MikroTik puts the real MAC in the login URL; use that first, then the gateway derived from
+   link-login (never a guessed address), and only then give up. */
 async function getMac() {
+  function _qs(k) { try { return new URLSearchParams(location.search).get(k) || ''; } catch (e) { return ''; } }
+  var m = _qs('mac') || _qs('client_mac') || _qs('client-mac');
+  if (m && /^[0-9A-Fa-f]{2}([:-][0-9A-Fa-f]{2}){5}$/.test(m)) return m.toUpperCase();
   try {
-    const r = await fetch('http://192.168.88.1/login?mac', { timeout: 2000 });
-    return (await r.text()).trim() || 'unknown';
-  } catch { return 'unknown'; }
+    var ll = _qs('link-login-only') || _qs('link-login') || '';
+    var host = ll ? (ll.match(/^https?:\/\/([^\/]+)/) || [])[1] : '';
+    if (!host && location.hostname && !/rumalink/i.test(location.hostname)) host = location.host;
+    if (host) {
+      var c = new AbortController();
+      var t = setTimeout(function () { c.abort(); }, 2000);
+      var r = await fetch('http://' + host + '/login?mac', { signal: c.signal });
+      clearTimeout(t);
+      var txt = (await r.text()).trim();
+      if (/^[0-9A-Fa-f]{2}([:-][0-9A-Fa-f]{2}){5}$/.test(txt)) return txt.toUpperCase();
+    }
+  } catch (e) {}
+  return '';
 }
 
 function setLoading(v) {
