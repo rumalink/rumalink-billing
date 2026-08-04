@@ -1106,8 +1106,8 @@ router.put('/users/:id', async (req, res) => {
       let idx = 3;
       if (expires_at !== undefined) { updates.push(`expires_at = $${idx++}`); params.push(expires_at || null); }
       if (status !== undefined) { updates.push(`status = $${idx++}`); params.push(status); }
-      if (mac !== undefined) { updates.push(`used_by_mac = ${idx++}`); params.push(mac); }
-      if (package_id !== undefined && package_id) { updates.push(`package_id = ${idx++}::uuid`.replace('${D}', String.fromCharCode(36))); params.push(package_id); } /* RL_HS_PKG_EDIT */
+      if (mac !== undefined) { updates.push(`used_by_mac = $${idx++}`); params.push(mac); } /* RL_PLACEHOLDER_FIX: the $ was missing, producing "used_by_mac = 5" — a literal, not a parameter */
+      if (package_id !== undefined && package_id) { updates.push(`package_id = $${idx++}::uuid`) /* RL_PLACEHOLDER_FIX */; params.push(package_id); } /* RL_HS_PKG_EDIT */
       updates.push('updated_at = NOW()');
       await query(
         `UPDATE hotspot_vouchers SET ${updates.join(', ')} WHERE id = $1::uuid AND isp_id = $2::uuid`,
@@ -1800,7 +1800,11 @@ router.patch('/:ispId/voucher/:voucherId', async (req, res) => {
     const { expires_at, status } = req.body || {};
     
     // Validate status if provided
-    const validStatuses = ['unused', 'used', 'expired'];
+    /* RL_VOUCHER_STATUS_ENUM: this listed 'used', which is not a member of voucher_status, and
+       omitted 'active', which is — so extending an expired customer (new expiry + active) was
+       refused, while a value Postgres would have rejected was allowed through. The branches below
+       already handle 'active'; only this list was stale. Mirror the enum. */
+    const validStatuses = ['unused', 'active', 'expired'];
     if (status && !validStatuses.includes(String(status).toLowerCase())) {
       return res.status(400).json({ ok: false, error: 'Invalid status' });
     }
@@ -1873,6 +1877,13 @@ router.patch('/:ispId/voucher/:voucherId', async (req, res) => {
       require('../utils/logger').warn('[voucher-patch] radcheck sync: ' + e.message);
     }
     
+    /* RL_EDIT_RESYNC: extending a voucher only moves a database row. Without republishing the
+       RADIUS entry the dashboard shows 'active' while the customer still cannot authenticate —
+       the expiry drives Session-Timeout, and an expired voucher has no credentials at all. */
+    try {
+      const _cap = require('./captive');
+      if (_cap.syncRadiusForVoucher) await _cap.syncRadiusForVoucher(voucherId);
+    } catch (e) { require('../utils/logger').warn('[voucher-edit] radius resync: ' + e.message); }
     res.json({ ok: true, voucher: result.rows[0] });
   } catch (err) {
     require('../utils/logger').error('[voucher-patch] ' + err.message);
