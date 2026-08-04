@@ -1067,6 +1067,35 @@ router.get('/users', async (req, res) => {
       });
     }
 
+    /* RL_COUNTS_UNFILTERED: these badges describe the account, not the current view. They used
+       to be derived from the array just returned, which was fine while every type was always
+       fetched — but now that the handler fetches only the requested type, the other tabs read 0
+       and it looks as though those users have disappeared. Count them separately, always. */
+    let _rlCounts = { all: 0, hotspot: 0, pppoe: 0, online: 0 };
+    try {
+      const _c = await query(
+        `SELECT
+           (SELECT count(*) FROM hotspot_vouchers v
+             WHERE v.isp_id = $1::uuid
+               AND (v.payment_id IS NOT NULL OR v.created_by_isp = true OR v.expires_at IS NOT NULL)
+               AND (v.is_tv IS NOT TRUE OR v.is_tv IS NULL))::int AS hotspot,
+           (SELECT count(*) FROM hotspot_bound_devices bd WHERE bd.isp_id = $1::uuid)::int AS tvs,
+           (SELECT count(*) FROM pppoe_subscribers s WHERE s.isp_id = $1::uuid)::int AS pppoe`,
+        [req.user.ispId]);
+      const _r = _c.rows[0] || { hotspot: 0, tvs: 0, pppoe: 0 };
+      /* the Hotspot tab shows TVs too — the server groups them there — so the badge must match */
+      _rlCounts.hotspot = (_r.hotspot || 0) + (_r.tvs || 0);
+      _rlCounts.pppoe = _r.pppoe || 0;
+      _rlCounts.all = _rlCounts.hotspot + _rlCounts.pppoe;
+      _rlCounts.online = users.filter(u => u.online).length;
+    } catch (e) {
+      require('../utils/logger').warn('[isp/users] counts: ' + e.message);
+      _rlCounts = { all: users.length,
+                    hotspot: users.filter(u => u.type === 'hotspot' || u.type === 'tv_hotspot').length,
+                    pppoe: users.filter(u => u.type === 'pppoe').length,
+                    online: users.filter(u => u.online).length };
+    }
+
     const total = filtered.length;
     const paged = filtered.slice(offset, offset + limit); /* RL_USERS_PAGINATE */
     res.json({
@@ -1074,12 +1103,7 @@ router.get('/users', async (req, res) => {
       total: total,
       offset: offset,
       limit: limit,
-      counts: {
-        all: users.length,
-        hotspot: users.filter(u => u.type === 'hotspot').length,
-        pppoe: users.filter(u => u.type === 'pppoe').length,
-        online: users.filter(u => u.online).length
-      }
+      counts: _rlCounts
     });
   } catch (err) {
     require('../utils/logger').error('isp/users:', err.message);
