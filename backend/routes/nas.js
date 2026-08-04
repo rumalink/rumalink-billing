@@ -1,3 +1,8 @@
+/* RL_NO_FAKE_DEFAULTS: these fields defaulted to 192.168.88.x — MikroTik's factory
+   addressing — whenever a device was added without them. provision.js allocates the real
+   per-router network, so the stored literals described a network that never existed and
+   the device page showed the wrong gateway. Leave them null; nas-config-sync fills them
+   in from the router once it is reachable. */
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { query } = require('../config/database');
@@ -188,10 +193,10 @@ router.post('/', async (req, res, next) => {
       `bridged_ports=${(bridged_ports || ['ether2','ether3','ether4','wlan1']).join(',')}`,
       `wan_interface=${wan_interface || 'ether1'}`,
       `hotspot_interface=${hotspot_interface || 'bridge-local'}`,
-      `hotspot_gateway=${hotspot_gateway || '192.168.88.1'}`,
-      `hotspot_network=${hotspot_network || '192.168.88.0/24'}`,
-      `hotspot_pool_start=${hotspot_pool_start || '192.168.88.10'}`,
-      `hotspot_pool_end=${hotspot_pool_end || '192.168.88.250'}`
+      `hotspot_gateway=${hotspot_gateway || null}`,
+      `hotspot_network=${hotspot_network || null}`,
+      `hotspot_pool_start=${hotspot_pool_start || null}`,
+      `hotspot_pool_end=${hotspot_pool_end || null}`
     ].join('&');
 
     // Full MikroTik provisioning command
@@ -208,10 +213,10 @@ router.post('/', async (req, res, next) => {
         bridged_ports: bridged_ports || ['ether2','ether3','ether4','wlan1'],
         wan_interface: wan_interface || 'ether1',
         hotspot_interface: hotspot_interface || 'bridge-local',
-        hotspot_gateway: hotspot_gateway || '192.168.88.1',
-        hotspot_network: hotspot_network || '192.168.88.0/24',
-        hotspot_pool_start: hotspot_pool_start || '192.168.88.10',
-        hotspot_pool_end: hotspot_pool_end || '192.168.88.250',
+        hotspot_gateway: hotspot_gateway || null,
+        hotspot_network: hotspot_network || null,
+        hotspot_pool_start: hotspot_pool_start || null,
+        hotspot_pool_end: hotspot_pool_end || null,
       }, { timeout: 10000 });
       fullConfig = provRes.data?.config;
     } catch (provErr) {
