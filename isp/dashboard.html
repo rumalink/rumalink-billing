@@ -560,12 +560,12 @@ tr:hover td{background:rgba(255,255,255,.015)}
   <h3 id="rl-ie-title" style="margin:0 0 8px;color:#fff">Export Users</h3>
   <p style="font-size:.82rem;color:#8899bb;margin:0 0 10px">Choose which users:</p>
   <div style="display:flex;flex-direction:column;gap:6px;color:#fff;font-size:.9rem">
-   <label><input type="radio" name="rl-ie-scope" value="all" checked> All users</label>
-   <label><input type="radio" name="rl-ie-scope" value="active"> Only users with an active plan</label>
-   <label><input type="radio" name="rl-ie-scope" value="hotspot"> Hotspot users only</label>
-   <label><input type="radio" name="rl-ie-scope" value="pppoe"> PPPoE users only</label>
+   <label><input type="radio" name="rl-ie-scope" value="all" checked autocomplete="off" spellcheck="false"> All users</label>
+   <label><input type="radio" name="rl-ie-scope" value="active" autocomplete="off" spellcheck="false"> Only users with an active plan</label>
+   <label><input type="radio" name="rl-ie-scope" value="hotspot" autocomplete="off" spellcheck="false"> Hotspot users only</label>
+   <label><input type="radio" name="rl-ie-scope" value="pppoe" autocomplete="off" spellcheck="false"> PPPoE users only</label>
   </div>
-  <div id="rl-ie-file-wrap" style="display:none;margin-top:10px"><input type="file" id="rl-ie-file" accept=".csv" style="color:#fff"/></div>
+  <div id="rl-ie-file-wrap" style="display:none;margin-top:10px"><input type="file" id="rl-ie-file" accept=".csv" style="color:#fff" autocomplete="off" spellcheck="false" /></div>
   <div id="rl-ie-msg" style="font-size:.82rem;margin-top:8px;color:#8899bb"></div>
   <div style="display:flex;gap:8px;margin-top:12px">
    <button style="flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:transparent;color:#fff;cursor:pointer" onclick="document.getElementById('rl-ie-modal').style.display='none'">Cancel</button>
@@ -859,7 +859,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
         <div class="fg"><label>Address</label><input type="text" id="set-address" autocomplete="off" spellcheck="false" /></div>
         <button class="btn btn-teal" onclick="saveProfile()">💾 Save Profile</button>
         <div style="margin-top:22px;padding-top:22px;border-top:1px solid var(--border)">
-          <div class="fg"><label>New Password (leave blank to keep current)</label><input type="password" id="set-newpw" placeholder="Min 8 characters"/></div>
+          <div class="fg"><label>New Password (leave blank to keep current)</label><input type="password" id="set-newpw" placeholder="Min 8 characters" autocomplete="off" spellcheck="false" /></div>
           <button class="btn btn-outline btn-sm" onclick="changePassword()">Change Password</button>
         </div>
       </div>
@@ -885,15 +885,15 @@ tr:hover td{background:rgba(255,255,255,.015)}
             <div class="fg"><label>Welcome Subtitle</label><input type="text" id="portal-sub" placeholder="Select a package to get started" autocomplete="off" spellcheck="false" /></div>
           </div>
           <div class="fg2">
-            <div class="fg"><label>Primary Color</label><input type="color" id="portal-color" value="#00d4aa" style="height:42px;padding:4px 8px;cursor:pointer"/></div>
-            <div class="fg"><label>Secondary Color</label><input type="color" id="portal-color2" value="#0d1530" style="height:42px;padding:4px 8px;cursor:pointer"/></div>
+            <div class="fg"><label>Primary Color</label><input type="color" id="portal-color" value="#00d4aa" style="height:42px;padding:4px 8px;cursor:pointer" autocomplete="off" spellcheck="false" /></div>
+            <div class="fg"><label>Secondary Color</label><input type="color" id="portal-color2" value="#0d1530" style="height:42px;padding:4px 8px;cursor:pointer" autocomplete="off" spellcheck="false" /></div>
           </div>
           <div class="fg2">
-            <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="portal-show-logo" style="width:auto" checked/> Show Logo</label></div>
-            <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="portal-powered-by" style="width:auto" checked/> Show "Powered by RumaLink"</label></div>
-            <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="portal-tv-mode" style="width:auto" checked/> Show QR Code for Smart TV customers</label></div>
+            <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="portal-show-logo" style="width:auto" checked autocomplete="off" spellcheck="false" /> Show Logo</label></div>
+            <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="portal-powered-by" style="width:auto" checked autocomplete="off" spellcheck="false" /> Show "Powered by RumaLink"</label></div>
+            <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="portal-tv-mode" style="width:auto" checked autocomplete="off" spellcheck="false" /> Show QR Code for Smart TV customers</label></div>
             <div class="fg2">
-              <div class="fg"><label>Support Phone Number</label><input type="tel" id="portal-support-number" placeholder="e.g. 0700123456"/><div style="font-size:.72rem;color:var(--muted);margin-top:3px">Shown as a call button on the captive portal</div></div>
+              <div class="fg"><label>Support Phone Number</label><input type="tel" id="portal-support-number" placeholder="e.g. 0700123456" autocomplete="off" spellcheck="false" /><div style="font-size:.72rem;color:var(--muted);margin-top:3px">Shown as a call button on the captive portal</div></div>
               <div class="fg"><label>Support Label</label><input type="text" id="portal-support-label" placeholder="Need Help? Call Us" autocomplete="off" spellcheck="false" /></div>
             </div>
           </div>
@@ -901,15 +901,15 @@ tr:hover td{background:rgba(255,255,255,.015)}
           <div style="border-top:1px solid var(--border);margin-top:22px;padding-top:20px">
             <h3 style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:6px">🔔 Notification Banner</h3>
             <p style="color:var(--muted);font-size:.84rem;margin-bottom:16px">Show a message to everyone on your captive portal (e.g. maintenance notice) — no SMS needed.</p>
-            <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="notif-enabled" style="width:auto"/> Enable banner</label></div>
+            <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="notif-enabled" style="width:auto" autocomplete="off" spellcheck="false" /> Enable banner</label></div>
             <div class="fg2">
               <div class="fg"><label>Title</label><input type="text" id="notif-title" placeholder="e.g. Scheduled Maintenance" autocomplete="off" spellcheck="false" /></div>
               <div class="fg"><label>Severity</label><select id="notif-severity"><option value="info">Info (blue)</option><option value="warning">Warning (amber)</option><option value="maintenance">Maintenance (red)</option></select></div>
             </div>
             <div class="fg"><label>Message</label><textarea id="notif-message" rows="2" placeholder="e.g. We're upgrading our network tonight from 1–3 AM. Service may be intermittent."></textarea></div>
             <div class="fg2">
-              <div class="fg"><label>Show from (optional)</label><input type="datetime-local" id="notif-start"/></div>
-              <div class="fg"><label>Show until (optional)</label><input type="datetime-local" id="notif-end"/></div>
+              <div class="fg"><label>Show from (optional)</label><input type="datetime-local" id="notif-start" autocomplete="off" spellcheck="false" /></div>
+              <div class="fg"><label>Show until (optional)</label><input type="datetime-local" id="notif-end" autocomplete="off" spellcheck="false" /></div>
             </div>
             <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px">Leave the dates empty to show the banner immediately and indefinitely (while enabled).</div>
           </div>
@@ -917,7 +917,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
           <div style="border-top:1px solid var(--border);margin-top:22px;padding-top:20px">
             <h3 style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:6px">🎬 Media Banner</h3>
             <p style="color:var(--muted);font-size:.84rem;margin-bottom:16px">Show a looping video or an image carousel on your portal, just under the ISP name. Upload files or paste links.</p>
-            <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="media-enabled" style="width:auto"/> Enable media banner</label></div>
+            <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="media-enabled" style="width:auto" autocomplete="off" spellcheck="false" /> Enable media banner</label></div>
             <div class="fg"><label>Type</label>
               <select id="media-type" onchange="rlMediaToggleType()">
                 <option value="carousel">Image Carousel</option>
@@ -940,7 +940,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
                 <input type="text" id="media-video-url" placeholder="https://... or upload below" autocomplete="off" spellcheck="false" />
               </div>
               <div class="fg">
-                <input type="file" id="media-video-file" accept="video/mp4,video/webm" style="font-size:.82rem"/>
+                <input type="file" id="media-video-file" accept="video/mp4,video/webm" style="font-size:.82rem" autocomplete="off" spellcheck="false" />
                 <button class="btn btn-sm" type="button" onclick="rlUploadMediaVideo()">⬆ Upload video</button>
                 <span id="media-video-status" style="font-size:.78rem;color:var(--muted);margin-left:8px"></span>
               </div>
@@ -956,12 +956,12 @@ tr:hover td{background:rgba(255,255,255,.015)}
                 <button class="btn btn-sm" type="button" onclick="rlAddImageUrl()">+ Add URL</button>
               </div>
               <div class="fg">
-                <input type="file" id="media-image-file" accept="image/*" style="font-size:.82rem"/>
+                <input type="file" id="media-image-file" accept="image/*" style="font-size:.82rem" autocomplete="off" spellcheck="false" />
                 <button class="btn btn-sm" type="button" onclick="rlUploadMediaImage()">⬆ Upload image</button>
                 <span id="media-image-status" style="font-size:.78rem;color:var(--muted);margin-left:8px"></span>
               </div>
               <div class="fg"><label>Auto-advance every (seconds)</label>
-                <input type="number" id="media-interval" min="2" max="30" value="4" style="max-width:120px"/>
+                <input type="number" id="media-interval" min="2" max="30" value="4" style="max-width:120px" autocomplete="off" spellcheck="false" />
               </div>
             </div>
           </div>
@@ -1005,14 +1005,14 @@ tr:hover td{background:rgba(255,255,255,.015)}
           <strong style="color:#00d4aa">RumaLink SMS</strong> uses our gateway — no credentials needed. Buy SMS credits from your dashboard (SMS Balance card) and we deliver via our provider. Your current balance and Top Up button appear on the Dashboard.
         </div>
         <div id="sms-gateway-fields" style="display:none">
-          <div class="fg"><label>API Key / Token</label><input type="password" id="sms-api-key" placeholder="Your gateway API key"/></div>
+          <div class="fg"><label>API Key / Token</label><input type="password" id="sms-api-key" placeholder="Your gateway API key" autocomplete="off" spellcheck="false" /></div>
           <div id="sms-username-field" class="fg" style="display:none"><label>Username / Account Name</label><input type="text" id="sms-username" placeholder="Your gateway username" autocomplete="off" spellcheck="false" /></div>
           <div id="sms-partnerid-field" class="fg" style="display:none"><label>Partner ID</label><input type="text" id="sms-partner-id" placeholder="Partner ID (BongaSMS)" autocomplete="off" spellcheck="false" /></div>
           <div class="fg"><label>Sender ID / From Name</label><input type="text" id="sms-sender-id" placeholder="e.g. YourISP (max 11 chars)" maxlength="11" autocomplete="off" spellcheck="false" /></div>
           <div class="fg">
             <label>Test Phone Number</label>
             <div style="display:flex;gap:10px">
-              <input type="tel" id="sms-test-phone" placeholder="0712345678" style="flex:1"/>
+              <input type="tel" id="sms-test-phone" placeholder="0712345678" style="flex:1" autocomplete="off" spellcheck="false" />
               <button class="btn btn-amber" onclick="testSMSGateway()">📨 Send Test SMS</button>
             </div>
           </div>
@@ -1085,7 +1085,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
               </div>
               <div id="wd-dest" style="display:flex;flex-direction:column;gap:10px"></div>
               <div class="fg"><label>Amount (KES)</label>
-                <input id="wd-amount" type="number" min="1" step="1" placeholder="e.g. 1000" oninput="wdQuote()"/>
+                <input id="wd-amount" type="number" min="1" step="1" placeholder="e.g. 1000" oninput="wdQuote()" autocomplete="off" spellcheck="false" />
               </div>
               <div id="wd-quote" style="font-size:.86rem;color:var(--muted);line-height:1.7;margin-bottom:10px"></div>
               <button class="btn btn-teal" id="wd-submit" onclick="wdSubmit()">💸 Withdraw</button>
@@ -1140,11 +1140,11 @@ tr:hover td{background:rgba(255,255,255,.015)}
       <div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:10px">
         <div style="font-size:.82rem;font-weight:600;margin-bottom:10px;color:var(--text)">🔒 Anti-Share Protection</div>
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px">
-          <input type="checkbox" id="dev-antishare" style="width:auto" onchange="toggleAntishare(this.checked)"/>
+          <input type="checkbox" id="dev-antishare" style="width:auto" onchange="toggleAntishare(this.checked)" autocomplete="off" spellcheck="false" />
           <span style="font-size:.88rem">Enable Anti-Share (prevent clients from tethering/sharing WiFi)</span>
         </label>
         <div id="antishare-opts" style="display:none">
-          <div class="fg"><label>Max Devices per Session</label><input type="number" id="dev-max-devices" value="1" min="1" max="5" style="width:100px"/><div style="font-size:.72rem;color:var(--muted);margin-top:3px">A client with more than this many simultaneous devices will be disconnected</div></div>
+          <div class="fg"><label>Max Devices per Session</label><input type="number" id="dev-max-devices" value="1" min="1" max="5" style="width:100px" autocomplete="off" spellcheck="false" /><div style="font-size:.72rem;color:var(--muted);margin-top:3px">A client with more than this many simultaneous devices will be disconnected</div></div>
         </div>
         <div style="font-size:.76rem;color:var(--muted);margin-top:6px;line-height:1.5">Anti-share adds firewall rules to block client-to-client forwarding, disable AP bridging between connected devices, and limit simultaneous sessions per MAC address.</div>
       </div>
@@ -1188,7 +1188,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
     <div class="sub">Create a batch of hotspot vouchers for your customers.</div>
     <div class="fg"><label>Package</label><select id="v-pkg-sel"></select></div>
     <div class="fg2">
-      <div class="fg"><label>Quantity (max 500)</label><input type="number" id="v-qty" value="10" min="1" max="500"/></div>
+      <div class="fg"><label>Quantity (max 500)</label><input type="number" id="v-qty" value="10" min="1" max="500" autocomplete="off" spellcheck="false" /></div>
       <div class="fg"><label>Code Prefix (optional)</label><input type="text" id="v-prefix" placeholder="e.g. WL" maxlength="5" autocomplete="off" spellcheck="false" /></div>
     </div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('modal-vouchers')">Cancel</button><button class="btn btn-teal" onclick="generateVouchers()">🎟️ Generate</button></div>
@@ -1205,12 +1205,12 @@ tr:hover td{background:rgba(255,255,255,.015)}
     <div class="fg"><label>Code <span style="color:var(--muted);font-weight:normal;font-size:.82rem">(leave blank to auto-generate next K-code)</span></label><input type="text" id="hsu-code" placeholder="auto" maxlength="20" style="text-transform:uppercase" autocomplete="off" spellcheck="false" /></div>
     <div class="fg"><label>Package</label><select id="hsu-pkg"></select></div>
     <div class="fg2">
-      <div class="fg"><label>Buyer Phone <span style="color:var(--muted);font-weight:normal;font-size:.82rem">(optional)</span></label><input type="tel" id="hsu-phone" placeholder="07XXXXXXXX"/></div>
+      <div class="fg"><label>Buyer Phone <span style="color:var(--muted);font-weight:normal;font-size:.82rem">(optional)</span></label><input type="tel" id="hsu-phone" placeholder="07XXXXXXXX" autocomplete="off" spellcheck="false" /></div>
       <div class="fg"><label>MAC Address <span style="color:var(--muted);font-weight:normal;font-size:.82rem">(optional)</span></label><input type="text" id="hsu-mac" placeholder="AA:BB:CC:DD:EE:FF" autocomplete="off" spellcheck="false" /></div>
     </div>
     <div style="margin:12px 0;padding:10px;background:rgba(243,156,18,.08);border-radius:6px;border:1px solid rgba(243,156,18,.2)">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-        <input type="checkbox" id="hsu-is-test" style="width:18px;height:18px;cursor:pointer">
+        <input type="checkbox" id="hsu-is-test" style="width:18px;height:18px;cursor:pointer" autocomplete="off" spellcheck="false">
         <span>🧪 <strong>Test account</strong> — no payment required, marked as test, excluded from revenue (use for staff/QA/your own router testing)</span>
       </label>
     </div>
@@ -1224,14 +1224,14 @@ tr:hover td{background:rgba(255,255,255,.015)}
     <div class="sub">Credentials will be sent to the subscriber via SMS after creation.</div>
     <div class="fg2">
       <div class="fg"><label>Full Name *</label><input type="text" id="sub-name" placeholder="e.g. John Mwangi" autocomplete="off" spellcheck="false" /></div>
-      <div class="fg"><label>Phone *</label><input type="tel" id="sub-phone" placeholder="0712345678"/></div>
+      <div class="fg"><label>Phone *</label><input type="tel" id="sub-phone" placeholder="0712345678" autocomplete="off" spellcheck="false" /></div>
     </div>
     <div class="fg2">
       <div class="fg"><label>Username *</label><input type="text" id="sub-username" placeholder="e.g. john.mwangi" autocomplete="off" spellcheck="false" /></div>
       <div class="fg"><label>Password *</label><input type="text" id="sub-password" autocomplete="off" spellcheck="false" /></div>
     </div>
     <div class="fg2">
-      <div class="fg"><label>Email</label><input type="email" id="sub-email"/></div>
+      <div class="fg"><label>Email</label><input type="email" id="sub-email" autocomplete="off" spellcheck="false" /></div>
       <div class="fg"><label>ID Number</label><input type="text" id="sub-idno" autocomplete="off" spellcheck="false" /></div>
     </div>
     <div class="fg"><label>Package *</label><select id="sub-pkg"></select></div>
@@ -1241,7 +1241,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
     </div>
     <div style="margin:12px 0;padding:10px;background:rgba(243,156,18,.08);border-radius:6px;border:1px solid rgba(243,156,18,.2)">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-        <input type="checkbox" id="sub-is-test" style="width:18px;height:18px;cursor:pointer">
+        <input type="checkbox" id="sub-is-test" style="width:18px;height:18px;cursor:pointer" autocomplete="off" spellcheck="false">
         <span>🧪 <strong>Test account</strong> — no payment required, excluded from revenue (use for staff/testing your own router)</span>
       </label>
     </div>
@@ -1254,7 +1254,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
   <div class="modal">
     <h2>Record Manual Payment</h2>
     <div class="sub">Record a cash or bank transfer for a subscriber or voucher sale.</div>
-    <div class="fg"><label>Amount (KES) *</label><input type="number" id="pay-amount" placeholder="e.g. 1500"/></div>
+    <div class="fg"><label>Amount (KES) *</label><input type="number" id="pay-amount" placeholder="e.g. 1500" autocomplete="off" spellcheck="false" /></div>
     <div class="fg"><label>Payment Method *</label>
       <select id="pay-method"><option value="cash">Cash</option><option value="bank">Bank Transfer</option><option value="mpesa">MPesa (Manual)</option><option value="other">Other</option></select>
     </div>
@@ -1271,7 +1271,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
     <div class="sub" id="lpay-sub">Enter the M-Pesa number to receive the STK prompt.</div>
     <div id="lpay-form">
       <div class="fg"><label>Amount Due</label><input type="text" id="lpay-amount" readonly style="color:var(--teal);font-weight:700" autocomplete="off" spellcheck="false" /></div>
-      <div class="fg"><label>M-Pesa Phone *</label><input type="tel" id="lpay-phone" placeholder="e.g. 0712345678"/></div>
+      <div class="fg"><label>M-Pesa Phone *</label><input type="tel" id="lpay-phone" placeholder="e.g. 0712345678" autocomplete="off" spellcheck="false" /></div>
       <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('modal-license-pay')">Cancel</button><button class="btn btn-amber" id="lpay-btn" onclick="submitLicensePay()">Send M-Pesa Prompt</button></div>
     </div>
     <div id="lpay-waiting" style="display:none;text-align:center;padding:24px 8px">
@@ -1299,13 +1299,13 @@ tr:hover td{background:rgba(255,255,255,.015)}
 
     <!-- MPesa STK fields -->
     <div id="pm-fields-stk" style="display:none">
-      <div class="fg"><label style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="pm-use-admin" onchange="toggleAdminCreds()" style="width:auto"/> Use RumaLink platform credentials (no API keys needed)</label></div>
+      <div class="fg"><label style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="pm-use-admin" onchange="toggleAdminCreds()" style="width:auto" autocomplete="off" spellcheck="false" /> Use RumaLink platform credentials (no API keys needed)</label></div>
       <div id="pm-own-creds">
         <div class="fg"><label>Business Short Code</label><input type="text" id="pm-shortcode" placeholder="e.g. 174379" autocomplete="off" spellcheck="false" /></div>
         <div class="fg"><label>Consumer Key</label><input type="text" id="pm-ck" placeholder="From Safaricom Developer Portal" autocomplete="off" spellcheck="false" /></div>
-        <div class="fg"><label>Consumer Secret</label><input type="password" id="pm-cs"/></div>
-        <div class="fg"><label>Passkey</label><input type="password" id="pm-passkey"/></div>
-        <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="pm-sandbox" style="width:auto"/> Sandbox / Test mode</label></div>
+        <div class="fg"><label>Consumer Secret</label><input type="password" id="pm-cs" autocomplete="off" spellcheck="false" /></div>
+        <div class="fg"><label>Passkey</label><input type="password" id="pm-passkey" autocomplete="off" spellcheck="false" /></div>
+        <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="pm-sandbox" style="width:auto" autocomplete="off" spellcheck="false" /> Sandbox / Test mode</label></div>
       </div>
       <div id="pm-forward-section" style="display:none">
         <p style="color:var(--amber);font-size:.82rem;background:rgba(243,156,18,.08);border:1px solid rgba(243,156,18,.2);border-radius:8px;padding:10px;margin-bottom:14px">⚡ Platform will collect payments on your behalf and immediately forward to your preferred method below.</p>
@@ -1361,14 +1361,14 @@ tr:hover td{background:rgba(255,255,255,.015)}
       </div>
       <p style="font-size:.78rem;color:var(--muted);margin:10px 0 0">Choosing this enables the <b>💸 Withdraw</b> menu after you save.</p>
     </div>
-    <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="pm-default" style="width:auto"/> Set as default payment method</label></div>
+    <div class="fg"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="pm-default" style="width:auto" autocomplete="off" spellcheck="false" /> Set as default payment method</label></div>
 
     <!-- Test payment -->
     <div style="background:rgba(0,212,170,.05);border:1px solid rgba(0,212,170,.1);border-radius:10px;padding:14px;margin:14px 0">
       <div style="font-size:.84rem;font-weight:500;margin-bottom:8px">🧪 Test Payment Method</div>
       <p style="color:var(--muted);font-size:.8rem;margin-bottom:10px">Simulate a KES 1 payment to verify your setup works before saving.</p>
       <div style="display:flex;gap:10px">
-        <input type="tel" id="pm-test-phone" placeholder="Test phone: 0712345678" style="background:var(--mid);border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--white);font-family:var(--font-body);font-size:.86rem;outline:none;flex:1"/>
+        <input type="tel" id="pm-test-phone" placeholder="Test phone: 0712345678" style="background:var(--mid);border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--white);font-family:var(--font-body);font-size:.86rem;outline:none;flex:1" autocomplete="off" spellcheck="false" />
         <button class="btn btn-amber btn-sm" onclick="testPaymentMethod()" id="pm-test-btn">💳 Test (KES 1)</button>
       </div>
       <div id="pm-test-result" style="display:none;padding:10px;border-radius:8px;font-size:.82rem;margin-top:10px"></div>
@@ -2219,13 +2219,13 @@ async function loadHSPackages(){
 function openHSPackageModal(){
   const html=`<div class="modal">
     <h2>New Hotspot Package</h2>
-    <div class="fg2"><div class="fg"><label>Name *</label><input id="hsp-name" placeholder="e.g. 1 Hour Premium" autocomplete="off" spellcheck="false" /></div><div class="fg"><label>Price (KES) *</label><input id="hsp-price" type="number" placeholder="50"/></div></div>
-    <div class="fg2"><div class="fg"><label>Duration (hours)</label><input id="hsp-hrs" type="number" placeholder="1 (blank=unlimited)"/></div><div class="fg"><label>Download Mbps</label><input id="hsp-down" type="number" placeholder="5 (blank=unlimited)"/></div></div>
-    <div class="fg2"><div class="fg"><label>Upload Mbps</label><input id="hsp-up" type="number"/></div><div class="fg"><label>Data Limit (MB)</label><input id="hsp-data" type="number" placeholder="blank=unlimited"/></div></div>
+    <div class="fg2"><div class="fg"><label>Name *</label><input id="hsp-name" placeholder="e.g. 1 Hour Premium" autocomplete="off" spellcheck="false" /></div><div class="fg"><label>Price (KES) *</label><input id="hsp-price" type="number" placeholder="50" autocomplete="off" spellcheck="false" /></div></div>
+    <div class="fg2"><div class="fg"><label>Duration (hours)</label><input id="hsp-hrs" type="number" placeholder="1 (blank=unlimited)" autocomplete="off" spellcheck="false" /></div><div class="fg"><label>Download Mbps</label><input id="hsp-down" type="number" placeholder="5 (blank=unlimited)" autocomplete="off" spellcheck="false" /></div></div>
+    <div class="fg2"><div class="fg"><label>Upload Mbps</label><input id="hsp-up" type="number" autocomplete="off" spellcheck="false" /></div><div class="fg"><label>Data Limit (MB)</label><input id="hsp-data" type="number" placeholder="blank=unlimited" autocomplete="off" spellcheck="false" /></div></div>
     <!-- RL_SIMUL_FIELD: how many devices may use ONE voucher at the same time.
          Enforced by RADIUS (Simultaneous-Use); 1 keeps today's behaviour. -->
     <label>Devices allowed at once</label>
-    <input id="hsp-devices" type="number" min="1" max="10" value="1" placeholder="1"/>
+    <input id="hsp-devices" type="number" min="1" max="10" value="1" placeholder="1" autocomplete="off" spellcheck="false" />
     <div class="fg"><label>MikroTik Profile Name</label><input id="hsp-profile" placeholder="e.g. hotspot-1hr" autocomplete="off" spellcheck="false" /></div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button><button class="btn btn-teal" onclick="saveHSPkg()">Create</button></div>
   </div>`;
@@ -2292,9 +2292,9 @@ async function loadPPPoEPackages() {
 function openPPPoEPackageModal(){
   const html=`<div class="modal">
     <h2>New PPPoE Package</h2>
-    <div class="fg2"><div class="fg"><label>Name *</label><input id="pp-name" placeholder="e.g. Home 10Mbps" autocomplete="off" spellcheck="false" /></div><div class="fg"><label>Price/Month (KES) *</label><input id="pp-price" type="number" placeholder="1500"/></div></div>
-    <div class="fg2"><div class="fg"><label>Download Mbps</label><input id="pp-down" type="number" placeholder="10"/></div><div class="fg"><label>Upload Mbps</label><input id="pp-up" type="number" placeholder="5"/></div></div>
-    <div class="fg2"><div class="fg"><label>Data Limit (GB)</label><input id="pp-data" type="number" placeholder="blank=unlimited"/></div><div class="fg"><label>MikroTik Profile</label><input id="pp-profile" placeholder="e.g. pppoe-10M" autocomplete="off" spellcheck="false" /></div></div>
+    <div class="fg2"><div class="fg"><label>Name *</label><input id="pp-name" placeholder="e.g. Home 10Mbps" autocomplete="off" spellcheck="false" /></div><div class="fg"><label>Price/Month (KES) *</label><input id="pp-price" type="number" placeholder="1500" autocomplete="off" spellcheck="false" /></div></div>
+    <div class="fg2"><div class="fg"><label>Download Mbps</label><input id="pp-down" type="number" placeholder="10" autocomplete="off" spellcheck="false" /></div><div class="fg"><label>Upload Mbps</label><input id="pp-up" type="number" placeholder="5" autocomplete="off" spellcheck="false" /></div></div>
+    <div class="fg2"><div class="fg"><label>Data Limit (GB)</label><input id="pp-data" type="number" placeholder="blank=unlimited" autocomplete="off" spellcheck="false" /></div><div class="fg"><label>MikroTik Profile</label><input id="pp-profile" placeholder="e.g. pppoe-10M" autocomplete="off" spellcheck="false" /></div></div>
     <div class="fg"><label>IP Pool</label><input id="pp-pool" placeholder="e.g. pppoe-pool" autocomplete="off" spellcheck="false" /></div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button><button class="btn btn-teal" onclick="savePPPoEPkg()">Create</button></div>
   </div>`;
@@ -3218,7 +3218,7 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
     lanEl.innerHTML = all.filter(p=>p!==wan).map(p => {
       const on = (window.__rlLanState[p] !== false); // default checked unless explicitly unchecked
       return '<label class="rl-lan-chip" style="display:flex;align-items:center;gap:6px;font-size:.85rem;color:var(--text);background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer">' +
-        '<input type="checkbox" class="rl-lan" value="'+p+'"'+(on?' checked':'')+' onchange="rlLanToggled(this)" style="width:auto"/> '+p+'</label>';
+        '<input type="checkbox" class="rl-lan" value="'+p+'"'+(on?' checked':'')+' onchange="rlLanToggled(this)" style="width:auto" autocomplete="off" spellcheck="false" /> '+p+'</label>';
     }).join('');
   };
 
@@ -3848,12 +3848,12 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
       + '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
       + '    <label style="grid-column:1/-1"><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Name</div><input id="pk-name" value="' + esc(pkg.name||'') + '" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box" autocomplete="off" spellcheck="false" /></label>'
       + '    <label style="grid-column:1/-1"><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Description</div><input id="pk-desc" value="' + esc(pkg.description||'') + '" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box" autocomplete="off" spellcheck="false" /></label>'
-      + '    <label><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Price (KES)</div><input id="pk-price" type="number" step="0.01" value="' + (pkg.price||0) + '" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box"/></label>'
-      + '    <label><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Duration (hours)</div><input id="pk-hours" type="number" value="' + (pkg.duration_hours||'') + '" placeholder="empty=unlimited" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box"/></label>'
-      + '    <label><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Down (Mbps)</div><input id="pk-down" type="number" value="' + (pkg.bandwidth_down_mbps||'') + '" placeholder="empty=unlimited" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box"/></label>'
-      + '    <label><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Up (Mbps)</div><input id="pk-up" type="number" value="' + (pkg.bandwidth_up_mbps||'') + '" placeholder="empty=unlimited" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box"/></label>'
-      + '    <label><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Data Limit (MB)</div><input id="pk-data" type="number" value="' + (pkg.data_limit_mb||'') + '" placeholder="empty=unlimited" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box"/></label>'
-      + '    <label><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Simultaneous Sessions</div><input id="pk-sess" type="number" value="' + (pkg.simultaneous_sessions||1) + '" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box"/></label>'
+      + '    <label><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Price (KES)</div><input id="pk-price" type="number" step="0.01" value="' + (pkg.price||0) + '" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box" autocomplete="off" spellcheck="false" /></label>'
+      + '    <label><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Duration (hours)</div><input id="pk-hours" type="number" value="' + (pkg.duration_hours||'') + '" placeholder="empty=unlimited" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box" autocomplete="off" spellcheck="false" /></label>'
+      + '    <label><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Down (Mbps)</div><input id="pk-down" type="number" value="' + (pkg.bandwidth_down_mbps||'') + '" placeholder="empty=unlimited" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box" autocomplete="off" spellcheck="false" /></label>'
+      + '    <label><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Up (Mbps)</div><input id="pk-up" type="number" value="' + (pkg.bandwidth_up_mbps||'') + '" placeholder="empty=unlimited" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box" autocomplete="off" spellcheck="false" /></label>'
+      + '    <label><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Data Limit (MB)</div><input id="pk-data" type="number" value="' + (pkg.data_limit_mb||'') + '" placeholder="empty=unlimited" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box" autocomplete="off" spellcheck="false" /></label>'
+      + '    <label><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Simultaneous Sessions</div><input id="pk-sess" type="number" value="' + (pkg.simultaneous_sessions||1) + '" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box" autocomplete="off" spellcheck="false" /></label>'
       + '    <label style="grid-column:1/-1"><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Status</div><select id="pk-active" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box"><option value="true"' + (pkg.is_active!==false?' selected':'') + '>Active</option><option value="false"' + (pkg.is_active===false?' selected':'') + '>Disabled</option></select></label>'
       + '  </div>'
       + '  <div id="pk-msg" style="display:none;margin-top:14px;padding:10px;border-radius:8px;font-size:.84rem"></div>'
@@ -4612,9 +4612,9 @@ async function editPPPoEPackage(packageId) {
     const html = `<div class="modal">
       <h2>Edit PPPoE Package</h2>
       <div class="sub">${safe(p.name)}</div>
-      <div class="fg2"><div class="fg"><label>Name *</label><input id="pp-edit-name" value="${safe(p.name)}" autocomplete="off" spellcheck="false" /></div><div class="fg"><label>Price (KES) *</label><input id="pp-edit-price" type="number" value="${p.price||''}"/></div></div>
-      <div class="fg2"><div class="fg"><label>Download Mbps</label><input id="pp-edit-down" type="number" value="${p.bandwidth_down_mbps||''}"/></div><div class="fg"><label>Upload Mbps</label><input id="pp-edit-up" type="number" value="${p.bandwidth_up_mbps||''}"/></div></div>
-      <div class="fg2"><div class="fg"><label>Data Limit (GB, blank=unlimited)</label><input id="pp-edit-data" type="number" value="${p.data_limit_gb||''}"/></div><div class="fg"><label>MikroTik Profile</label><input id="pp-edit-profile" value="${safe(p.mikrotik_profile)}" autocomplete="off" spellcheck="false" /></div></div>
+      <div class="fg2"><div class="fg"><label>Name *</label><input id="pp-edit-name" value="${safe(p.name)}" autocomplete="off" spellcheck="false" /></div><div class="fg"><label>Price (KES) *</label><input id="pp-edit-price" type="number" value="${p.price||''}" autocomplete="off" spellcheck="false" /></div></div>
+      <div class="fg2"><div class="fg"><label>Download Mbps</label><input id="pp-edit-down" type="number" value="${p.bandwidth_down_mbps||''}" autocomplete="off" spellcheck="false" /></div><div class="fg"><label>Upload Mbps</label><input id="pp-edit-up" type="number" value="${p.bandwidth_up_mbps||''}" autocomplete="off" spellcheck="false" /></div></div>
+      <div class="fg2"><div class="fg"><label>Data Limit (GB, blank=unlimited)</label><input id="pp-edit-data" type="number" value="${p.data_limit_gb||''}" autocomplete="off" spellcheck="false" /></div><div class="fg"><label>MikroTik Profile</label><input id="pp-edit-profile" value="${safe(p.mikrotik_profile)}" autocomplete="off" spellcheck="false" /></div></div>
       <div class="fg2"><div class="fg"><label>Billing Cycle</label><select id="pp-edit-cycle"><option value="monthly"${sel(p.billing_cycle,'monthly')}>Monthly</option><option value="weekly"${sel(p.billing_cycle,'weekly')}>Weekly</option><option value="daily"${sel(p.billing_cycle,'daily')}>Daily</option></select></div><div class="fg"><label>IP Pool</label><input id="pp-edit-pool" value="${safe(p.address_pool)}" autocomplete="off" spellcheck="false" /></div></div>
       <div class="fg"><label>Description</label><input id="pp-edit-desc" value="${safe(p.description)}" autocomplete="off" spellcheck="false" /></div>
       <div class="modal-actions"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button><button class="btn btn-teal" onclick="savePPPoEPackageEdit('${p.id}')">Save Changes</button></div>
@@ -4763,8 +4763,8 @@ async function loadActiveSessionsUsage(){
     <h2>Top Up SMS</h2>
     <div class="sub">Buy SMS credits from RumaLink. Pay via M-Pesa STK.</div>
     <div id="sms-topup-form">
-      <div class="fg"><label>M-Pesa Phone Number</label><input type="tel" id="sms-topup-phone" placeholder="07XXXXXXXX"/></div>
-      <div class="fg"><label>Amount (KES)</label><input type="number" id="sms-topup-amount" min="1" step="1" placeholder="e.g. 100" oninput="calcSmsTopup()"/></div>
+      <div class="fg"><label>M-Pesa Phone Number</label><input type="tel" id="sms-topup-phone" placeholder="07XXXXXXXX" autocomplete="off" spellcheck="false" /></div>
+      <div class="fg"><label>Amount (KES)</label><input type="number" id="sms-topup-amount" min="1" step="1" placeholder="e.g. 100" oninput="calcSmsTopup()" autocomplete="off" spellcheck="false" /></div>
       <div style="background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.25);border-radius:8px;padding:12px 14px;margin:6px 0 14px;font-size:.9rem">
         You will get <strong id="sms-topup-count" style="color:#00d4aa">0.00 SMS</strong>
         <div style="color:var(--muted);font-size:.78rem;margin-top:2px">at KES <span id="sms-topup-price">0.50</span> per SMS</div>
