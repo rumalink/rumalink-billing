@@ -1243,7 +1243,7 @@ router.delete('/users/:id', async (req, res) => {
       } catch (e) { require('../utils/logger').warn('[delete-user] router cleanup: ' + e.message); }
 
       await query(
-        `UPDATE hotspot_vouchers SET deleted_at = NOW(), status = 'deleted', updated_at = NOW()
+        `UPDATE hotspot_vouchers SET deleted_at = NOW(), updated_at = NOW() /* RL_NO_ENUM_DELETED: user_status has no 'deleted' member; deleted_at is the marker */
           WHERE id = $1::uuid AND isp_id = $2::uuid`, [req.params.id, req.user.ispId]);
       require('../utils/logger').info('[delete-user] hotspot ' + v.code + ' removed by isp ' + req.user.ispId);
 
@@ -1280,7 +1280,7 @@ router.delete('/users/:id', async (req, res) => {
       } catch (e) { require('../utils/logger').warn('[delete-user] pppoe router cleanup: ' + e.message); }
 
       await query(
-        `UPDATE pppoe_subscribers SET deleted_at = NOW(), status = 'deleted', updated_at = NOW()
+        `UPDATE pppoe_subscribers SET deleted_at = NOW(), updated_at = NOW() /* RL_NO_ENUM_DELETED: user_status has no 'deleted' member; deleted_at is the marker */
           WHERE id = $1::uuid AND isp_id = $2::uuid`, [req.params.id, req.user.ispId]);
       require('../utils/logger').info('[delete-user] pppoe ' + sub.username + ' removed by isp ' + req.user.ispId);
     }

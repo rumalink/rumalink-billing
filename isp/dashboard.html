@@ -587,7 +587,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
               <th style="padding:12px;text-align:left">Status</th>
               <th style="padding:12px;text-align:left">Expires</th>
               <th style="padding:12px;text-align:left">Online</th>
-              <th style="padding:12px;text-align:left">Created</th><th style="padding:12px;text-align:right">Actions</th>
+              <th style="padding:12px;text-align:left">Created</th><th class="rl-actions-cell">Actions</th>
             </tr></thead>
             <tbody id="users-tbody"><tr><td colspan="9" style="text-align:center;padding:24px;color:#888">Click to load…</td></tr></tbody>
           </table>
@@ -4438,10 +4438,9 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
         + '<td style="padding:12px;color:' + exp.color + '">' + exp.text + '</td>'
         + '<td style="padding:12px">' + onlineBadge + '</td>'
         + '<td style="padding:12px;color:#888">' + dts(u.created_at) + '</td>'
-        /* RL_DELETE_BTN */
-        + '<td style="padding:12px;text-align:right"><button type="button" title="Delete this user"'
-        + ' onclick="event.stopPropagation();rlDeleteUser(\'' + u.id + '\',\'' + (u.type === 'pppoe' ? 'pppoe' : 'hotspot') + '\',\'' + esc(u.username || '') + '\')"'
-        + ' style="background:transparent;border:1px solid rgba(231,76,60,.45);color:#e74c3c;border-radius:6px;padding:4px 9px;cursor:pointer;font-size:.78rem">Delete</button></td>'
+        /* RL_ROW_MENU: pinned to the right edge so it stays reachable without scrolling the table */
+        + '<td class="rl-actions-cell"><button type="button" class="rl-dots" title="Actions"'
+        + ' onclick="event.stopPropagation();rlRowMenu(this,\'' + u.id + '\',\'' + (u.type === 'pppoe' ? 'pppoe' : 'hotspot') + '\',\'' + esc(u.username || '') + '\',\'' + esc(u.phone || '') + '\')">&#8942;</button></td>'
         + '</tr>';
     }).join('');
   }
@@ -5084,21 +5083,90 @@ async function rlDoIE(){
 </script>
 
 
+
+
+
+<style>
+/* RL_ROW_MENU: the actions column stays visible while the table scrolls sideways, so you can
+   always see WHICH row you are acting on. */
+.rl-actions-cell{padding:12px;text-align:right;position:sticky;right:0;background:var(--card,#131a2e);box-shadow:-8px 0 12px -8px rgba(0,0,0,.55)}
+th.rl-actions-cell{background:var(--mid,#182038)}
+.rl-dots{background:transparent;border:1px solid rgba(255,255,255,.16);color:#cfd6e4;border-radius:6px;
+  padding:2px 9px;cursor:pointer;font-size:1.05rem;line-height:1.2}
+.rl-dots:hover{border-color:rgba(255,255,255,.4);color:#fff}
+.rl-menu{position:fixed;z-index:9999;background:var(--card,#131a2e);border:1px solid rgba(255,255,255,.14);
+  border-radius:10px;padding:6px;min-width:170px;box-shadow:0 12px 30px rgba(0,0,0,.5)}
+.rl-menu button{display:block;width:100%;text-align:left;background:transparent;border:0;color:#e6e8ec;
+  padding:9px 11px;border-radius:7px;cursor:pointer;font-size:.86rem}
+.rl-menu button:hover{background:rgba(255,255,255,.07)}
+.rl-menu button.danger{color:#ff6b6b}
+.rl-menu button.danger:hover{background:rgba(231,76,60,.12)}
+.rl-ov{position:fixed;inset:0;background:rgba(4,8,18,.66);display:flex;align-items:center;justify-content:center;z-index:10000;padding:18px}
+.rl-dlg{background:var(--card,#131a2e);border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:22px;max-width:430px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.55)}
+.rl-dlg h3{margin:0 0 6px;font-size:1.06rem;color:#fff}
+.rl-dlg .who{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:11px 13px;margin:12px 0}
+.rl-dlg .who b{color:#00d4aa;font-family:monospace}
+.rl-dlg p{margin:0;color:#9aa3b5;font-size:.86rem;line-height:1.55}
+.rl-dlg .row{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+.rl-dlg button{border-radius:9px;padding:9px 17px;cursor:pointer;font-size:.88rem;font-weight:600;border:1px solid transparent}
+.rl-dlg .cancel{background:transparent;border-color:rgba(255,255,255,.2);color:#cfd6e4}
+.rl-dlg .go{background:#e74c3c;color:#fff}
+.rl-dlg .go[disabled]{opacity:.6;cursor:default}
+</style>
 <script>
-/* RL_DELETE_BTN: removing a user takes away access immediately but keeps their payment history —
-   a hard delete is refused by the database for anyone who has ever paid, and forcing it would
-   erase revenue records. */
-window.rlDeleteUser = async function(id, type, label){
-  if (!confirm('Delete ' + (label || 'this user') + '?\n\nThey lose access straight away. Their payment history is kept for your records.')) return;
-  try {
-    await api('/isp/users/' + id + '?type=' + type, { method: 'DELETE' });
-    if (typeof toast === 'function') toast('Deleted');
-    if (typeof rlLoadUsers === 'function') rlLoadUsers();
-    else if (typeof loadUsers === 'function') loadUsers();
-  } catch (e) {
-    if (typeof toast === 'function') toast(e.message, 'error'); else alert(e.message);
-  }
-};
+/* RL_ROW_MENU_JS: a three-dot menu per row, and a confirmation that names the user. A browser
+   confirm() could not show who was being removed, which matters when the button sits off the
+   right edge of a wide table. */
+(function(){
+  function closeMenus(){ document.querySelectorAll('.rl-menu').forEach(function(m){ m.remove(); }); }
+  document.addEventListener('click', closeMenus);
+  window.addEventListener('scroll', closeMenus, true);
+
+  window.rlRowMenu = function(btn, id, type, username, phone){
+    closeMenus();
+    var r = btn.getBoundingClientRect();
+    var m = document.createElement('div');
+    m.className = 'rl-menu';
+    m.innerHTML = '<button type="button" class="danger" data-act="del">Delete user</button>';
+    document.body.appendChild(m);
+    m.style.top = Math.min(r.bottom + 6, window.innerHeight - m.offsetHeight - 10) + 'px';
+    m.style.left = Math.max(10, r.right - m.offsetWidth) + 'px';
+    m.addEventListener('click', function(e){
+      e.stopPropagation();
+      if (e.target.getAttribute('data-act') === 'del') { closeMenus(); rlConfirmDelete(id, type, username, phone); }
+    });
+  };
+
+  window.rlConfirmDelete = function(id, type, username, phone){
+    var ov = document.createElement('div');
+    ov.className = 'rl-ov';
+    ov.innerHTML =
+      '<div class="rl-dlg">' +
+        '<h3>Delete this user?</h3>' +
+        '<div class="who"><b>' + (username || '—') + '</b>' +
+          (phone ? '<span style="color:#9aa3b5"> &middot; ' + phone + '</span>' : '') +
+          '<span style="color:#9aa3b5"> &middot; ' + (type === 'pppoe' ? 'PPPoE' : 'Hotspot') + '</span></div>' +
+        '<p>They lose access immediately. Their payment history is kept, so your reports stay correct.</p>' +
+        '<div class="row"><button type="button" class="cancel">Cancel</button>' +
+        '<button type="button" class="go">Delete</button></div>' +
+      '</div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click', function(e){ if (e.target === ov) ov.remove(); });
+    ov.querySelector('.cancel').onclick = function(){ ov.remove(); };
+    ov.querySelector('.go').onclick = async function(){
+      var b = this; b.disabled = true; b.textContent = 'Deleting…';
+      try {
+        await api('/isp/users/' + id + '?type=' + type, { method: 'DELETE' });
+        ov.remove();
+        if (typeof toast === 'function') toast(username + ' deleted');
+        if (typeof rlLoadUsers === 'function') rlLoadUsers(); else if (typeof loadUsers === 'function') loadUsers();
+      } catch (err) {
+        b.disabled = false; b.textContent = 'Delete';
+        if (typeof toast === 'function') toast(err.message, 'error'); else alert(err.message);
+      }
+    };
+  };
+})();
 </script>
 
 </body>
