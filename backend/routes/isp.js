@@ -1870,7 +1870,16 @@ router.patch('/:ispId/voucher/:voucherId', async (req, res) => {
         // Ensure radcheck entries exist
         const exists = await query("SELECT 1 FROM radcheck WHERE username = $1", [realmedUser]);
         if (exists.rows.length === 0) {
-          await query("INSERT INTO radcheck (username, attribute, op, value) VALUES ($1, 'Cleartext-Password', ':=', $2) ON CONFLICT DO NOTHING", [realmedUser, v.code]);
+          /* RL_RADIUS_REAL_PW: this published v.code as the password while the dashboard and SMS
+             give the customer v.password — so RADIUS rejected the very credentials we handed out.
+             ON CONFLICT DO NOTHING also meant a wrong entry could never be corrected. */
+          await query("INSERT INTO radcheck (username, attribute, op, value) VALUES ($1, 'Cleartext-Password', ':=', $2) " +
+                      "ON CONFLICT (username, attribute) DO UPDATE SET value = EXCLUDED.value",
+                      [realmedUser, v.password || v.code]).catch(async function () {
+            await query("DELETE FROM radcheck WHERE username = $1 AND attribute = 'Cleartext-Password'", [realmedUser]).catch(function(){});
+            await query("INSERT INTO radcheck (username, attribute, op, value) VALUES ($1, 'Cleartext-Password', ':=', $2)",
+                        [realmedUser, v.password || v.code]).catch(function(){});
+          });
         }
       }
     } catch (e) {
@@ -2517,6 +2526,22 @@ router.post('/hotspot/manual-voucher', async (req, res, next) => {
         isp_id, package_id, nas_id, code, status, is_paid, is_test, amount_paid, payment_method, buyer_phone, used_by_mac, expires_at, created_by_isp) VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true)
       RETURNING id, code, expires_at, is_test, is_paid, buyer_phone
     `, [req.user.ispId, package_id, nas_id || null, code, 'active', isPaid, testFlag, amountPaid, paymentMethod, buyer_phone || null, mac_address || null, expiresAt]);
+
+    /* RL_MANUAL_PUBLISH: creation used to end here. A voucher with no RADIUS entry cannot
+       authenticate, so every hand-made account was refused at login — the ISP had issued
+       credentials the network had never been told about. A purchase publishes through
+       syncRadiusForVoucher; do exactly the same so a manual user behaves like a paying one. */
+    try {
+      const _cap = require('./captive');
+      if (_cap.syncRadiusForVoucher) {
+        await _cap.syncRadiusForVoucher(result.rows[0].id);
+        require('../utils/logger').info('[manual-voucher] ' + code + ' published to RADIUS');
+      } else {
+        require('../utils/logger').warn('[manual-voucher] syncRadiusForVoucher unavailable — ' + code + ' has no credentials');
+      }
+    } catch (e) {
+      require('../utils/logger').error('[manual-voucher] radius publish failed for ' + code + ': ' + e.message);
+    }
 
     res.json({
       ok: true,
