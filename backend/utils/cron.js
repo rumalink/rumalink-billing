@@ -290,8 +290,24 @@ cron.schedule('* * * * *', async () => {
       const macs = new Set(byIsp[ispId].map(v => (v.used_by_mac||'').toUpperCase()).filter(Boolean));
       for (const sess of live) {
         const uMatch = sess.user && codes.has(sess.user.split('@')[0]);
-        const mMatch = sess.mac_address && macs.has(sess.mac_address.toUpperCase());
-        if (uMatch || mMatch) {
+const mMatch = sess.mac_address && macs.has(sess.mac_address.toUpperCase());
+/* RL_MAC_KICK_GUARD: only kick by MAC if the live session username is not
+   an active voucher — prevents kicking a manually-created user whose device
+   previously had an expired voucher with the same MAC. */
+let safeMMatch = false;
+if (mMatch && !uMatch) {
+  const sessCode = sess.user ? sess.user.split('@')[0] : null;
+  if (sessCode) {
+    const active = await query(
+      `SELECT 1 FROM hotspot_vouchers WHERE isp_id = $1::uuid
+         AND UPPER(code) = $2 AND status = 'active' AND expires_at > NOW() LIMIT 1`,
+      [ispId, sessCode.toUpperCase()]);
+    safeMMatch = !active.rows[0];
+  } else {
+    safeMMatch = true;
+  }
+}
+if (uMatch || safeMMatch) {
           try {
             await mt.disconnectHotspotSession(dev.id, sess.id);
             await query("UPDATE radacct SET acctstoptime=NOW(), acctterminatecause='Session-Timeout' WHERE acctstoptime IS NULL AND callingstationid ILIKE $1", ['%'+(sess.mac_address||'')+'%']);

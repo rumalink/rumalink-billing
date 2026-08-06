@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
 <meta name="theme-color" content="#00d4aa"/>
 <title id="portal-title">WiFi Login</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/></noscript>
 <style>
 :root {
   --primary: #00d4aa;
@@ -397,9 +399,9 @@ input[type="tel"]{-webkit-appearance:none}
 </div>
 
 <!-- QRCode.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>window.addEventListener("load",function(){var s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";document.head.appendChild(s);});</script>
 <script>
-const API = window.RUMALINK_API || 'https://rumalinkenterprise.online/api';
+const API = window.RUMALINK_API || (location.protocol === 'https:' ? 'https://rumalinkenterprise.online/api' : '/api');
 const ISP_ID = window.PORTAL_ISP_ID
   || new URLSearchParams(location.search).get('isp')
   || location.pathname.split('/').pop();
@@ -600,7 +602,23 @@ if (isp.logo_url) {
     }
 
   } catch (e) {
-    showMsg('Failed to load portal. Check your connection and try again.', 'error');
+    /* RL_BLANK_FIX: if API fetch fails show retry button + voucher section so
+       users can still redeem a code even when packages fail to load */
+    try {
+      var card = document.querySelector('.card');
+      if (card) {
+        var errDiv = document.createElement('div');
+        errDiv.style.cssText = 'text-align:center;padding:16px 10px 4px';
+        errDiv.innerHTML = '<p style="color:#991b1b;margin-bottom:10px;font-size:.88rem">'
+          + 'Could not load packages. Check your connection.</p>'
+          + '<button onclick="location.reload()" style="background:#00d4aa;color:#fff;'
+          + 'border:none;padding:9px 22px;border-radius:10px;cursor:pointer;font-size:.88rem">'
+          + 'Retry</button>';
+        card.insertBefore(errDiv, card.firstChild);
+      }
+      var vs = document.getElementById('voucher-section');
+      if (vs) vs.style.display = 'block';
+    } catch(fe) {}
   }
 }
 
