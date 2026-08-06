@@ -74,7 +74,15 @@ async function restrict(sub) {
     await query(`DELETE FROM radcheck WHERE username=$1 AND attribute='Auth-Type' AND value='Reject'`, [sub.username]).catch(() => {});
     await setGroup(sub.username, EXPIRED_PROFILE);
     await query(`UPDATE pppoe_subscribers SET status='expired', updated_at=NOW() WHERE id=$1`, [sub.id]);
-    await listExpiredIp(sub, true); /* RL_RESTRICT_IP: wall the live IP immediately */
+    /* RL_NO_STATIC_EXPIRED: this added the subscriber's live address to rl-expired by hand. The
+       rl-expired PPP profile already carries address-list=rl-expired, so MikroTik adds that
+       address itself on connect and REMOVES it on disconnect — its entry is dynamic and owned by
+       the session. The manual copy was static: nothing owned it, so it survived the disconnect and
+       the pool handed the address to the next customer, who inherited the block. Orpha lost
+       service to Irene's leftover this way.
+       The bounce below forces re-authentication into rl-expired within seconds, and the profile
+       creates the correct entry. Adding one here bought nothing and left litter behind. */
+    /* (static add removed — the rl-expired profile manages the address list) */
     const deviceId = await resolveDeviceId(sub);
     const b = await bounce(deviceId, sub.username);
     logger.info(`[WG] restrict ${sub.username} -> ${EXPIRED_PROFILE} (bounce ${b.via||'none'} ok=${b.ok})`);
