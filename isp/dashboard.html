@@ -4244,7 +4244,9 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
     var seq = ++_asSeq;   /* RL_AS_RACE_FIX */
     tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:#888">Loading…</td></tr>';
     try {
-      var d = await api('/isp/sessions/active');
+      /* RL_SESS_FRESH: the button means 'tell me now', so it bypasses the 20s cache. */
+            var d = await api('/isp/sessions/active' + (window._rlSessFresh ? '?fresh=1' : ''));
+            window._rlSessFresh = false;
       if (seq !== _asSeq) return;   /* RL_AS_RACE_FIX: a newer load won — drop this stale one */
       allSessions = (d && d.sessions) || [];
       console.log('[RL-ActiveSess-v3] received', allSessions.length, 'session(s):', allSessions);

@@ -634,8 +634,19 @@ router.get('/sessions/active', async (req, res) => {
           AND (last_seen IS NULL OR last_seen > NOW() - INTERVAL '10 minutes')`,
       [req.user.ispId]);
 
+    /* RL_SESSIONS_CACHE: this waited on /ip/hotspot/active, /ppp/active and /interface for every
+       router before answering — two uncached round trips each, on every open and every filter
+       change. This page IS the live view, so a cached answer is by definition slightly behind;
+       twenty seconds is the trade, and the page used to redraw itself every fifteen anyway.
+       Refresh bypasses the cache for when the answer must be current. */
+    const _FRESH = String(req.query.fresh || '') === '1';
+    global.__rlSessCache = global.__rlSessCache || new Map();
+    const _ck = 'sess:' + req.user.ispId + ':' + type;
+    const _hit = global.__rlSessCache.get(_ck);
+    const _useCache = !_FRESH && _hit && (Date.now() - _hit.t) < 20000;
+
     /* every router in parallel; one slow router cannot hold up the rest */
-    const perRouter = await Promise.allSettled(nasList.rows.map(async (nas) => {
+    const perRouter = _useCache ? _hit.v : await Promise.allSettled(nasList.rows.map(async (nas) => {
       const baseURL = 'http://' + nas.wireguard_ip + '/rest';
       const auth = { username: nas.mikrotik_api_user, password: nas.mikrotik_api_password };
       const out = { nas, hotspot: [], ppp: [], ifaces: [] };
@@ -656,6 +667,7 @@ router.get('/sessions/active', async (req, res) => {
       return out;
     }));
 
+    if (!_useCache) global.__rlSessCache.set(_ck, { t: Date.now(), v: perRouter });
     const routers = perRouter.filter(r => r.status === 'fulfilled').map(r => r.value);
 
     /* ---- resolve every hotspot session in one pass ---- */
