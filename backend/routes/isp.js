@@ -887,6 +887,10 @@ router.get('/users', async (req, res) => {
     const _rawType = req.query.type;
     const type = (Array.isArray(_rawType) ? _rawType[_rawType.length - 1] : _rawType) || 'all';
     const search = (req.query.search || '').trim().toLowerCase();
+    /* RL_SEARCH_IN_SQL: &search= was accepted and then ignored — the filtering happened in the
+       browser against the CURRENT PAGE only, so anyone beyond the first 50 rows was unfindable.
+       Filter in SQL across every source, the way /pppoe/subscribers already does. */
+    const _q = (search && String(search).trim()) ? '%' + String(search).trim() + '%' : null;
     const limit = Math.min(parseInt(req.query.limit) || 50, 500);
     const offset = Math.max(parseInt(req.query.offset) || 0, 0); /* RL_USERS_PAGINATE */
     /* RL_USERS_FETCH_ALL: each source query used LIMIT = the PAGE size, then the handler sliced
@@ -915,8 +919,9 @@ router.get('/users', async (req, res) => {
         WHERE v.isp_id = $1::uuid AND v.deleted_at IS NULL /* RL_HIDE_DELETED */
           AND (v.payment_id IS NOT NULL OR v.created_by_isp = true OR v.expires_at IS NOT NULL) /* RL_SHOW_ISP_CREATED: show paid OR ISP-created(import/test) OR dated vouchers */
           AND (v.is_tv IS NOT TRUE OR v.is_tv IS NULL) /* RL_TV_EXCLUDE_USERS */
+          AND ($3::text IS NULL OR v.code ILIKE $3 OR v.buyer_phone ILIKE $3) /* RL_SEARCH_IN_SQL */
         ORDER BY v.created_at DESC LIMIT $2
-      `, [req.user.ispId, FETCH_CAP]);
+      `, [req.user.ispId, FETCH_CAP, _q]);
 
       for (const r of rows.rows) {
         users.push({
@@ -951,8 +956,9 @@ router.get('/users', async (req, res) => {
           " FROM hotspot_bound_devices bd LEFT JOIN hotspot_packages hp ON hp.id=bd.package_id" +
           " LEFT JOIN hotspot_vouchers v ON v.id=bd.active_voucher_id" +
           " LEFT JOIN payments p ON p.id=v.payment_id" +
-          " WHERE bd.isp_id=$1::uuid ORDER BY bd.created_at DESC LIMIT $2",
-          [req.user.ispId, FETCH_CAP]);
+          " WHERE bd.isp_id=$1::uuid AND ($3::text IS NULL OR bd.name ILIKE $3 OR bd.mac_address ILIKE $3)" + /* RL_SEARCH_IN_SQL */
+          " ORDER BY bd.created_at DESC LIMIT $2",
+          [req.user.ispId, FETCH_CAP, _q]);
         for (const r of tvRows.rows) {
           users.push({
             id: r.id,
@@ -985,8 +991,9 @@ router.get('/users', async (req, res) => {
           LEFT JOIN pppoe_packages pkg ON pkg.id = s.package_id
           LEFT JOIN radcheck rc ON rc.username = s.username AND rc.attribute = 'Cleartext-Password'
           WHERE s.isp_id = $1::uuid AND s.deleted_at IS NULL /* RL_HIDE_DELETED */
+            AND ($3::text IS NULL OR s.username ILIKE $3 OR s.full_name ILIKE $3 OR s.phone ILIKE $3) /* RL_SEARCH_IN_SQL */
           ORDER BY s.created_at DESC LIMIT $2
-        `, [req.user.ispId, FETCH_CAP]);
+        `, [req.user.ispId, FETCH_CAP, _q]);
         for (const row of r.rows) {
           users.push({
             id: row.id, type: 'pppoe',

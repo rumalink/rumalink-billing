@@ -65,7 +65,7 @@ async function testConnectivity(deviceId) {
    these pages are drawn, so a few seconds of cache removes the wait without showing anything
    meaningfully stale. */
 const _rlLiveCache = new Map();
-const _RL_LIVE_TTL = 8000;
+const _RL_LIVE_TTL = 30000; /* RL_LIVE_TTL_WIDER: who is online changes slowly next to how often these pages are drawn */
 
 async function liveHotspotSessions(deviceId) {
   const _ck = String(deviceId);

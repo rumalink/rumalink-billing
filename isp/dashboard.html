@@ -4393,14 +4393,8 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
     /* RL_SERVER_SIDE_FILTER: the server has already returned only this type. Filtering again
        here would drop TVs from the Hotspot tab (their type is tv_hotspot) and re-introduce
        the page-one problem. One filter, on the server. */
-    if (state.search) {
-      var q = state.search.toLowerCase();
-      rows = rows.filter(function(u){
-        return ((u.username||'').toLowerCase().indexOf(q) !== -1)
-            || ((u.phone||'').toLowerCase().indexOf(q) !== -1)
-            || ((u.full_name||'').toLowerCase().indexOf(q) !== -1);
-      });
-    }
+    /* RL_SEARCH_SERVER_SIDE: the server now filters across every user, not just the page
+       in front of you. Filtering again here would hide rows it correctly returned. */
 
     // Update tab counts
     findTabs().forEach(function(b){
@@ -4581,7 +4575,7 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
     var inp = findSearchInput();
     if (e.target === inp) {
       state.search = e.target.value || '';
-      renderRows();
+      state.offset = 0; loadUsers(); /* RL_SEARCH_REFETCH: ask the server, do not redraw the page we have */
     }
   });
 
