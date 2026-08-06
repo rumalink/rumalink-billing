@@ -425,7 +425,19 @@ async function findIpForMac(deviceId, mac_address) {
   return null;
 }
 
+
+/* RL_CACHED_READ: a non-blocking read of whatever liveHotspotSessions last fetched. The users
+   list needs an answer now more than it needs the freshest one; a background refresh keeps this
+   current for the next request. */
+function cachedHotspotSessions(nasId) {
+  try {
+    const hit = _rlLiveCache.get(String(nasId));
+    return hit ? hit.v : null;
+  } catch (e) { return null; }
+}
+
 module.exports = {
+  cachedHotspotSessions,
   addIpBindingBypass,
   removeIpBinding,
   findIpForMac,

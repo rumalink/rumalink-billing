@@ -1006,42 +1006,58 @@ router.get('/users', async (req, res) => {
       } catch(e) { require('../utils/logger').warn('pppoe users query:', e.message); }
     }
 
-    // Enrich with live router state (mark online users)
+    /* RL_ONLINE_NONBLOCKING: this contacted every router before answering, so opening the page,
+       changing a filter or paging each waited on a MikroTik round trip. Who is online is the one
+       column that cannot come from the database, but it is also the one the operator can least
+       afford to wait for. Use whatever the cache already holds, and refresh it in the background:
+       the table paints at once and the marks are at most one cycle old — which is what a cached
+       value always was. */
     try {
       const mt = require('../utils/mikrotik');
-      /* RL_PPPOE_ONLINE: credentials are needed too, so /ppp/active can be read alongside the
-         hotspot sessions. Without it every PPPoE user reported offline — the flag only ever
-         reflected hotspot state, which is half the network. */
       const nasList = await query(
         `SELECT id, wireguard_ip, mikrotik_api_user, mikrotik_api_password
            FROM nas_devices WHERE isp_id = $1::uuid AND wireguard_ip IS NOT NULL`,
-        [req.user.ispId]
-      );
+        [req.user.ispId]);
+
       const liveSet = new Set();
       const pppSet = new Set();
-      const axios = require('axios');
-      await Promise.allSettled(nasList.rows.map(async (nas) => {
-        try {
-          const live = await mt.liveHotspotSessions(nas.id);
-          for (const s of live) liveSet.add(String(s.user || '').split('@')[0].toUpperCase()); /* RL_REALM_DISPLAY: match bare code */
-        } catch (e) { /* skip unreachable router */ }
-        try {
-          const r = await axios.get('http://' + nas.wireguard_ip + '/rest/ppp/active', {
-            auth: { username: nas.mikrotik_api_user, password: nas.mikrotik_api_password },
-            timeout: 8000, validateStatus: () => true });
-          if (r.status === 200 && Array.isArray(r.data)) {
-            for (const sn of r.data) if (sn.name) pppSet.add(String(sn.name).toUpperCase());
-          }
-        } catch (e) { /* skip unreachable router */ }
-      }));
+
+      for (const nas of nasList.rows) {
+        const cached = mt.cachedHotspotSessions ? mt.cachedHotspotSessions(nas.id) : null;
+        if (cached) for (const sn of cached) liveSet.add(String(sn.user || '').split('@')[0].toUpperCase());
+        const cachedPpp = global.__rlPppCache && global.__rlPppCache.get(String(nas.id));
+        if (cachedPpp && (Date.now() - cachedPpp.t) < 60000) {
+          for (const u of cachedPpp.v) pppSet.add(String(u).toUpperCase());
+        }
+      }
+
       users.forEach(u => {
-        // RL_MAC_ONLINE_USAGE: online if the live set has the code OR the device MAC
         if (u.type === 'pppoe') {
-          /* RL_PPPOE_ONLINE: a PPPoE connection is not a hotspot session, so it never appeared in
-             liveSet and every subscriber read offline. Match on the username the router reports. */
           if (pppSet.has(String(u.username || '').toUpperCase())) u.online = true;
         } else if (liveSet.has(String(u.username || '').toUpperCase())
-            || (u.last_mac && liveSet.has(String(u.last_mac).toUpperCase()))) u.online = true;
+            || (u.last_mac && liveSet.has(String(u.last_mac).toUpperCase()))) {
+          u.online = true;
+        }
+      });
+
+      /* refresh for the NEXT request, without holding this one up */
+      setImmediate(function () {
+        (async function () {
+          const axios = require('axios');
+          global.__rlPppCache = global.__rlPppCache || new Map();
+          await Promise.allSettled(nasList.rows.map(async function (nas) {
+            try { await mt.liveHotspotSessions(nas.id); } catch (e) {}
+            try {
+              const r = await axios.get('http://' + nas.wireguard_ip + '/rest/ppp/active', {
+                auth: { username: nas.mikrotik_api_user, password: nas.mikrotik_api_password },
+                timeout: 8000, validateStatus: function () { return true; } });
+              if (r.status === 200 && Array.isArray(r.data)) {
+                global.__rlPppCache.set(String(nas.id),
+                  { t: Date.now(), v: r.data.map(function (x) { return String(x.name || ''); }) });
+              }
+            } catch (e) {}
+          }));
+        })().catch(function () {});
       });
     } catch(e) { require('../utils/logger').warn('user live-enrich:', e.message); }
 
