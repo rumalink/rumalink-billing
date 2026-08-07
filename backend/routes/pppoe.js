@@ -103,6 +103,15 @@ router.post('/subscribers', async (req, res, next) => {
     const pkg = await query('SELECT * FROM pppoe_packages WHERE id = $1 AND isp_id = $2', [package_id, req.user.ispId]);
     if (!pkg.rows[0]) return res.status(404).json({ error: 'Package not found' });
 
+    // Auto-assign nas_id if not provided by frontend
+    let resolved_nas_id = nas_id || null;
+    if (!resolved_nas_id) {
+      try {
+        const _nr = await query('SELECT id FROM nas_devices WHERE isp_id=$1::uuid AND wireguard_ip IS NOT NULL ORDER BY created_at ASC LIMIT 1', [req.user.ispId]);
+        resolved_nas_id = (_nr.rows[0] || {}).id || null;
+      } catch(e) {}
+    }
+
     const password_hash = await bcrypt.hash(password, 10);
     const nextBilling = new Date();
     nextBilling.setMonth(nextBilling.getMonth() + 1);
@@ -113,7 +122,7 @@ router.post('/subscribers', async (req, res, next) => {
         id_number, county, town, physical_address, static_ip, next_billing_date, is_test
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
       RETURNING id, username, full_name, phone, status, created_at, is_test
-    `, [req.user.ispId, package_id, nas_id, username, password_hash, full_name, phone, email, id_number, county, town, physical_address, static_ip, nextBilling, !!is_test]);
+    `, [req.user.ispId, package_id, resolved_nas_id, username, password_hash, full_name, phone, email, id_number, county, town, physical_address, static_ip, nextBilling, !!is_test]);
 
     const subscriber = result.rows[0];
 

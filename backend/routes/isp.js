@@ -330,6 +330,7 @@ router.get('/stats', async (req, res, next) => {
         FROM pppoe_subscribers WHERE isp_id = $1`, [ispId]),
       query(`SELECT
         COALESCE(SUM(amount) FILTER (WHERE status = 'paid' AND paid_at >= (date_trunc('month', NOW() AT TIME ZONE 'Africa/Nairobi')) AT TIME ZONE 'Africa/Nairobi'), 0) as this_month,
+        COALESCE(SUM(amount) FILTER (WHERE status = 'paid' AND paid_at >= (date_trunc('week', NOW() AT TIME ZONE 'Africa/Nairobi') + INTERVAL '1 day') AT TIME ZONE 'Africa/Nairobi'), 0) as this_week,
         COALESCE(SUM(amount) FILTER (WHERE status = 'paid' AND paid_at >= (date_trunc('day', NOW() AT TIME ZONE 'Africa/Nairobi')) AT TIME ZONE 'Africa/Nairobi'), 0) as today,
         COALESCE(SUM(amount) FILTER (WHERE status = 'paid'), 0) as total,
         COALESCE(SUM(commission_amount) FILTER (WHERE status = 'paid'), 0) as total_commission
@@ -2995,7 +2996,10 @@ router.post('/:ispId/users/import', async (req, res) => {
     const _find=(arr,rx)=>{ const m=arr.find(p=>rx.test(String(p.name||''))); return m?m.id:null; };
     const defaultPkg = _find(pkgs,/1\s*hour/i) || pkgs[0].id; /* RL_DEFAULT_BYNAME: hotspot -> 1 Hour */
     const ppkgs = (await query("SELECT id, name FROM pppoe_packages WHERE isp_id=$1::uuid ORDER BY created_at ASC", [ispId]).catch(()=>({rows:[]}))).rows;
-    const ppByNorm = {}; ppkgs.forEach(p => { ppByNorm[norm(p.name)] = p.id; });
+    const ppByNorm = {};
+      // Auto-lookup nas_id for this ISP once before the loop
+      let _nasId = null;
+      try { const _nr = await query('SELECT id FROM nas_devices WHERE isp_id=$1::uuid AND wireguard_ip IS NOT NULL ORDER BY created_at ASC LIMIT 1',[ispId]); _nasId = (_nr.rows[0]||{}).id||null; } catch(e){} ppkgs.forEach(p => { ppByNorm[norm(p.name)] = p.id; });
     const defaultPppoe = ppkgs.length ? ((ppkgs.find(p=>/5\s*mbps/i.test(String(p.name||'')))||ppkgs[0]).id) : null; /* RL_DEFAULT_BYNAME: pppoe -> 5Mbps */
     const matchPkg = (name) => { const n = norm(name); return byNorm[n] || defaultPkg; };
     const out = { hotspot: 0, pppoe: 0, skipped: 0, errors: [] };
@@ -3021,9 +3025,9 @@ router.post('/:ispId/users/import', async (req, res) => {
           const uname = String(r.identifier||'').trim();
           if (!uname) { out.skipped++; continue; }
           await query(
-            "INSERT INTO pppoe_subscribers (isp_id, package_id, username, password_hash, full_name, phone, status, next_billing_date, import_batch) " +
-            "VALUES ($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING",
-            [ispId, ppkgId, uname, 'CHANGE_ME_' + Math.random().toString(16).slice(2,8), (r.name||uname), String(r.phone||'')||null, (String(r.status||'').toLowerCase().indexOf('activ')===0?'active':'inactive'), r.expires_at||null, importBatch]);
+            "INSERT INTO pppoe_subscribers (isp_id, package_id, nas_id, username, password_hash, full_name, phone, status, next_billing_date, import_batch) " +
+            "VALUES ($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT DO NOTHING",
+            [ispId, ppkgId, _nasId||null, uname, 'CHANGE_ME_' + Math.random().toString(16).slice(2,8), (r.name||uname), String(r.phone||'')||null, (String(r.status||'').toLowerCase().indexOf('activ')===0?'active':'inactive'), r.expires_at||null, importBatch]);
           out.pppoe++;
         } else out.skipped++;
       } catch (e) { out.errors.push((r.identifier||'?') + ': ' + e.message); }

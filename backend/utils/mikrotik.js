@@ -356,33 +356,50 @@ async function disconnectPppoe(deviceId, username) {
 // ── RL_IP_BINDING: TV auto-access. A 'bypassed' ip-binding lets a MAC through the hotspot with no
 //    login. We pair it with a simple queue (applyQueueRateLimit) for the capacity cap, and remove
 //    both at expiry. ──
-async function addIpBindingBypass(deviceId, { mac_address, comment }) {
+async function addIpBindingBypass(deviceId, opts) {
+  const mac_address = opts && opts.mac_address;
+  const comment = opts && opts.comment;
   const dev = await loadDevice(deviceId);
   const client = clientFor(dev);
-  const mac = String(mac_address||'').toUpperCase();
-  if (!mac) return { ok:false, error:'no mac' };
-  /* RL_BINDING_IDEMPOTENT: this used to delete and recreate the binding on EVERY call. Since a
-     reconciler calls it once a minute, the television lost its bypass and re-acquired it sixty
-     times an hour — visible as the binding "appearing and disappearing", and during each gap the
-     TV fell back to the hotspot and attempted a MAC login it could never pass. Rewriting state to
-     "ensure" it is not the same as ensuring it: check first, and leave a correct entry alone. */
+  const mac = String(mac_address || '').toUpperCase();
   try {
     const cur = await client.get('/ip/hotspot/ip-binding');
-    const mine = Array.isArray(cur.data)
-      ? cur.data.filter(function (b) { return (b['mac-address'] || '').toUpperCase() === mac; })
-      : [];
-    const good = mine.filter(function (b) { return String(b.type || '') === 'bypassed'; });
+    const mine = Array.isArray(cur.data) ? cur.data.filter(function(b) { return (b['mac-address'] || '').toUpperCase() === mac; }) : [];
+    const good = mine.filter(function(b) { return String(b.type || '') === 'bypassed'; });
     if (good.length === 1 && mine.length === 1) {
+      try {
+        const active = await client.get('/ip/hotspot/active');
+        if (Array.isArray(active.data)) {
+          for (const a of active.data.filter(function(x) { return (x['mac-address'] || '').toUpperCase() === mac; })) {
+            await client.post('/ip/hotspot/active/remove', { numbers: a['.id'] });
+          }
+        }
+      } catch (e) {}
       return { ok: true, unchanged: true, id: good[0]['.id'] };
     }
     for (const b of mine) {
-      await client.post('/ip/hotspot/ip-binding/remove', { '.id': b['.id'] });
+      await client.post('/ip/hotspot/ip-binding/remove', { numbers: b['.id'] });
     }
-  } catch (e) { /* non-fatal */ }
+  } catch (e) {}
   const body = { 'mac-address': mac, type: 'bypassed', comment: comment || 'RumaLink-TV' };
   const r = await client.put('/ip/hotspot/ip-binding', body);
-  return { ok: r.status>=200 && r.status<300, status: r.status, response: r.data };
+  try {
+    const active = await client.get('/ip/hotspot/active');
+    if (Array.isArray(active.data)) {
+      for (const a of active.data.filter(function(x) { return (x['mac-address'] || '').toUpperCase() === mac; })) {
+        await client.post('/ip/hotspot/active/remove', { numbers: a['.id'] });
+      }
+    }
+    const host = await client.get('/ip/hotspot/host');
+    if (Array.isArray(host.data)) {
+      for (const h of host.data.filter(function(x) { return (x['mac-address'] || '').toUpperCase() === mac; })) {
+        await client.post('/ip/hotspot/host/remove', { numbers: h['.id'] });
+      }
+    }
+  } catch (e) {}
+  return { ok: r.status >= 200 && r.status < 300, status: r.status, response: r.data };
 }
+
 async function removeIpBinding(deviceId, mac_address) {
   const dev = await loadDevice(deviceId);
   const client = clientFor(dev);

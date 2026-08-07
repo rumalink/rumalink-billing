@@ -65,7 +65,7 @@ async function listExpiredIp(sub, add) {
 async function setGroup(username, groupValue) {
   const existing = await query(`SELECT id FROM radreply WHERE username=$1 AND attribute='Mikrotik-Group' LIMIT 1`, [username]);
   if (existing.rows[0]) await query(`UPDATE radreply SET value=$2, op='=' WHERE username=$1 AND attribute='Mikrotik-Group'`, [username, groupValue]);
-  else await query(`INSERT INTO radreply (username, attribute, op, value) VALUES ($1,'Mikrotik-Group','=',$2)`, [username, groupValue]);
+  else await query(`INSERT INTO radreply (username, attribute, op, value) VALUES ($1,'Mikrotik-Group', ':=',$2)`, [username, groupValue]);
 }
 
 // Restrict: drop into the walled garden (still online, only the pay page reachable).
@@ -109,7 +109,7 @@ async function restore(sub, packageProfile) {
       if (row && (row.down || row.up)) {
         const rate = (row.up || row.down) + 'M/' + (row.down || row.up) + 'M';
         await query(`DELETE FROM radreply WHERE username=$1 AND attribute='Mikrotik-Rate-Limit'`, [sub.username]).catch(() => {});
-        await query(`INSERT INTO radreply (username, attribute, op, value) VALUES ($1,'Mikrotik-Rate-Limit','=',$2)`, [sub.username, rate]).catch(() => {});
+        await query(`INSERT INTO radreply (username, attribute, op, value) VALUES ($1,'Mikrotik-Rate-Limit', ':=',$2)`, [sub.username, rate]).catch(() => {});
         logger.info(`[WG] restore rate ${sub.username} -> ${rate}`);
       }
     } catch (e) { logger.warn(`[WG] restore rate ${sub.username}: ${e.message}`); }

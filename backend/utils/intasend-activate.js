@@ -29,18 +29,18 @@ async function syncRadius(voucherId) {
     if (pkg.bandwidth_down_mbps || pkg.bandwidth_up_mbps) {
       const up = pkg.bandwidth_up_mbps || pkg.bandwidth_down_mbps;
       const down = pkg.bandwidth_down_mbps || pkg.bandwidth_up_mbps;
-      await query("INSERT INTO radreply (username, attribute, op, value) VALUES ($1,'Mikrotik-Rate-Limit','=',$2)",
+      await query("INSERT INTO radreply (username, attribute, op, value) VALUES ($1,'Mikrotik-Rate-Limit', ':=',$2)",
         [realmedUser, up + 'M/' + down + 'M']);
     }
     let timeoutSeconds = null;
     if (v.expires_at) timeoutSeconds = Math.max(60, Math.floor((new Date(v.expires_at) - Date.now()) / 1000));
     else if (pkg.duration_hours) timeoutSeconds = pkg.duration_hours * 3600;
     if (timeoutSeconds && timeoutSeconds > 0) {
-      await query("INSERT INTO radreply (username, attribute, op, value) VALUES ($1,'Session-Timeout','=',$2)",
+      await query("INSERT INTO radreply (username, attribute, op, value) VALUES ($1,'Session-Timeout', ':=',$2)",
         [realmedUser, String(timeoutSeconds)]);
     }
     if (pkg.data_limit_mb) {
-      await query("INSERT INTO radreply (username, attribute, op, value) VALUES ($1,'Mikrotik-Total-Limit','=',$2)",
+      await query("INSERT INTO radreply (username, attribute, op, value) VALUES ($1,'Mikrotik-Total-Limit', ':=',$2)",
         [realmedUser, String(pkg.data_limit_mb * 1024 * 1024)]);
     }
     /* RL_SIMUL_USE: how many devices this package may use AT ONCE. FreeRADIUS enforces it via
@@ -55,7 +55,7 @@ async function syncRadius(voucherId) {
       }
     }
     if (pkg.mikrotik_profile) {
-      await query("INSERT INTO radreply (username, attribute, op, value) VALUES ($1,'Mikrotik-Group','=',$2)",
+      await query("INSERT INTO radreply (username, attribute, op, value) VALUES ($1,'Mikrotik-Group', ':=',$2)",
         [realmedUser, pkg.mikrotik_profile]);
     }
     logger.info('[intasend-activate] radius synced: ' + v.code + ' -> ' + realmedUser);

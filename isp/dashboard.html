@@ -599,7 +599,6 @@ tr:hover td{background:rgba(255,255,255,.015)}
     <div class="page active" id="page-dashboard">
       <div class="stats-grid" id="dash-stats">
         <div class="stat-card"><div class="sc-label">Today's Revenue <span class="sc-icon">💰</span></div><div class="sc-val teal" id="ds-today">KES —</div><div class="sc-sub">Kenyan Shillings</div></div>
-        <div class="stat-card"><div class="sc-label">This Month <span class="sc-icon">📅</span></div><div class="sc-val" id="ds-month">KES —</div><div class="sc-sub">Month to date</div></div>
         <div class="stat-card nav-hotspot-only"><div class="sc-label">Active Sessions <span class="sc-icon">📡</span></div><div class="sc-val teal" id="ds-sessions">—</div><div class="sc-sub">Hotspot + PPPoE</div></div>
         <div class="stat-card nav-pppoe-only"><div class="sc-label">PPPoE Subscribers <span class="sc-icon">👥</span></div><div class="sc-val" id="ds-subs">—</div><div class="sc-sub" id="ds-subs-sub">Active accounts</div></div>
         <div class="stat-card nav-hotspot-only"><div class="sc-label">Available Vouchers <span class="sc-icon">🎟️</span></div><div class="sc-val amber" id="ds-vouchers">—</div><div class="sc-sub">Ready to sell</div></div>
@@ -608,16 +607,6 @@ tr:hover td{background:rgba(255,255,255,.015)}
         <div class="stat-card"><div class="sc-label">Data Used Today <span class="sc-icon">📊</span></div><div class="sc-val teal" id="ds-data-today">—</div><div class="sc-sub" id="ds-data-sub">Hotspot + PPPoE</div></div>
       </div>
 
-      <!-- RUMALINK_USAGE_CARD: per-MikroTik breakdown (only shown when 2+ devices) -->
-      <div class="panel" id="usage-breakdown" style="display:none;margin-bottom:22px">
-        <div class="panel-head">
-          <h3>📊 Data Used Today — by MikroTik</h3>
-          <button class="btn btn-outline btn-sm" onclick="loadDashboard()">🔄 Refresh</button>
-        </div>
-        <div class="panel-body">
-          <div id="usage-breakdown-rows" class="device-grid"></div>
-        </div>
-      </div>
       <div class="grid-2">
         <div class="panel">
           <div class="panel-head"><h3>Revenue (<span id="isp-rev-year"></span>)</h3></div>
@@ -747,6 +736,13 @@ tr:hover td{background:rgba(255,255,255,.015)}
         <h2 style="font-family:var(--font-head);font-size:1.2rem;font-weight:700">Payments</h2>
         <button class="btn btn-teal" onclick="openManualPayment()">+ Record Payment</button>
       </div>
+      <!-- Revenue summary cards -->
+      <div class="stats-grid" style="margin-bottom:20px">
+        <div class="stat-card"><div class="sc-label">Today <span class="sc-icon">☀️</span></div><div class="sc-val teal" id="pay-today">KES —</div><div class="sc-sub">Paid today</div></div>
+        <div class="stat-card"><div class="sc-label">This Week <span class="sc-icon">📆</span></div><div class="sc-val" id="pay-week">KES —</div><div class="sc-sub">Mon — Sun</div></div>
+        <div class="stat-card"><div class="sc-label">This Month <span class="sc-icon">📅</span></div><div class="sc-val" id="pay-month">KES —</div><div class="sc-sub">Current month</div></div>
+      </div>
+
       <div class="panel">
         <div class="panel-head"><h3>Payment History</h3></div>
         <div class="tbl-wrap"><table><thead><tr><th>User</th><th>From</th><th>Amount</th><th>Method</th><th>Status</th><th>Date</th></tr></thead><tbody id="payments-tbody"></tbody></table></div><div id="payments-pagination" style="display:flex;align-items:center;gap:14px;justify-content:flex-end;padding:12px 4px;flex-wrap:wrap;font-size:.82rem;color:#888"><label style="display:flex;align-items:center;gap:6px">Show <select id="pay-page-size" onchange="window.payChangePageSize(this.value)" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:6px;color:#fff;padding:5px 8px;font-size:.82rem;outline:none"><option value="20">20</option><option value="50">50</option><option value="100">100</option></select></label><span id="pay-page-info">—</span><button id="pay-prev" onclick="window.payPrevPage()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:6px;color:#fff;padding:6px 14px;cursor:pointer;font-size:.82rem">‹ Prev</button><button id="pay-next" onclick="window.payNextPage()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:6px;color:#fff;padding:6px 14px;cursor:pointer;font-size:.82rem">Next ›</button></div>
@@ -1941,8 +1937,8 @@ async function loadDashboard(){
       });
       return _r.json();
     })();
+    window._ispRevenue = d.revenue || {};
     document.getElementById('ds-today').textContent=kes(d.revenue?.today);
-    document.getElementById('ds-month').textContent=kes(d.revenue?.this_month);
     document.getElementById('ds-sessions').textContent=(parseInt(d.sessions?.active_hotspot)||0)+(parseInt(d.sessions?.active_pppoe)||0);
     document.getElementById('ds-subs').textContent=d.pppoe?.active||0;
     document.getElementById('ds-vouchers').textContent=d.hotspot?.unused_vouchers||0;
@@ -3796,6 +3792,14 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:#888">Loading…</td></tr>';
     try {
       var d = await api('/payments?status=paid&page=' + (window.payPage||1) + '&limit=' + (window.payPageSize||20));
+      // Fill revenue summary cards
+      try {
+        var r = window._ispRevenue;
+        if (!r || !r.today) { var _s = await api('/isp/stats'); r = (_s && _s.revenue) || {}; window._ispRevenue = r; }
+        var pt = document.getElementById('pay-today'); if(pt) pt.textContent = kes(r.today);
+        var pw = document.getElementById('pay-week');  if(pw) pw.textContent = kes(r.this_week);
+        var pm = document.getElementById('pay-month'); if(pm) pm.textContent = kes(r.this_month);
+      } catch(e) {}
       var payments = d.payments || [];
       window.payTotal = (typeof d.total === 'number') ? d.total : payments.length;
       window.payUpdatePagination();

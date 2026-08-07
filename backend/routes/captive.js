@@ -73,7 +73,7 @@ async function syncVoucherRadius(voucher, packageData) {
         const down = packageData.bandwidth_down_mbps || packageData.bandwidth_up_mbps;
         const rateLimit = up + 'M/' + down + 'M';
         await query(
-          "INSERT INTO radreply (username, attribute, op, value) VALUES ($1, 'Mikrotik-Rate-Limit', '=', $2)",
+          "INSERT INTO radreply (username, attribute, op, value) VALUES ($1, 'Mikrotik-Rate-Limit', ':=', $2)",
           [realmedUser, rateLimit]
         );
       }
@@ -87,7 +87,7 @@ async function syncVoucherRadius(voucher, packageData) {
       }
       if (timeoutSeconds && timeoutSeconds > 0) {
         await query(
-          "INSERT INTO radreply (username, attribute, op, value) VALUES ($1, 'Session-Timeout', '=', $2)",
+          "INSERT INTO radreply (username, attribute, op, value) VALUES ($1, 'Session-Timeout', ':=', $2)",
           [realmedUser, String(timeoutSeconds)]
         );
       }
@@ -96,7 +96,7 @@ async function syncVoucherRadius(voucher, packageData) {
       if (packageData.data_limit_mb) {
         const bytes = packageData.data_limit_mb * 1024 * 1024;
         await query(
-          "INSERT INTO radreply (username, attribute, op, value) VALUES ($1, 'Mikrotik-Total-Limit', '=', $2)",
+          "INSERT INTO radreply (username, attribute, op, value) VALUES ($1, 'Mikrotik-Total-Limit', ':=', $2)",
           [realmedUser, String(bytes)]
         );
       }
@@ -104,7 +104,7 @@ async function syncVoucherRadius(voucher, packageData) {
       // v62.20: Mikrotik-Group from package's mikrotik_profile (Mikrotik user-profile name)
       if (packageData.mikrotik_profile) {
         await query(
-          "INSERT INTO radreply (username, attribute, op, value) VALUES ($1, 'Mikrotik-Group', '=', $2)",
+          "INSERT INTO radreply (username, attribute, op, value) VALUES ($1, 'Mikrotik-Group', ':=', $2)",
           [realmedUser, packageData.mikrotik_profile]
         );
       }

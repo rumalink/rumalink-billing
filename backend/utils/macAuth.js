@@ -294,7 +294,7 @@ async function registerMACAuth({ macAddress, ispId, packageData, expiresAt, vouc
     if (seconds && seconds > 0) {
       for (const mform of macForms) {
         await query(`DELETE FROM radreply WHERE username=$1 AND attribute='Session-Timeout'`, [mform]);
-        await query(`INSERT INTO radreply (username, attribute, op, value) VALUES ($1,'Session-Timeout','=',$2)`, [mform, String(seconds)]);
+        await query(`INSERT INTO radreply (username, attribute, op, value) VALUES ($1,'Session-Timeout', ':=',$2)`, [mform, String(seconds)]);
       }
     }
 
@@ -305,7 +305,7 @@ async function registerMACAuth({ macAddress, ispId, packageData, expiresAt, vouc
       const rateLimit = `${up}M/${down}M`;
       for (const mform of macForms) {
         await query(`DELETE FROM radreply WHERE username=$1 AND attribute='Mikrotik-Rate-Limit'`, [mform]);
-        await query(`INSERT INTO radreply (username, attribute, op, value) VALUES ($1,'Mikrotik-Rate-Limit','=',$2)`, [mform, rateLimit]);
+        await query(`INSERT INTO radreply (username, attribute, op, value) VALUES ($1,'Mikrotik-Rate-Limit', ':=',$2)`, [mform, rateLimit]);
       }
     }
 
