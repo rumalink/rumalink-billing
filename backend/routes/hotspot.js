@@ -24,27 +24,33 @@ router.get('/packages', async (req, res, next) => {
 });
 
 router.post('/packages', async (req, res, next) => {
-  const { name, description, price, duration_hours, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_mb, simultaneous_sessions, mikrotik_profile, nas_id } = req.body;
+  const { name, description, price, duration_hours, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_mb, simultaneous_sessions, mikrotik_profile, nas_id, visible_in_portal } = req.body;
   if (!name || !price) return res.status(400).json({ error: 'Name and price are required' });
   try {
     const result = await query(`
       INSERT INTO hotspot_packages (isp_id, nas_id, name, description, price, duration_hours, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_mb, simultaneous_sessions, mikrotik_profile, visible_in_portal)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, $12)
       RETURNING *
-    `, [req.user.ispId, nas_id, name, description, price, duration_hours, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_mb, simultaneous_sessions || 1, mikrotik_profile]);
+    `, [req.user.ispId, nas_id, name, description, price, duration_hours, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_mb, simultaneous_sessions || 1, mikrotik_profile,
+       /* RL_VISIBLE_PARAM: $12 had no value, so every save failed with a bind mismatch.
+          Default true — a package is offered unless the ISP says otherwise. */
+       (visible_in_portal === false ? false : true)]);
     res.status(201).json({ package: result.rows[0] });
   } catch (err) { next(err); }
 });
 
 router.put('/packages/:id', async (req, res, next) => {
-  const { name, description, price, duration_hours, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_mb, simultaneous_sessions, mikrotik_profile, is_active } = req.body;
+  const { name, description, price, duration_hours, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_mb, simultaneous_sessions, mikrotik_profile, is_active, visible_in_portal } = req.body;
   try {
     const result = await query(`
       UPDATE hotspot_packages SET name=$1, description=$2, price=$3, duration_hours=$4,
         bandwidth_down_mbps=$5, bandwidth_up_mbps=$6, data_limit_mb=$7,
-        simultaneous_sessions=$8, mikrotik_profile=$9, is_active=$10, updated_at=NOW()
+        simultaneous_sessions=$8, mikrotik_profile=$9, is_active=$10,
+        /* RL_VISIBLE_EDIT: COALESCE so an edit that omits the flag leaves it as it was, rather
+           than silently republishing a hidden package. */
+        visible_in_portal=COALESCE($13, visible_in_portal), updated_at=NOW()
       WHERE id=$11 AND isp_id=$12 RETURNING *
-    `, [name, description, price, duration_hours, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_mb, simultaneous_sessions, mikrotik_profile, is_active, req.params.id, req.user.ispId]);
+    `, [name, description, price, duration_hours, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_mb, simultaneous_sessions, mikrotik_profile, is_active, req.params.id, req.user.ispId, (visible_in_portal === undefined ? null : !!visible_in_portal)]);
     if (!result.rows[0]) return res.status(404).json({ error: 'Package not found' });
     /* RL_PKG_LIMIT_PROPAGATE: changing a package's device count must reach the vouchers already
        issued from it. The limit lives in radcheck, so this is a database update — nothing is

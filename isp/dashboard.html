@@ -3862,6 +3862,7 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
       + '    <label><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Data Limit (MB)</div><input id="pk-data" type="number" value="' + (pkg.data_limit_mb||'') + '" placeholder="empty=unlimited" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box" autocomplete="off" spellcheck="false" /></label>'
       + '    <label><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Simultaneous Sessions</div><input id="pk-sess" type="number" value="' + (pkg.simultaneous_sessions||1) + '" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box" autocomplete="off" spellcheck="false" /></label>'
       + '    <label style="grid-column:1/-1"><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Status</div><select id="pk-active" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box"><option value="true"' + (pkg.is_active!==false?' selected':'') + '>Active</option><option value="false"' + (pkg.is_active===false?' selected':'') + '>Disabled</option></select></label>'
+      + '    <label style="grid-column:1/-1"><div style="font-size:.78rem;color:#aaa;margin-bottom:4px">Captive portal</div><select id="pk-visible" style="width:100%;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#fff;box-sizing:border-box"><option value="true"' + (pkg.visible_in_portal!==false?' selected':'') + '>Shown to customers</option><option value="false"' + (pkg.visible_in_portal===false?' selected':'') + '>Hidden (testing only)</option></select><div style="font-size:.72rem;color:#8b93a3;margin-top:4px">Hidden packages are not offered in the portal. Anyone already on one keeps their service.</div></label>'
       + '  </div>'
       + '  <div id="pk-msg" style="display:none;margin-top:14px;padding:10px;border-radius:8px;font-size:.84rem"></div>'
       + '  <div style="text-align:right;margin-top:18px;display:flex;justify-content:flex-end;gap:8px">'
@@ -3882,7 +3883,10 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
         bandwidth_up_mbps: parseInt(document.getElementById('pk-up').value) || null,
         data_limit_mb: parseInt(document.getElementById('pk-data').value) || null,
         simultaneous_sessions: parseInt(document.getElementById('pk-sess').value) || 1,
-        is_active: document.getElementById('pk-active').value === 'true'
+        is_active: document.getElementById('pk-active').value === 'true',
+        /* RL_VISIBLE_EDIT_UI: sent explicitly so the choice in the modal wins. The route
+           COALESCEs it, so omitting it would silently keep the old value instead. */
+        visible_in_portal: document.getElementById('pk-visible').value === 'true'
       };
       var btn = this;
       btn.disabled = true; btn.textContent = 'Saving…';

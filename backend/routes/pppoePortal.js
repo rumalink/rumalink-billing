@@ -95,9 +95,19 @@ router.get('/:username/plans', async (req, res) => {
     if (!sub) return res.status(404).json({ error: 'Subscriber not found' });
     const pks = await query(
       `SELECT id, name, price, billing_cycle, bandwidth_down_mbps, bandwidth_up_mbps
-         FROM pppoe_packages WHERE isp_id=$1::uuid AND is_active=true
+         FROM pppoe_packages pp
+         /* RL_PPPOE_VISIBILITY: two separate rules. visible_in_portal hides a package from every
+            customer; pppoe_package_visibility hides it from PARTICULAR subscribers. The second is
+            a blocklist — absence of a row means visible — so nothing changes for packages with no
+            exceptions configured. Neither affects a subscriber already ON the package: this filters
+            what is OFFERED, not what is honoured. */
+         WHERE pp.isp_id=$1::uuid AND pp.is_active=true AND pp.visible_in_portal=true
+           AND NOT EXISTS (
+             SELECT 1 FROM pppoe_package_visibility v
+              WHERE v.package_id = pp.id AND v.hidden = true
+                AND v.subscriber_id = $2::uuid)
         ORDER BY price ASC`,
-      [sub.isp_id]
+      [sub.isp_id, sub.id]
     );
     res.json({
       current_package_id: sub.package_id,

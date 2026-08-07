@@ -28,8 +28,8 @@ router.post('/packages', async (req, res, next) => {
   if (!name || !price) return res.status(400).json({ error: 'Name and price are required' });
   try {
     const result = await query(`
-      INSERT INTO pppoe_packages (isp_id, name, description, price, billing_cycle, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_gb, burst_limit_mbps, mikrotik_profile, address_pool)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *
+      INSERT INTO pppoe_packages (isp_id, name, description, price, billing_cycle, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_gb, burst_limit_mbps, mikrotik_profile, address_pool, visible_in_portal)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, $12) RETURNING *
     `, [req.user.ispId, name, description, price, billing_cycle || 'monthly', bandwidth_down_mbps, bandwidth_up_mbps, data_limit_gb, burst_limit_mbps, mikrotik_profile, address_pool]);
     res.status(201).json({ package: result.rows[0] });
   } catch (err) { next(err); }
@@ -42,7 +42,7 @@ router.put('/packages/:id', async (req, res, next) => {
       UPDATE pppoe_packages SET name=$1, description=$2, price=$3, billing_cycle=$4,
         bandwidth_down_mbps=$5, bandwidth_up_mbps=$6, data_limit_gb=$7,
         mikrotik_profile=$8, address_pool=$9, is_active=$10, updated_at=NOW()
-      WHERE id=$11 AND isp_id=$12 RETURNING *
+      , visible_in_portal=COALESCE($11, visible_in_portal) /* RL_PPPOE_VIS_FIELD */ WHERE id=$11 AND isp_id=$12 RETURNING *
     `, [name, description, price, billing_cycle, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_gb, mikrotik_profile, address_pool, is_active, req.params.id, req.user.ispId]);
     if (!result.rows[0]) return res.status(404).json({ error: 'Package not found' });
     res.json({ package: result.rows[0] });
@@ -383,6 +383,46 @@ router.get('/active-sessions', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+
+
+/* RL_PPPOE_VIS_ROUTES: which subscribers a package is hidden from. Absence of a row means the
+   package is visible, so an empty list is the normal state and needs no configuration. */
+router.get('/packages/:id/visibility', async (req, res, next) => {
+  try {
+    const own = await query('SELECT id FROM pppoe_packages WHERE id=$1::uuid AND isp_id=$2::uuid', [req.params.id, req.user.ispId]);
+    if (!own.rows[0]) return res.status(404).json({ error: 'Package not found' });
+    const r = await query(
+      `SELECT s.id, s.username, s.full_name,
+              COALESCE(v.hidden, false) AS hidden
+         FROM pppoe_subscribers s
+         LEFT JOIN pppoe_package_visibility v ON v.subscriber_id = s.id AND v.package_id = $1::uuid
+        WHERE s.isp_id = $2::uuid AND s.deleted_at IS NULL
+        ORDER BY s.username`,
+      [req.params.id, req.user.ispId]);
+    res.json({ subscribers: r.rows });
+  } catch (err) { next(err); }
+});
+
+router.put('/packages/:id/visibility', async (req, res, next) => {
+  try {
+    const own = await query('SELECT id FROM pppoe_packages WHERE id=$1::uuid AND isp_id=$2::uuid', [req.params.id, req.user.ispId]);
+    if (!own.rows[0]) return res.status(404).json({ error: 'Package not found' });
+    const hiddenFor = Array.isArray(req.body.hidden_for) ? req.body.hidden_for : [];
+    /* replace wholesale: the list sent IS the intended state, so a subscriber removed from it
+       becomes visible again without needing a separate call */
+    await query('DELETE FROM pppoe_package_visibility WHERE package_id = $1::uuid', [req.params.id]);
+    for (const sid of hiddenFor) {
+      await query(
+        `INSERT INTO pppoe_package_visibility (package_id, subscriber_id, hidden)
+         SELECT $1::uuid, s.id, true FROM pppoe_subscribers s
+          WHERE s.id = $2::uuid AND s.isp_id = $3::uuid
+         ON CONFLICT (package_id, subscriber_id) DO UPDATE SET hidden = true`,
+        [req.params.id, sid, req.user.ispId]).catch(function(){});
+    }
+    require('../utils/logger').info('[pppoe-visibility] package ' + req.params.id + ' hidden from ' + hiddenFor.length + ' subscriber(s)');
+    res.json({ ok: true, hidden_count: hiddenFor.length });
+  } catch (err) { next(err); }
+});
 
 module.exports = router;
 
