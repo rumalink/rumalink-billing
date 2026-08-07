@@ -833,3 +833,4 @@ try { require('./health-monitor').start(); } catch (e) { require('./logger').war
 try { require('./nas-config-sync').start(); } catch (e) { require('./logger').warn('[nas-config-sync] start: ' + e.message); }
 try { require('./walled-garden-sync').start(); } catch (e) { require('./logger').warn('[wg-sync] start: ' + e.message); }
 try { require('./wg-reconcile').start(); } catch (e) { require('./logger').warn('[wg-reconcile] start: ' + e.message); }
+try { require('./trial-transition').start(); } catch (e) { require('./logger').warn('[trial-transition] start: ' + e.message); }
