@@ -722,6 +722,7 @@ body{background:var(--ink);color:var(--white);font-family:var(--font-body);displ
           <div class="panel-body">
             <div class="fg"><label>Default Hotspot Commission (%)</label><input type="number" id="set-hotspot-rate" value="3" step="0.1" min="0" max="100"/></div>
             <div class="fg"><label>PPPoE Rate per User (KES)</label><input type="number" id="set-pppoe-rate" value="32.25"/></div>
+        <div class="fg"><label>Free trial (days)</label><input type="number" id="set-trial-days" /></div>
             <button class="btn btn-amber" onclick="saveSettings()">💾 Save Settings</button>
           </div>
         </div>
@@ -1877,7 +1878,9 @@ async function saveSettings() {
   try {
     const d = await apiFetch('/admin/settings/commission', { method: 'POST', body: JSON.stringify({
       hotspot_commission_rate: hotspot,   // percent; backend converts to fraction
-      pppoe_per_user_fee: pppoe
+      pppoe_per_user_fee: pppoe,
+      /* RL_TRIAL_DAYS_UI: applies to ISPs created after the change; running trials keep theirs */
+      trial_days: (document.getElementById('set-trial-days') || {}).value
     }) });
     if (d && d.ok) { toast('Commission defaults saved — applies to future invoices'); loadCommissionDefaults(); }
     else { toast((d && d.error) ? d.error : 'Could not save', true); }
@@ -1892,6 +1895,8 @@ async function loadCommissionDefaults() {
     const pct = (parseFloat(d.hotspot_commission_rate) * 100);
     document.getElementById('set-hotspot-rate').value = isFinite(pct) ? (Math.round(pct * 100) / 100) : 3;
     document.getElementById('set-pppoe-rate').value = (d.pppoe_per_user_fee != null) ? d.pppoe_per_user_fee : 32.25;
+    { const _t = document.getElementById('set-trial-days');
+      if (_t) _t.value = (d.trial_days != null) ? d.trial_days : 3; } /* RL_TRIAL_DAYS_UI */
     window._pppoeFee = (d.pppoe_per_user_fee != null) ? parseFloat(d.pppoe_per_user_fee) : 32.25;
   } catch (e) { /* ignore */ }
 }

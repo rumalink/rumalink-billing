@@ -677,7 +677,8 @@ router.get('/payments/by-phone/:phone', async (req, res) => {
 // ============================================================
 router.get('/settings/commission', async (req, res, next) => {
   try {
-    const r = await query("SELECT key, value FROM platform_settings WHERE key IN ('hotspot_commission_rate','pppoe_per_user_fee')");
+    /* RL_TRIAL_DAYS_SETTING: read alongside the rates so the settings page has one source. */
+    const r = await query("SELECT key, value FROM platform_settings WHERE key IN ('hotspot_commission_rate','pppoe_per_user_fee','trial_days')");
     let hotspot = 0.03, pppoe = 32.25;
     for (const row of r.rows) {
       if (row.key === 'hotspot_commission_rate' && row.value != null) hotspot = parseFloat(row.value);
@@ -703,6 +704,19 @@ router.post('/settings/commission', async (req, res, next) => {
       if (!(pf >= 0)) return res.status(400).json({ error: 'pppoe fee out of range' });
       await query(`INSERT INTO platform_settings (key, value, updated_at) VALUES ('pppoe_per_user_fee',$1,NOW())
                    ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`, [pf]);
+
+      /* RL_TRIAL_DAYS_SETTING: free days a new ISP gets before billing begins. Signup reads this
+         at INSERT time, so a change here applies to ISPs created afterwards — existing trials keep
+         the length they were given, which is the honest behaviour for an account already running. */
+      if (req.body.trial_days !== undefined && req.body.trial_days !== null && req.body.trial_days !== '') {
+        const _td = parseInt(req.body.trial_days, 10);
+        if (Number.isFinite(_td) && _td >= 0 && _td <= 365) {
+          await query(`INSERT INTO platform_settings (key, value, updated_at) VALUES ('trial_days',$1,NOW())
+                       ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`, [_td]);
+        } else {
+          return res.status(400).json({ error: 'Trial days must be a whole number between 0 and 365' });
+        }
+      }
     }
     logger.info('[admin] commission defaults updated by ' + (req.user && req.user.email));
     res.json({ ok: true });
