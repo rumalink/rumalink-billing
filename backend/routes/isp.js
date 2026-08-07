@@ -644,7 +644,31 @@ router.get('/sessions/active', async (req, res) => {
     global.__rlSessCache = global.__rlSessCache || new Map();
     const _ck = 'sess:' + req.user.ispId + ':' + type;
     const _hit = global.__rlSessCache.get(_ck);
-    const _useCache = !_FRESH && _hit && (Date.now() - _hit.t) < 20000;
+    const _useCache = !_FRESH && _hit && (Date.now() - _hit.t) < 30000;
+    /* RL_STALE_WHILE_REVALIDATE: serve stale cache instantly, refresh in background */
+    if (!_FRESH && _hit && (Date.now() - _hit.t) >= 30000) {
+      // serve stale immediately, kick off background refresh
+      const _staleData = _hit.v;
+      setImmediate(async () => {
+        try {
+          const fresh = await Promise.allSettled(nasList.rows.map(async (nas) => {
+            const baseURL = 'http://' + nas.wireguard_ip + '/rest';
+            const auth = { username: nas.mikrotik_api_user, password: nas.mikrotik_api_password };
+            const out = { nas, hotspot: [], ppp: [], ifaces: [] };
+            if (type === 'all' || type === 'hotspot') { try { out.hotspot = await require('../utils/mikrotik').liveHotspotSessions(nas.id); } catch(e){} }
+            if (type === 'all' || type === 'pppoe') {
+              try { const r = await require('axios').get(baseURL+'/ppp/active',{auth,timeout:5000,validateStatus:()=>true}); if(r.status===200&&Array.isArray(r.data)) out.ppp=r.data; } catch(e){}
+              try { const r2 = await require('axios').get(baseURL+'/interface',{auth,timeout:5000,validateStatus:()=>true}); if(r2.status===200&&Array.isArray(r2.data)) out.ifaces=r2.data; } catch(e){}
+            }
+            return out;
+          }));
+          global.__rlSessCache.set(_ck, { t: Date.now(), v: fresh });
+        } catch(e) {}
+      });
+      // respond immediately with stale data
+      res.json({ sessions: _hit._sessions || [], today_totals: _hit._totals || {hotspot:0,pppoe:0,total:0}, total: (_hit._sessions||[]).length, counts: { all:(_hit._sessions||[]).length, hotspot:(_hit._sessions||[]).filter(x=>x.type==='hotspot').length, pppoe:(_hit._sessions||[]).filter(x=>x.type==='pppoe').length }, stale: true });
+      return;
+    }
 
     /* every router in parallel; one slow router cannot hold up the rest */
     const perRouter = _useCache ? _hit.v : await Promise.allSettled(nasList.rows.map(async (nas) => {
@@ -656,19 +680,19 @@ router.get('/sessions/active', async (req, res) => {
       }
       if (type === 'all' || type === 'pppoe') {
         try {
-          const r = await axios.get(baseURL + '/ppp/active', { auth, timeout: 8000, validateStatus: () => true });
+          const r = await axios.get(baseURL + '/ppp/active', { auth, timeout: 5000, validateStatus: () => true });
           if (r.status === 200 && Array.isArray(r.data)) out.ppp = r.data;
         } catch (e) {}
         /* one call for ALL interfaces instead of one per session */
         try {
-          const r2 = await axios.get(baseURL + '/interface', { auth, timeout: 8000, validateStatus: () => true });
+          const r2 = await axios.get(baseURL + '/interface', { auth, timeout: 5000, validateStatus: () => true });
           if (r2.status === 200 && Array.isArray(r2.data)) out.ifaces = r2.data;
         } catch (e) {}
       }
       return out;
     }));
 
-    if (!_useCache) global.__rlSessCache.set(_ck, { t: Date.now(), v: perRouter });
+    if (!_useCache) global.__rlSessCache.set(_ck, { t: Date.now(), v: perRouter, _sessions: null, _totals: null });
     const routers = perRouter.filter(r => r.status === 'fulfilled').map(r => r.value);
 
     /* ---- resolve every hotspot session in one pass ---- */
@@ -682,7 +706,7 @@ router.get('/sessions/active', async (req, res) => {
     const byCode = new Map(), byMac = new Map();
     if (codes.size || macs.size) {
       const vr = await query(
-        `SELECT v.code, v.buyer_phone, v.expires_at, v.used_by_mac, hp.name AS package_name
+        `SELECT v.code, v.status, v.buyer_phone, v.expires_at, v.used_by_mac, hp.name AS package_name
            FROM hotspot_vouchers v
            LEFT JOIN hotspot_packages hp ON hp.id = v.package_id
           WHERE v.isp_id = $1::uuid
@@ -716,6 +740,8 @@ router.get('/sessions/active', async (req, res) => {
         bytes_out: sn.bytes_out,
         package_name: info.package_name || null,
         expires_at: info.expires_at || null,
+        payment_status: (info.status === 'active' && info.expires_at && new Date(info.expires_at) > new Date()) ? 'active' : (info.expires_at && new Date(info.expires_at) <= new Date() ? 'expired' : (info.status || 'unknown')),
+        is_restricted: false,
         source: 'router',
         router_name: r.nas.name
       });
@@ -729,12 +755,26 @@ router.get('/sessions/active', async (req, res) => {
       const subs = new Map();
       if (names.size) {
         const sr = await query(
-          `SELECT ps.username, ps.full_name, ps.phone, ps.next_billing_date, pp.name AS package_name
+          `SELECT ps.username, ps.full_name, ps.phone, ps.next_billing_date, COALESCE(ps.status, 'active') AS status, pp.name AS package_name
              FROM pppoe_subscribers ps
              LEFT JOIN pppoe_packages pp ON pp.id = ps.package_id
             WHERE ps.isp_id = $1::uuid AND ps.username = ANY($2::text[])`,
           [req.user.ispId, Array.from(names)]);
         for (const row of sr.rows) subs.set(String(row.username), row);
+      }
+
+      // RL_RESTRICTED_CHECK: find PPPoE users in rl-expired walled garden
+      const restricted = new Set();
+      if (names.size) {
+        try {
+          const rr = await query(
+            `SELECT DISTINCT username FROM radreply
+              WHERE username = ANY($1::text[])
+                AND attribute = 'Mikrotik-Group'
+                AND value = 'rl-expired'`,
+            [Array.from(names)]);
+          for (const row of rr.rows) restricted.add(String(row.username));
+        } catch (e) { /* non-fatal */ }
       }
 
       const seen = new Set();   /* the table and the router used to both contribute the same person */
@@ -761,6 +801,8 @@ router.get('/sessions/active', async (req, res) => {
             bytes_out: Number(iface['tx-byte']) || 0,
             package_name: info.package_name || '',
             expires_at: info.next_billing_date || null,
+            payment_status: info.status || 'unknown',
+            is_restricted: restricted.has(uname),
             source: 'router',
             router_name: r.nas.name
           });
@@ -820,6 +862,9 @@ try {
 } catch (e) { _logger.warn('[ACTIVE-SESS] TV usage: ' + e.message); }
     } catch (e) { _logger.warn('[ACTIVE-SESS] today_totals: ' + e.message); }
 
+    // Save resolved sessions back into cache for stale-while-revalidate
+    const _cached = global.__rlSessCache.get(_ck);
+    if (_cached) { _cached._sessions = sessions; _cached._totals = today_totals; }
     _logger.info('[ACTIVE-SESS] returning ' + sessions.length + ' session(s) from ' + routers.length + ' router(s)');
     res.json({
       sessions: sessions,
@@ -1063,7 +1108,7 @@ router.get('/users', async (req, res) => {
             try {
               const r = await axios.get('http://' + nas.wireguard_ip + '/rest/ppp/active', {
                 auth: { username: nas.mikrotik_api_user, password: nas.mikrotik_api_password },
-                timeout: 8000, validateStatus: function () { return true; } });
+                timeout: 5000, validateStatus: function () { return true; } });
               if (r.status === 200 && Array.isArray(r.data)) {
                 global.__rlPppCache.set(String(nas.id),
                   { t: Date.now(), v: r.data.map(function (x) { return String(x.name || ''); }) });
@@ -1300,13 +1345,13 @@ router.delete('/users/:id', async (req, res) => {
         for (const n of nas) {
           const b = 'http://' + n.wireguard_ip + '/rest';
           const auth = { username: n.mikrotik_api_user, password: n.mikrotik_api_password };
-          const act = (await axios.get(b + '/ppp/active', { auth, timeout: 8000, validateStatus: () => true })).data || [];
+          const act = (await axios.get(b + '/ppp/active', { auth, timeout: 5000, validateStatus: () => true })).data || [];
           for (const a of act) {
             if (String(a.name) === sub.username) {
               await axios.delete(b + '/ppp/active/' + encodeURIComponent(a['.id']), { auth, timeout: 8000 }).catch(() => {});
             }
           }
-          const secrets = (await axios.get(b + '/ppp/secret', { auth, timeout: 8000, validateStatus: () => true })).data || [];
+          const secrets = (await axios.get(b + '/ppp/secret', { auth, timeout: 5000, validateStatus: () => true })).data || [];
           for (const sc of secrets) {
             if (String(sc.name) === sub.username) {
               await axios.delete(b + '/ppp/secret/' + encodeURIComponent(sc['.id']), { auth, timeout: 8000 }).catch(() => {});

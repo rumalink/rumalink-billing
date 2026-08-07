@@ -54,13 +54,26 @@ router.post('/isp/register', [
     const password_hash = await bcrypt.hash(password, parseInt(process.env.BCRYPT_ROUNDS) || 12);
     const verify_token = uuidv4();
 
+    /* RL_TRIAL_DAYS: trial_ends_at was left to the column default of now() + '30 days', so every
+       ISP got thirty days whatever the policy said — and the length could not be changed without
+       a migration. Read it from platform_settings, the same way the signup bonus just below does,
+       so there is one place it lives and the admin dashboard can set it. */
+    let _trialDays = 3;
+    try {
+      const _td = await query("SELECT value FROM platform_settings WHERE key='trial_days' LIMIT 1");
+      if (_td.rows[0] && _td.rows[0].value != null) {
+        const _n = parseInt(_td.rows[0].value, 10);
+        if (Number.isFinite(_n) && _n >= 0) _trialDays = _n;
+      }
+    } catch (e) { require('../utils/logger').warn('[signup] trial_days lookup: ' + e.message); }
+
     const result = await query(`
       INSERT INTO isps (
         company_name, owner_name, email, phone, password_hash, plan_type,
-        county, town, email_verify_token, status
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'active')
+        county, town, email_verify_token, status, trial_ends_at
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'active', NOW() + ($10 || ' days')::interval)
       RETURNING id, company_name, owner_name, email, plan_type, status, api_key, created_at
-    `, [company_name, owner_name, email, phone, password_hash, plan_type, county, town, verify_token]);
+    `, [company_name, owner_name, email, phone, password_hash, plan_type, county, town, verify_token, String(_trialDays)]);
 
     const isp = result.rows[0];
 
