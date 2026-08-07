@@ -132,7 +132,11 @@ router.get('/:ispId', async (req, res, next) => {
     let payMethods = { rows: [] };
     try { portal = await query('SELECT * FROM isp_captive_portal WHERE isp_id=$1::uuid', [req.params.ispId]); } catch(e) {}
     const packages = await query(
-      'SELECT id, name, description, price, duration_hours, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_mb FROM hotspot_packages WHERE isp_id=$1::uuid AND is_active=true ORDER BY price ASC',
+      /* RL_PORTAL_VISIBILITY: visible_in_portal hides a package from CUSTOMERS without retiring it.
+         Only this list is filtered — the purchase route still accepts the package by id, so a test
+         package can be bought deliberately, and anyone already holding a voucher on a hidden
+         package keeps their service until it expires. */
+      'SELECT id, name, description, price, duration_hours, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_mb FROM hotspot_packages WHERE isp_id=$1::uuid AND is_active=true AND visible_in_portal=true ORDER BY price ASC',
       [req.params.ispId]
     );
     try {

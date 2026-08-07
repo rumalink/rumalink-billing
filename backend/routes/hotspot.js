@@ -28,8 +28,8 @@ router.post('/packages', async (req, res, next) => {
   if (!name || !price) return res.status(400).json({ error: 'Name and price are required' });
   try {
     const result = await query(`
-      INSERT INTO hotspot_packages (isp_id, nas_id, name, description, price, duration_hours, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_mb, simultaneous_sessions, mikrotik_profile)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+      INSERT INTO hotspot_packages (isp_id, nas_id, name, description, price, duration_hours, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_mb, simultaneous_sessions, mikrotik_profile, visible_in_portal)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, $12)
       RETURNING *
     `, [req.user.ispId, nas_id, name, description, price, duration_hours, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_mb, simultaneous_sessions || 1, mikrotik_profile]);
     res.status(201).json({ package: result.rows[0] });
@@ -137,7 +137,7 @@ router.get('/portal/:isp_id', async (req, res, next) => {
     if (!isp.rows[0]) return res.status(404).json({ error: 'ISP not found' });
 
     const packages = await query(
-      `SELECT id, name, description, price, duration_hours, bandwidth_down_mbps, data_limit_mb
+      `SELECT id, name, description, price, duration_hours, bandwidth_down_mbps, data_limit_mb, visible_in_portal /* RL_PKG_VISIBLE_FIELD: the ISP sees hidden packages; customers do not */
        FROM hotspot_packages WHERE isp_id = $1 AND is_active = true ORDER BY price ASC`,
       [req.params.isp_id]
     );

@@ -2223,6 +2223,8 @@ function openHSPackageModal(){
          Enforced by RADIUS (Simultaneous-Use); 1 keeps today's behaviour. -->
     <label>Devices allowed at once</label>
     <input id="hsp-devices" type="number" min="1" max="10" value="1" placeholder="1" autocomplete="off" spellcheck="false" />
+    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;font-size:.88rem"><input id="hsp-visible" type="checkbox" checked style="width:16px;height:16px;cursor:pointer" /><span>Show in captive portal</span></label>
+    <div style="font-size:.75rem;color:#8b93a3;margin-top:4px">Uncheck for a test package: customers will not see or buy it, but anyone already on it keeps their service.</div>
     <div class="fg"><label>MikroTik Profile Name</label><input id="hsp-profile" placeholder="e.g. hotspot-1hr" autocomplete="off" spellcheck="false" /></div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button><button class="btn btn-teal" onclick="saveHSPkg()">Create</button></div>
   </div>`;
@@ -2232,7 +2234,7 @@ function openHSPackageModal(){
 
 async function saveHSPkg(){
   try{
-    await api('/hotspot/packages',{method:'POST',body:JSON.stringify({name:document.getElementById('hsp-name').value,price:document.getElementById('hsp-price').value,duration_hours:document.getElementById('hsp-hrs').value||null,bandwidth_down_mbps:document.getElementById('hsp-down').value||null,bandwidth_up_mbps:document.getElementById('hsp-up').value||null,data_limit_mb:document.getElementById('hsp-data').value||null,simultaneous_sessions:parseInt(document.getElementById('hsp-devices').value||'1',10),mikrotik_profile:document.getElementById('hsp-profile').value})});
+    await api('/hotspot/packages',{method:'POST',body:JSON.stringify({name:document.getElementById('hsp-name').value,price:document.getElementById('hsp-price').value,duration_hours:document.getElementById('hsp-hrs').value||null,bandwidth_down_mbps:document.getElementById('hsp-down').value||null,bandwidth_up_mbps:document.getElementById('hsp-up').value||null,data_limit_mb:document.getElementById('hsp-data').value||null,simultaneous_sessions:parseInt(document.getElementById('hsp-devices').value||'1',10),visible_in_portal:((document.getElementById('hsp-visible')||{}).checked !== false),mikrotik_profile:document.getElementById('hsp-profile').value})});
     toast('Package created!');document.querySelectorAll('.modal-overlay').forEach(o=>o.remove());loadHSPackages();
   }catch(e){toast(e.message,'error');}
 }
