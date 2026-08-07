@@ -30,9 +30,7 @@ router.post('/packages', async (req, res, next) => {
     const result = await query(`
       INSERT INTO pppoe_packages (isp_id, name, description, price, billing_cycle, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_gb, burst_limit_mbps, mikrotik_profile, address_pool, visible_in_portal)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, $12) RETURNING *
-    `, [req.user.ispId, name, description, price, billing_cycle || 'monthly', bandwidth_down_mbps, bandwidth_up_mbps, data_limit_gb, burst_limit_mbps, mikrotik_profile, address_pool,
-        /* RL_PPPOE_VIS_PARAM: $12 was declared with no value. Default true — offered unless hidden. */
-        (req.body.visible_in_portal === false ? false : true)]);
+    `, [req.user.ispId, name, description, price, billing_cycle || 'monthly', bandwidth_down_mbps, bandwidth_up_mbps, data_limit_gb, burst_limit_mbps, mikrotik_profile, address_pool]);
     res.status(201).json({ package: result.rows[0] });
   } catch (err) { next(err); }
 });
@@ -43,14 +41,9 @@ router.put('/packages/:id', async (req, res, next) => {
     const result = await query(`
       UPDATE pppoe_packages SET name=$1, description=$2, price=$3, billing_cycle=$4,
         bandwidth_down_mbps=$5, bandwidth_up_mbps=$6, data_limit_gb=$7,
-        mikrotik_profile=$8, address_pool=$9, is_active=$10,
-        /* RL_PPPOE_VIS_PARAM: an earlier edit reused $11, which is the package id — it would have
-           tried to store a UUID in a boolean. $13 is its own slot; COALESCE leaves the value alone
-           when the caller omits it, so editing a price cannot republish a hidden package. */
-        visible_in_portal=COALESCE($13, visible_in_portal), updated_at=NOW()
-      WHERE id=$11 AND isp_id=$12 RETURNING *
-    `, [name, description, price, billing_cycle, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_gb, mikrotik_profile, address_pool, is_active, req.params.id, req.user.ispId,
-        (req.body.visible_in_portal === undefined ? null : !!req.body.visible_in_portal)]);
+        mikrotik_profile=$8, address_pool=$9, is_active=$10, updated_at=NOW()
+      , visible_in_portal=COALESCE($11, visible_in_portal) /* RL_PPPOE_VIS_FIELD */ WHERE id=$11 AND isp_id=$12 RETURNING *
+    `, [name, description, price, billing_cycle, bandwidth_down_mbps, bandwidth_up_mbps, data_limit_gb, mikrotik_profile, address_pool, is_active, req.params.id, req.user.ispId]);
     if (!result.rows[0]) return res.status(404).json({ error: 'Package not found' });
     res.json({ package: result.rows[0] });
   } catch (err) { next(err); }

@@ -195,6 +195,34 @@ tr:hover td{background:rgba(255,255,255,.015)}
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="shortcut icon" href="/favicon.ico">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+<style>
+/* RL_SELECT_THEME: left to itself a browser draws its own arrow and a white popup list, so a
+   <select> sits oddly beside inputs that carry the dashboard's palette. One rule for all of them
+   — the alternative is restyling each dropdown as somebody notices it. */
+select, .fg select, .modal select {
+  width: 100%;
+  padding: 10px 34px 10px 12px;
+  background-color: var(--mid);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: #fff;
+  font-size: .88rem;
+  box-sizing: border-box;
+  appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%238b93a3' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+}
+select:hover { border-color: rgba(0,212,170,.45); }
+select:focus { outline: none; border-color: #00d4aa; box-shadow: 0 0 0 3px rgba(0,212,170,.15); }
+/* the popup list itself is drawn by the OS; these are the only parts we can reach */
+select option { background: var(--card); color: #fff; padding: 8px; }
+select:disabled { opacity: .55; cursor: not-allowed; }
+</style>
+
 </head>
 <body>
 <!-- v62.19: robust row click + search -->
@@ -2296,6 +2324,7 @@ function openPPPoEPackageModal(){
     <div class="fg2"><div class="fg"><label>Data Limit (GB)</label><input id="pp-data" type="number" placeholder="blank=unlimited" autocomplete="off" spellcheck="false" /></div><div class="fg"><label>MikroTik Profile</label><input id="pp-profile" placeholder="e.g. pppoe-10M" autocomplete="off" spellcheck="false" /></div></div>
     <div class="fg"><label>IP Pool</label><input id="pp-pool" placeholder="e.g. pppoe-pool" autocomplete="off" spellcheck="false" /></div>
     <div class="modal-actions"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button><button class="btn btn-teal" onclick="savePPPoEPkg()">Create</button></div>
+    <div class="fg"><label>Captive portal</label><select id="pp-visible"><option value="true">Shown to customers</option><option value="false">Hidden (testing only)</option></select><div style="font-size:.72rem;color:#8b93a3;margin-top:4px">Hidden packages are not offered in the portal.</div></div>
   </div>`;
   const ov=document.createElement('div');ov.className='modal-overlay open';ov.innerHTML=html;
   ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});document.body.appendChild(ov);
@@ -2303,7 +2332,7 @@ function openPPPoEPackageModal(){
 
 async function savePPPoEPkg(){
   try{
-    await api('/pppoe/packages',{method:'POST',body:JSON.stringify({name:document.getElementById('pp-name').value,price:document.getElementById('pp-price').value,bandwidth_down_mbps:document.getElementById('pp-down').value||null,bandwidth_up_mbps:document.getElementById('pp-up').value||null,data_limit_gb:document.getElementById('pp-data').value||null,mikrotik_profile:document.getElementById('pp-profile').value,address_pool:document.getElementById('pp-pool').value})});
+    await api('/pppoe/packages',{method:'POST',body:JSON.stringify({name:document.getElementById('pp-name').value,price:document.getElementById('pp-price').value,bandwidth_down_mbps:document.getElementById('pp-down').value||null,bandwidth_up_mbps:document.getElementById('pp-up').value||null,data_limit_gb:document.getElementById('pp-data').value||null,mikrotik_profile:document.getElementById('pp-profile').value,address_pool:document.getElementById('pp-pool').value,visible_in_portal:((document.getElementById('pp-visible')||{}).value !== 'false')})});
     toast('Package created!');document.querySelectorAll('.modal-overlay').forEach(o=>o.remove());loadPPPoEPackages();
   }catch(e){toast(e.message,'error');}
 }
@@ -4657,6 +4686,7 @@ async function editPPPoEPackage(packageId) {
       <div class="fg2"><div class="fg"><label>Data Limit (GB, blank=unlimited)</label><input id="pp-edit-data" type="number" value="${p.data_limit_gb||''}" autocomplete="off" spellcheck="false" /></div><div class="fg"><label>MikroTik Profile</label><input id="pp-edit-profile" value="${safe(p.mikrotik_profile)}" autocomplete="off" spellcheck="false" /></div></div>
       <div class="fg2"><div class="fg"><label>Billing Cycle</label><select id="pp-edit-cycle"><option value="monthly"${sel(p.billing_cycle,'monthly')}>Monthly</option><option value="weekly"${sel(p.billing_cycle,'weekly')}>Weekly</option><option value="daily"${sel(p.billing_cycle,'daily')}>Daily</option></select></div><div class="fg"><label>IP Pool</label><input id="pp-edit-pool" value="${safe(p.address_pool)}" autocomplete="off" spellcheck="false" /></div></div>
       <div class="fg"><label>Description</label><input id="pp-edit-desc" value="${safe(p.description)}" autocomplete="off" spellcheck="false" /></div>
+      <div class="fg"><label>Captive portal</label><select id="pp-edit-visible"><option value="true"${p.visible_in_portal!==false?' selected':''}>Shown to customers</option><option value="false"${p.visible_in_portal===false?' selected':''}>Hidden (testing only)</option></select><div style="font-size:.72rem;color:#8b93a3;margin-top:4px">Hidden packages are not offered in the portal. Anyone already on one keeps their service.</div></div>
       <div class="modal-actions"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button><button class="btn btn-teal" onclick="savePPPoEPackageEdit('${p.id}')">Save Changes</button></div>
     </div>`;
     const ov = document.createElement('div');
@@ -4679,6 +4709,9 @@ async function savePPPoEPackageEdit(packageId) {
       data_limit_gb: document.getElementById('pp-edit-data').value || null,
       mikrotik_profile: document.getElementById('pp-edit-profile').value,
       address_pool: document.getElementById('pp-edit-pool').value,
+      /* RL_PPPOE_VIS_UI: sent explicitly. The route COALESCEs it, so omitting it would keep the
+         old value — fine for other edits, but the dropdown must be able to change it. */
+      visible_in_portal: document.getElementById('pp-edit-visible').value === 'true',
       is_active: true
     };
     await api('/pppoe/packages/' + packageId, { method: 'PUT', body: JSON.stringify(payload) });
