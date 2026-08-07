@@ -4687,6 +4687,17 @@ async function editPPPoEPackage(packageId) {
       <div class="fg2"><div class="fg"><label>Billing Cycle</label><select id="pp-edit-cycle"><option value="monthly"${sel(p.billing_cycle,'monthly')}>Monthly</option><option value="weekly"${sel(p.billing_cycle,'weekly')}>Weekly</option><option value="daily"${sel(p.billing_cycle,'daily')}>Daily</option></select></div><div class="fg"><label>IP Pool</label><input id="pp-edit-pool" value="${safe(p.address_pool)}" autocomplete="off" spellcheck="false" /></div></div>
       <div class="fg"><label>Description</label><input id="pp-edit-desc" value="${safe(p.description)}" autocomplete="off" spellcheck="false" /></div>
       <div class="fg"><label>Captive portal</label><select id="pp-edit-visible"><option value="true"${p.visible_in_portal!==false?' selected':''}>Shown to customers</option><option value="false"${p.visible_in_portal===false?' selected':''}>Hidden (testing only)</option></select><div style="font-size:.72rem;color:#8b93a3;margin-top:4px">Hidden packages are not offered in the portal. Anyone already on one keeps their service.</div></div>
+      <div class="fg" style="margin-top:6px">
+        <label>Hide from specific clients</label>
+        <div style="font-size:.72rem;color:#8b93a3;margin-bottom:8px">Ticked clients will not see this package in their portal. Anyone already on it keeps their service.</div>
+        <input id="pp-vis-search" type="text" placeholder="Search by username or name…" autocomplete="off" spellcheck="false"
+               oninput="rlFilterVisClients(this.value)"
+               style="width:100%;padding:9px 12px;background:var(--mid);border:1px solid var(--border);border-radius:8px;color:#fff;box-sizing:border-box;font-size:.86rem;margin-bottom:8px" />
+        <div id="pp-vis-clients" style="max-height:210px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,.02);padding:6px">
+          <div style="padding:14px;text-align:center;color:#8b93a3;font-size:.82rem">Loading clients…</div>
+        </div>
+        <div id="pp-vis-count" style="font-size:.72rem;color:#8b93a3;margin-top:6px">&nbsp;</div>
+      </div>
       <div class="modal-actions"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button><button class="btn btn-teal" onclick="savePPPoEPackageEdit('${p.id}')">Save Changes</button></div>
     </div>`;
     const ov = document.createElement('div');
@@ -4694,6 +4705,7 @@ async function editPPPoEPackage(packageId) {
     ov.innerHTML = html;
     ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
     document.body.appendChild(ov);
+    rlLoadVisClients(p.id);
   } catch(e) { console.error('editPPPoEPackage:', e); toast(e.message || 'Error', 'error'); }
 }
 
@@ -4715,6 +4727,19 @@ async function savePPPoEPackageEdit(packageId) {
       is_active: true
     };
     await api('/pppoe/packages/' + packageId, { method: 'PUT', body: JSON.stringify(payload) });
+    /* RL_VIS_CLIENTS_SAVE: the exception list is its own endpoint, so a failure there does not
+       lose the package edit. Sent as the COMPLETE intended list — unticking someone restores
+       their access without a separate call. */
+    try {
+      var boxes = document.querySelectorAll('#pp-vis-clients input[type=checkbox]');
+      if (boxes.length) {
+        var hidden = [];
+        boxes.forEach(function(b){ if (b.checked) hidden.push(b.getAttribute('data-sub')); });
+        await api('/pppoe/packages/' + packageId + '/visibility', {
+          method: 'PUT', body: JSON.stringify({ hidden_for: hidden })
+        });
+      }
+    } catch (ve) { console.warn('visibility save:', ve); toast('Package saved, but client visibility did not: ' + ve.message, 'error'); }
     toast('Package updated');
     document.querySelectorAll('.modal-overlay').forEach(o => o.remove());
     if (typeof loadPPPoEPackages === 'function') loadPPPoEPackages();
@@ -5260,6 +5285,58 @@ tbody tr:hover .rl-actions-cell{
   };
 })();
 </script>
+
+
+<script>
+/* RL_VIS_CLIENTS_JS: which clients a PPPoE package is hidden from. The server returns every
+   subscriber with a hidden flag, so the ticked state IS the stored state — no guessing, and
+   unticking is as meaningful as ticking. */
+window.rlLoadVisClients = async function(packageId){
+  var box = document.getElementById('pp-vis-clients');
+  if (!box) return;
+  try {
+    var d = await api('/pppoe/packages/' + packageId + '/visibility');
+    var subs = (d && d.subscribers) || [];
+    if (!subs.length) {
+      box.innerHTML = '<div style="padding:14px;text-align:center;color:#8b93a3;font-size:.82rem">No PPPoE clients yet</div>';
+      return;
+    }
+    box.innerHTML = subs.map(function(su){
+      var label = (su.full_name && su.full_name !== su.username) ? (su.username + ' — ' + su.full_name) : su.username;
+      return '<label class="rl-vis-row" data-search="' + String(label).toLowerCase().replace(/"/g,'') + '"' +
+             ' style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:6px;cursor:pointer;font-size:.85rem">' +
+             '<input type="checkbox" data-sub="' + su.id + '"' + (su.hidden ? ' checked' : '') +
+             ' onchange="rlVisCount()" style="width:15px;height:15px;cursor:pointer;flex:0 0 auto" />' +
+             '<span>' + label + '</span></label>';
+    }).join('');
+    rlVisCount();
+  } catch (e) {
+    box.innerHTML = '<div style="padding:14px;color:#e74c3c;font-size:.82rem">Could not load clients: ' + e.message + '</div>';
+  }
+};
+
+window.rlFilterVisClients = function(q){
+  q = String(q || '').toLowerCase().trim();
+  document.querySelectorAll('#pp-vis-clients .rl-vis-row').forEach(function(row){
+    row.style.display = (!q || row.getAttribute('data-search').indexOf(q) !== -1) ? 'flex' : 'none';
+  });
+};
+
+window.rlVisCount = function(){
+  var el = document.getElementById('pp-vis-count');
+  if (!el) return;
+  var n = document.querySelectorAll('#pp-vis-clients input[type=checkbox]:checked').length;
+  /* say plainly what the state means — "3 selected" would not tell you whether they can see it */
+  el.textContent = n === 0 ? 'Visible to all clients' :
+    ('Hidden from ' + n + ' client' + (n === 1 ? '' : 's'));
+  el.style.color = n === 0 ? '#8b93a3' : '#f59e0b';
+};
+</script>
+<style>
+#pp-vis-clients .rl-vis-row:hover { background: rgba(255,255,255,.05); }
+#pp-vis-clients::-webkit-scrollbar { width: 8px; }
+#pp-vis-clients::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 4px; }
+</style>
 
 </body>
 </html>
