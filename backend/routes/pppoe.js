@@ -270,6 +270,39 @@ router.patch('/subscribers/:id/status', async (req, res, next) => {
 });
 
 // Delete subscriber
+/* RL_PKG_DELETE: the dashboard has always called this and it was never written — hence "route
+   not found". A package with subscribers on it is a live billing relationship: deleting it would
+   either fail on the foreign key or leave those customers pointing at nothing. Refuse and say how
+   many, so the operator moves them deliberately rather than discovering it from complaints. */
+router.delete('/packages/:id', async (req, res, next) => {
+  try {
+    const own = await query('SELECT id, name FROM pppoe_packages WHERE id=$1::uuid AND isp_id=$2::uuid',
+      [req.params.id, req.user.ispId]);
+    if (!own.rows[0]) return res.status(404).json({ error: 'Package not found' });
+
+    const inUse = await query(
+      "SELECT count(*)::int AS n FROM pppoe_subscribers WHERE package_id=$1::uuid AND deleted_at IS NULL",
+      [req.params.id]);
+    const n = inUse.rows[0] ? inUse.rows[0].n : 0;
+    if (n > 0) {
+      return res.status(409).json({
+        error: n + ' client' + (n === 1 ? ' is' : 's are') + ' on "' + own.rows[0].name +
+               '". Move them to another package first, or disable this one instead of deleting it.'
+      });
+    }
+
+    await query('DELETE FROM pppoe_package_visibility WHERE package_id=$1::uuid', [req.params.id]).catch(function(){});
+    await query('DELETE FROM pppoe_packages WHERE id=$1::uuid AND isp_id=$2::uuid', [req.params.id, req.user.ispId]);
+    require('../utils/logger').info('[pppoe] package deleted: ' + own.rows[0].name);
+    res.json({ ok: true });
+  } catch (err) {
+    if (String(err.message || '').match(/foreign key|violates/i)) {
+      return res.status(409).json({ error: 'This package is still referenced by billing history and cannot be deleted. Disable it instead.' });
+    }
+    next(err);
+  }
+});
+
 router.delete('/subscribers/:id', async (req, res, next) => {
   try {
     const sub = await query('SELECT username FROM pppoe_subscribers WHERE id = $1 AND isp_id = $2', [req.params.id, req.user.ispId]);
