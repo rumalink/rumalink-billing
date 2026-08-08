@@ -215,7 +215,7 @@ async function fetchPppoeSessions(subscriberId) {
           CASE WHEN acctstoptime IS NULL THEN 'active' ELSE 'closed' END as status,
           (acctstoptime IS NULL) as currently_active
         FROM radacct
-        WHERE username = (SELECT username FROM pppoe_subscribers WHERE id = $1::uuid)
+        WHERE username = (SELECT username, password FROM pppoe_subscribers WHERE id = $1::uuid)
         ORDER BY acctstarttime DESC
         LIMIT 50
       `,
@@ -2413,7 +2413,7 @@ router.patch('/:ispId/pppoe-subscriber/:subscriberId', async (req, res) => {
 
   try {
     const { ispId, subscriberId } = req.params;
-    let { phone, full_name, email, status, next_billing_date, password, package_id, pppoe_password } = req.body || {};
+    let { phone, full_name, email, status, next_billing_date, password, package_id, pppoe_password, username } = req.body || {};
     if (!password && pppoe_password) password = pppoe_password; /* RL_PPPOE_PKG_EDIT */
     
     // Build dynamic update
@@ -2435,10 +2435,40 @@ router.patch('/:ispId/pppoe-subscriber/:subscriberId', async (req, res) => {
     const r = await query(sql, params);
     if (r.rows.length === 0) return res.status(404).json({ ok: false, error: 'subscriber not found' });
     
+    /* RL_PPPOE_USERNAME_EDIT: the username IS the key RADIUS authenticates on, so renaming a
+       subscriber means moving their radcheck and radreply rows too — otherwise they keep the old
+       credentials and the new name cannot log in. Accounting history stays under the old name on
+       purpose: rewriting radacct would distort past usage reports. */
+    if (username !== undefined && username && username !== r.rows[0].username) {
+      const oldName = r.rows[0].username;
+      const newName = String(username).trim();
+      const clash = await query("SELECT 1 FROM pppoe_subscribers WHERE lower(username)=lower($1) AND id <> $2::uuid LIMIT 1", [newName, subscriberId]);
+      if (clash.rows[0]) return res.status(409).json({ ok: false, error: 'That username is already taken' });
+      await query("UPDATE pppoe_subscribers SET username = $1 WHERE id = $2::uuid", [newName, subscriberId]);
+      await query("UPDATE radcheck SET username = $1 WHERE username = $2", [newName, oldName]).catch(function(){});
+      await query("UPDATE radreply SET username = $1 WHERE username = $2", [newName, oldName]).catch(function(){});
+      r.rows[0].username = newName;
+      require('../utils/logger').info('[pppoe-subscriber] renamed ' + oldName + ' -> ' + newName);
+      /* bounce so they reconnect under the new name rather than keeping a session RADIUS no
+         longer recognises */
+      try {
+        const wg = require('../utils/walledGarden');
+        if (wg.bounce) await wg.bounce(null, oldName);
+      } catch (e) {}
+    }
+
     // v62.27: also update radcheck if password changed
     if (password !== undefined && password !== '') {
       try {
-        await query("UPDATE radcheck SET value = $1 WHERE username = $2 AND attribute = 'Cleartext-Password'", [password, r.rows[0].username]);
+        /* RL_PPPOE_PW_UPSERT: an UPDATE only works if the row exists, and these subscribers carry
+           NT-Password alone — so the statement matched nothing and reported success while the
+           password never changed. Delete-then-insert always lands. The PPPoE server accepts
+           pap and chap, so this attribute authenticates on its own; the NT hash below is a bonus
+           for MS-CHAP, not a requirement. */
+        await query("DELETE FROM radcheck WHERE username = $1 AND attribute = 'Cleartext-Password'", [r.rows[0].username]).catch(function(){});
+        await query("INSERT INTO radcheck (username, attribute, op, value) VALUES ($1, 'Cleartext-Password', ':=', $2)", [r.rows[0].username, password]);
+        /* keep the plaintext where the lifecycle page can read it — the page shows sub.password */
+        await query("UPDATE pppoe_subscribers SET password = $1 WHERE id = $2::uuid", [password, subscriberId]);
         // bcrypt-update password_hash too for backwards compat
         const bcrypt = require('bcryptjs');
         const hash = await bcrypt.hash(password, 10);
@@ -2536,8 +2566,32 @@ router.delete('/:ispId/pppoe-subscriber/:subscriberId', async (req, res) => {
       await query("UPDATE pppoe_sessions SET status = 'closed', ended_at = NOW() WHERE subscriber_id = $1::uuid AND status = 'active'", [subscriberId]);
     } catch (e) {}
     
-    // Delete subscriber
-    await query("DELETE FROM pppoe_subscribers WHERE id = $1::uuid AND isp_id = $2::uuid", [subscriberId, ispId]);
+    /* RL_PPPOE_SOFT_DELETE: a hard DELETE is refused by the foreign keys from payments and
+       pppoe_invoices, so this route always failed for anyone who had ever paid — which is every
+       real subscriber. Forcing cascades would erase billing history. Mark the record removed:
+       credentials are already gone above, so access ends immediately, and the money trail stays. */
+    try {
+      const axios = require('axios');
+      const nas = (await query("SELECT wireguard_ip, mikrotik_api_user, mikrotik_api_password FROM nas_devices WHERE isp_id=$1::uuid AND wireguard_ip IS NOT NULL", [ispId])).rows;
+      for (const n of nas) {
+        const b = 'http://' + n.wireguard_ip + '/rest';
+        const auth = { username: n.mikrotik_api_user, password: n.mikrotik_api_password };
+        const act = (await axios.get(b + '/ppp/active', { auth, timeout: 8000, validateStatus: function(){ return true; } })).data || [];
+        for (const a of act) {
+          if (String(a.name) === username) {
+            await axios.delete(b + '/ppp/active/' + encodeURIComponent(a['.id']), { auth, timeout: 8000 }).catch(function(){});
+          }
+        }
+        const secrets = (await axios.get(b + '/ppp/secret', { auth, timeout: 8000, validateStatus: function(){ return true; } })).data || [];
+        for (const sc of secrets) {
+          if (String(sc.name) === username) {
+            await axios.delete(b + '/ppp/secret/' + encodeURIComponent(sc['.id']), { auth, timeout: 8000 }).catch(function(){});
+          }
+        }
+      }
+    } catch (e) { require('../utils/logger').warn('[pppoe delete] router cleanup: ' + e.message); }
+
+    await query("UPDATE pppoe_subscribers SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1::uuid AND isp_id = $2::uuid", [subscriberId, ispId]);
     
     res.json({ ok: true, deleted: true, username });
   } catch (err) {

@@ -52,6 +52,34 @@ function payInstructions(sub){
 }
 
 // GET /api/pppoe-portal/:username — status + amount + pay instructions
+/* RL_ROUTE_ORDER: this sat BELOW router.get('/:username'), and Express matches in order — so
+   /pay-status/<id> was captured by the wildcard as username="pay-status", which found no
+   subscriber and returned no status field. The portal polled it forever while the payment had
+   already succeeded and the account was active. Specific routes must precede wildcards. */
+router.get('/pay-status/:paymentId', async (req, res) => {
+  try {
+    let r = await query("SELECT id, status, transaction_id, amount, failure_reason, subscriber_id, payment_gateway, metadata FROM payments WHERE id=$1::uuid", [req.params.paymentId]);
+    if (!r.rows[0]) return res.status(404).json({ status:'not_found' });
+    // RL_POLL_SELFHEAL: still pending? confirm straight with IntaSend (a missed webhook must not strand the customer).
+    if (r.rows[0].status === 'pending') {
+      const ns = await rlConfirmWithIntasend(r.rows[0]);
+      if (ns !== r.rows[0].status) { r = await query("SELECT id, status, transaction_id, amount, failure_reason, subscriber_id FROM payments WHERE id=$1::uuid", [req.params.paymentId]); }
+    }
+    // If paid but subscriber still expired (callback missed), heal here.
+    if (r.rows[0].status === 'paid') {
+      const s = await query("SELECT status FROM pppoe_subscribers WHERE id=$1::uuid",[r.rows[0].subscriber_id]);
+      /* RL_ONPAID_RESPECT_EXPIRY: only auto-heal from a poll if this payment is recent (<30 min).
+         An old payment must not perpetually un-expire a subscriber an admin just expired. */
+      if (s.rows[0] && s.rows[0].status !== 'active') {
+        const fresh = await query("SELECT 1 FROM payments WHERE id=$1::uuid AND created_at > NOW() - interval '30 minutes'", [req.params.paymentId]);
+        if (fresh.rows[0]) { await onPaid(req.params.paymentId, r.rows[0].transaction_id); }
+      }
+    }
+    res.json({ status: r.rows[0].status, failure_reason: r.rows[0].failure_reason });
+  } catch (e) { res.status(500).json({ error:'error' }); }
+});
+
+
 router.get('/:username', async (req, res) => {
   try {
     const sub = await findSub(req.params.username);
@@ -411,28 +439,6 @@ router.post('/callback/:paymentId', async (req, res) => {
 });
 
 // GET /api/pppoe-portal/pay-status/:paymentId — poll a specific payment (reuses public-status self-heal)
-router.get('/pay-status/:paymentId', async (req, res) => {
-  try {
-    let r = await query("SELECT id, status, transaction_id, amount, failure_reason, subscriber_id, payment_gateway, metadata FROM payments WHERE id=$1::uuid", [req.params.paymentId]);
-    if (!r.rows[0]) return res.status(404).json({ status:'not_found' });
-    // RL_POLL_SELFHEAL: still pending? confirm straight with IntaSend (a missed webhook must not strand the customer).
-    if (r.rows[0].status === 'pending') {
-      const ns = await rlConfirmWithIntasend(r.rows[0]);
-      if (ns !== r.rows[0].status) { r = await query("SELECT id, status, transaction_id, amount, failure_reason, subscriber_id FROM payments WHERE id=$1::uuid", [req.params.paymentId]); }
-    }
-    // If paid but subscriber still expired (callback missed), heal here.
-    if (r.rows[0].status === 'paid') {
-      const s = await query("SELECT status FROM pppoe_subscribers WHERE id=$1::uuid",[r.rows[0].subscriber_id]);
-      /* RL_ONPAID_RESPECT_EXPIRY: only auto-heal from a poll if this payment is recent (<30 min).
-         An old payment must not perpetually un-expire a subscriber an admin just expired. */
-      if (s.rows[0] && s.rows[0].status !== 'active') {
-        const fresh = await query("SELECT 1 FROM payments WHERE id=$1::uuid AND created_at > NOW() - interval '30 minutes'", [req.params.paymentId]);
-        if (fresh.rows[0]) { await onPaid(req.params.paymentId, r.rows[0].transaction_id); }
-      }
-    }
-    res.json({ status: r.rows[0].status, failure_reason: r.rows[0].failure_reason });
-  } catch (e) { res.status(500).json({ error:'error' }); }
-});
 
 module.exports = router;
 // RL_IPN_PPPOE: the IntaSend IPN must reactivate a subscriber exactly as the Daraja callback
