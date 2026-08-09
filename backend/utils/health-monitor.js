@@ -17,8 +17,13 @@ const THRESHOLDS = {
                    help:'Postgres stops accepting writes when the disk fills. Clear logs or old backups.' },
   load1:         { op:'>', value:4,   sev:'warning',  label:'CPU load high', unit:'',
                    help:'Sustained load above the core count means requests are queueing.' },
-  cpu_steal:     { op:'>', value:5,   sev:'critical', label:'CPU throttled by AWS', unit:'%',
-                   help:'Burst credits are exhausted. Only a plan with more vCPUs resolves this.' },
+  /* RL_STEAL_SUSTAINED: steal measures cycles the hypervisor gave to ANOTHER tenant, so it
+     spikes when neighbours are busy even while this instance is idle — 20-36% peaks against a 1%
+     average and load 0.22. A single sample over 5% therefore alerted on something that was never
+     a problem, and an alert that cries wolf gets ignored when it finally matters. Evaluated
+     against a 10-minute average instead; see evaluate(). */
+  cpu_steal:     { op:'>', value:5, sev:'warning', label:'CPU throttled by AWS', unit:'%', sustained: 10,
+                   help:'Sustained over ten minutes, so this is real contention rather than a passing spike. Check CPU burst capacity in the Lightsail console: at zero it is throttling and needs a larger plan; healthy means a noisy neighbour, and stopping then starting the instance moves you to different hardware.' },
   swap_used_mb:  { op:'>', value:512, sev:'warning',  label:'Swap in heavy use', unit:'MB',
                    help:'Real memory is exhausted; performance will degrade sharply.' },
   pg_conns:      { op:'>', value:80,  sev:'warning',  label:'Postgres connections high', unit:'',
@@ -121,6 +126,22 @@ async function notifyAdmins(title,message,type){
   } catch(e){ logger.warn('[HEALTH] notify: ' + e.message); }
 }
 function breached(m,v){ const t=THRESHOLDS[m]; if(!t) return false; return t.op==='<' ? v<t.value : v>t.value; }
+
+/* RL_STEAL_SUSTAINED: a threshold marked `sustained: N` is judged on the average of the last N
+   minutes rather than the current sample, so a brief spike does not raise an alert and a genuine
+   sustained problem still does. */
+async function sustainedAvg(metric, minutes) {
+  try {
+    const r = await query(
+      'SELECT avg(' + metric + ')::float AS v, count(*)::int AS n FROM system_health WHERE sampled_at > now() - ($1 || \' minutes\')::interval',
+      [String(minutes)]);
+    const row = r.rows[0];
+    /* not enough history yet (a fresh restart) — say so rather than alerting on one reading */
+    if (!row || !row.n || row.n < Math.max(3, Math.floor(minutes / 3))) return null;
+    return Number(row.v);
+  } catch (e) { return null; }
+}
+
 async function evaluate(s){
   const openRes = await query('SELECT metric, id FROM system_health_alerts WHERE closed_at IS NULL');
   const open = new Map(openRes.rows.map(r=>[r.metric,r.id]));
@@ -128,14 +149,20 @@ async function evaluate(s){
   for (const metric of Object.keys(THRESHOLDS)){
     const t=THRESHOLDS[metric], value=s[metric];
     if(value===undefined||value===null) continue;
-    const bad=breached(metric,value);
+    let value2 = value;
+    if (t.sustained) {
+      const avg = await sustainedAvg(metric, t.sustained);
+      if (avg === null) continue;      /* too little history to judge fairly */
+      value2 = avg;
+    }
+    const bad = breached(metric, value2);
     if(bad) worst = t.sev==='critical' ? 'critical' : (worst==='critical'?'critical':'warning');
     if(bad && !open.has(metric)){
-      const msg=`${t.label}: ${value}${t.unit?' '+t.unit:''} (threshold ${t.op} ${t.value}). ${t.help}`;
+      const msg=`${t.label}: ${Math.round(value2*10)/10}${t.unit?' '+t.unit:''} (threshold ${t.op} ${t.value}). ${t.help}`;
       await query('INSERT INTO system_health_alerts (metric,severity,value,threshold,message) VALUES ($1,$2,$3,$4,$5)',[metric,t.sev,value,t.value,msg]);
       logger.error('[HEALTH-ALERT] '+msg);
       await notifyAdmins('VPS '+t.sev.toUpperCase()+': '+t.label, msg, t.sev);
-      await sendAlertEmail({kind:'alert',sev:t.sev,metric,label:t.label,value,threshold:t.value,op:t.op,unit:t.unit,help:t.help,snapshot:s});
+      await sendAlertEmail({kind:'alert',sev:t.sev,metric,label:t.label,value:Math.round(value2*10)/10,threshold:t.value,op:t.op,unit:t.unit,help:t.help,snapshot:s});
     } else if(!bad && open.has(metric)){
       await query('UPDATE system_health_alerts SET closed_at=now() WHERE id=$1',[open.get(metric)]);
       logger.info('[HEALTH-OK] '+t.label+' recovered ('+value+')');

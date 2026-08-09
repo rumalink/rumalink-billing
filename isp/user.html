@@ -668,6 +668,16 @@ document.getElementById('editModal').addEventListener('click', e => {
 
 document.getElementById('editSaveBtn').addEventListener('click', async () => {
   if (!EDIT_ID) return;
+  /* RL_SAVE_GUARD: nothing stopped a second click while the first request was still in flight.
+     Under load each click fired its own PATCH, they raced, and whichever finished last won —
+     sometimes carrying the older value. That is why it "sometimes saved" and why clicking
+     repeatedly eventually worked. One request at a time, and the button says so. */
+  const _btn = document.getElementById('editSaveBtn');
+  if (_btn.disabled) return;
+  _btn.disabled = true;
+  const _label = _btn.textContent;
+  _btn.textContent = 'Saving…';
+  const _done = function(){ _btn.disabled = false; _btn.textContent = _label; };
   const expDate = document.getElementById('editExp').value;
   const status = document.getElementById('editStatus').value;
   try {
@@ -681,11 +691,15 @@ document.getElementById('editSaveBtn').addEventListener('click', async () => {
     if (res.ok && j.ok) {
       toast('Voucher updated');
       closeEdit();
-      loadUser();
+      /* await the refresh: the backend re-syncs RADIUS after responding, so redrawing straight
+         away could paint the value the page already had */
+      await loadUser();
+      _done();
     } else {
+      _done();
       toast(j.error || 'Update failed', true);
     }
-  } catch (e) { toast('Network error: '+e.message, true); }
+  } catch (e) { _done(); toast('Network error: '+e.message, true); }
 });
 
 document.getElementById('editDelBtn').addEventListener('click', async () => {
