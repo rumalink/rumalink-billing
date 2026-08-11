@@ -1082,6 +1082,27 @@ async function monitorDevice(deviceId) {
     // Quality-driven action in load-balance (dropping a sick link from the PCC pool) belongs
     // in the load_balance + failover mode, where it is the correct behaviour.
     const _lbOnly = String(dev.multi_wan_mode || '') === 'load_balance';
+    /* RL_QUALITY_RELEASE: skipping the quality block when the feature is disabled is correct, but
+       it left behind whatever the feature had already done. A link parked while quality failover
+       was on stayed parked forever once it was switched off, because nothing re-evaluated it —
+       WAN1 sat in standby at 36ms and 0% loss while customers used the backup. Turning a feature
+       off has to undo its effects, or the obvious response to a failover problem is the thing
+       that strands the link. */
+    if (dev.wan_quality_enabled === false) {
+      try {
+        const stuck = await query(
+          "SELECT id, name FROM nas_wan_links WHERE nas_id = $1::uuid AND quality_parked = true",
+          [dev.id]);
+        for (const l of stuck.rows) {
+          await query(
+            "UPDATE nas_wan_links SET quality_parked=false, quality_state='good', " +
+            "consec_degraded=0, consec_good=0, sample_history='' WHERE id=$1::uuid", [l.id]);
+          logger.info('[mwan] ' + dev.name + ': released ' + l.name +
+            ' from quality park — quality failover is disabled, so the link returns to normal routing');
+        }
+      } catch (e) { logger.warn('[mwan] quality release: ' + e.message); }
+    }
+
     if (dev.wan_quality_enabled !== false && !_lbOnly) {
       const latTh  = dev.wan_quality_latency_ms || 100;
       const jitTh  = dev.wan_quality_jitter_ms || 30;
