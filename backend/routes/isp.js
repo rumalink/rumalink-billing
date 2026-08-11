@@ -1878,7 +1878,7 @@ router.get('/:ispId/user/:identifier', async (req, res) => {
 router.patch('/:ispId/voucher/:voucherId', async (req, res) => {
   try {
     const { ispId, voucherId } = req.params;
-    const { expires_at, status } = req.body || {};
+    const { expires_at, status, package_id } = req.body || {};
     
     // Validate status if provided
     /* RL_VOUCHER_STATUS_ENUM: this listed 'used', which is not a member of voucher_status, and
@@ -1967,6 +1967,17 @@ router.patch('/:ispId/voucher/:voucherId', async (req, res) => {
       require('../utils/logger').warn('[voucher-patch] radcheck sync: ' + e.message);
     }
     
+    /* RL_VOUCHER_PKG_EDIT: the lifecycle modal offers a package dropdown and sends package_id,
+       but this route only ever destructured expires_at and status — so the value was discarded,
+       the save reported success and the plan never changed. Apply it here, then let the resync
+       below rewrite Mikrotik-Rate-Limit, or the customer would keep their old speed while the
+       dashboard showed the new plan. */
+    if (package_id) {
+      const _pk = await query('SELECT id FROM hotspot_packages WHERE id=$1::uuid AND isp_id=$2::uuid LIMIT 1', [package_id, ispId]);
+      if (!_pk.rows[0]) return res.status(400).json({ ok: false, error: 'Package not found' });
+      await query('UPDATE hotspot_vouchers SET package_id=$1::uuid, updated_at=NOW() WHERE id=$2::uuid AND isp_id=$3::uuid', [package_id, voucherId, ispId]);
+      require('../utils/logger').info('[voucher-edit] ' + voucherId + ' package -> ' + package_id);
+    }
     /* RL_EDIT_RESYNC: extending a voucher only moves a database row. Without republishing the
        RADIUS entry the dashboard shows 'active' while the customer still cannot authenticate —
        the expiry drives Session-Timeout, and an expired voucher has no credentials at all. */
