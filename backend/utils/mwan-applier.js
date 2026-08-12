@@ -1065,6 +1065,26 @@ async function monitorDevice(deviceId) {
     await query(
       `UPDATE nas_wan_links SET current_status=$1, resolved_ip=$2, resolved_gateway=$3, last_checked_at=NOW(), last_rtt=$4, is_active=$5, internet_ok=$6 WHERE id=$7::uuid`,
       [status, s.ip, s.gateway, s.rtt, isActive, s.internetOk, s.link.id]);
+      /* RL_QUALITY_HISTORY: nas_wan_links holds only the latest reading, so nothing could tell a
+         link's normal from its bad day — which is why the thresholds had to be absolute, and why
+         they misjudged links whose normal differs. Keep a sample per pass. Recording only: no
+         threshold reads this yet. */
+      try {
+        await query(
+          `INSERT INTO wan_quality_history (link_id, nas_id, latency_ms, jitter_ms, loss_pct, fetch_ms, mbps, internet_ok, is_active, quality_state)
+           VALUES ($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10)`,
+          [link.id, dev.id,
+           (q && q.latencyMs != null) ? q.latencyMs : link.last_latency_ms,
+           (q && q.jitterMs  != null) ? q.jitterMs  : link.last_jitter_ms,
+           (q && q.lossPct   != null) ? q.lossPct   : link.last_loss_pct,
+           link.fetch_ms || null, link.last_mbps || null,
+           s.internetOk === true, s.isActive === true, link.quality_state || null]);
+        /* prune rarely; a full scan on every pass would cost more than the data is worth */
+        if (Math.random() < 0.01) {
+          await query("DELETE FROM wan_quality_history WHERE sampled_at < now() - interval '14 days'").catch(function(){});
+        }
+      } catch (e) { /* recording must never disturb monitoring */ }
+
   }
 
   // ─── RL_QUALITY_FAILOVER: degraded-but-not-down detection + netwatch coordination ───
