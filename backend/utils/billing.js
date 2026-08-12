@@ -80,14 +80,28 @@ async function computeOwed(ispId, windowStart, windowEnd) {
   // PPPoE users active at any point in the window: sessions overlapping the window,
   // plus any subscriber currently active (covers always-on with no closed session).
   const ppp = await query(
-    `SELECT COUNT(*) AS cnt FROM (
-       SELECT DISTINCT subscriber_id FROM pppoe_sessions
-         WHERE isp_id=$1::uuid
-           AND started_at < $3
-           AND (ended_at IS NULL OR ended_at >= $2)
+    /* RL_PPPOE_COUNT_FIX: this counted pppoe_sessions UNION status='active'. pppoe_sessions is
+       empty — its only writer is a RADIUS webhook FreeRADIUS never calls, because accounting goes
+       to radacct — so the count was really just "active right now". That billed a soft-deleted
+       subscriber still marked active, and missed everyone who expired partway through the cycle
+       despite them using the network for most of it. The intent stated at the top of this file is
+       "active at any point in the window"; this counts that. radacct is the real session record. */
+    `SELECT COUNT(DISTINCT u.id) AS cnt FROM (
+       SELECT s.id FROM pppoe_subscribers s
+         WHERE s.isp_id = $1::uuid
+           AND s.deleted_at IS NULL
+           AND s.status = 'active'
        UNION
-       SELECT id FROM pppoe_subscribers
-         WHERE isp_id=$1::uuid AND status='active'
+       SELECT s.id FROM pppoe_subscribers s
+         WHERE s.isp_id = $1::uuid
+           AND s.next_billing_date >= $2::timestamptz
+           AND s.next_billing_date < $3::timestamptz
+       UNION
+       SELECT s.id FROM pppoe_subscribers s
+         JOIN radacct a ON a.username = s.username
+         WHERE s.isp_id = $1::uuid
+           AND a.acctstarttime < $3::timestamptz
+           AND (a.acctstoptime IS NULL OR a.acctstoptime >= $2::timestamptz)
      ) u`,
     [ispId, ws, we]
   );
