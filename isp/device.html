@@ -242,6 +242,98 @@
 .rl-diag-c-d{font-size:.76rem;color:#8899bb;margin-top:2px}
 </style>
 
+
+<style>
+/* RL_GENERAL_THEME: the admin VPS Health page and this one both answer "how is this thing doing",
+   so they should not look like different products. Applied to the tab's OWN classes rather than by
+   rewriting its markup — that reaches Remote Access, Configuration and Actions too, including
+   anything added later, and cannot drop a panel on the way. */
+.tab-pane[data-tab="general"] .panel{
+  background:#111d3a;
+  border:1px solid rgba(136,153,187,.18);
+  border-radius:16px;
+  overflow:hidden;
+  margin-bottom:16px;
+  box-shadow:0 1px 2px rgba(0,0,0,.2);
+}
+.tab-pane[data-tab="general"] .panel-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:15px 18px;
+  border-bottom:1px solid rgba(136,153,187,.12);
+  background:rgba(255,255,255,.02);
+}
+.tab-pane[data-tab="general"] .panel-head h3{
+  margin:0;font-size:.94rem;font-weight:720;color:#fff;letter-spacing:.2px;
+}
+.tab-pane[data-tab="general"] .panel-body{ padding:18px }
+
+.tab-pane[data-tab="general"] .kv-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;
+}
+.tab-pane[data-tab="general"] .kv-item{
+  border:1px solid rgba(136,153,187,.14);
+  border-radius:12px;
+  padding:12px 14px;
+  background:rgba(255,255,255,.015);
+  transition:border-color .15s;
+}
+.tab-pane[data-tab="general"] .kv-item:hover{ border-color:rgba(0,212,170,.35) }
+.tab-pane[data-tab="general"] .kv-label{
+  font-size:.64rem;text-transform:uppercase;letter-spacing:.7px;color:#8899bb;font-weight:700;
+}
+.tab-pane[data-tab="general"] .kv-value{
+  font-size:.92rem;color:#fff;font-weight:600;margin-top:5px;word-break:break-word;
+}
+.tab-pane[data-tab="general"] .kv-value.mono{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86rem }
+.tab-pane[data-tab="general"] .kv-value .empty{ color:#5a6885;font-weight:500 }
+
+/* live bandwidth, in the same card language as the gauges above it */
+.tab-pane[data-tab="general"] .bw-card{
+  border:1px solid rgba(136,153,187,.18);
+  border-radius:14px;
+  padding:16px;
+  background:rgba(255,255,255,.015);
+}
+.tab-pane[data-tab="general"] .bw-iface{
+  font-size:.64rem;text-transform:uppercase;letter-spacing:.7px;color:#8899bb;font-weight:700;
+}
+.tab-pane[data-tab="general"] .bw-name{ font-size:.9rem;color:#fff;font-weight:650;margin:4px 0 12px }
+.tab-pane[data-tab="general"] .bw-arrow{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:9px 0;border-top:1px solid rgba(136,153,187,.1);font-size:.8rem;color:#8899bb;
+}
+.tab-pane[data-tab="general"] .bw-arrow .rate{ font-weight:750;color:#22c55e;font-family:ui-monospace,monospace }
+.tab-pane[data-tab="general"] .bw-arrow .rate.tx{ color:#3b82f6 }
+.tab-pane[data-tab="general"] .gauge-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;
+}
+
+.tab-pane[data-tab="general"] .btn{
+  border-radius:9px;padding:9px 16px;font-size:.85rem;font-weight:650;
+  border:1px solid rgba(136,153,187,.25);background:rgba(255,255,255,.04);color:#e6e8ec;cursor:pointer;
+  transition:border-color .15s,background .15s;
+}
+.tab-pane[data-tab="general"] .btn:hover{ border-color:rgba(0,212,170,.5);background:rgba(0,212,170,.08) }
+.tab-pane[data-tab="general"] .btn-teal{ background:#00d4aa;color:#0d1530;border-color:transparent;font-weight:700 }
+.tab-pane[data-tab="general"] .btn-teal:hover{ background:#00e8ba }
+.tab-pane[data-tab="general"] .btn-red{ background:rgba(239,68,68,.12);color:#ff6b6b;border-color:rgba(239,68,68,.4) }
+.tab-pane[data-tab="general"] .btn-red:hover{ background:rgba(239,68,68,.2) }
+.tab-pane[data-tab="general"] .btn-sm{ padding:6px 12px;font-size:.78rem }
+
+.tab-pane[data-tab="general"] .winbox-card{
+  border:1px solid rgba(136,153,187,.18);border-radius:14px;padding:16px;background:rgba(255,255,255,.015);
+}
+.tab-pane[data-tab="general"] .copy-btn{
+  border-radius:8px;border:1px solid rgba(136,153,187,.25);background:rgba(255,255,255,.04);
+  color:#e6e8ec;cursor:pointer;font-size:.8rem;padding:7px 13px;
+}
+.tab-pane[data-tab="general"] .copy-btn:hover{ border-color:rgba(0,212,170,.5) }
+.tab-pane[data-tab="general"] #isp-link-panel .panel-body > div:nth-child(2){
+  border-radius:12px !important;border-color:rgba(136,153,187,.16) !important;
+  background:rgba(255,255,255,.015) !important;
+}
+</style>
+
 </head>
 <body>
 <div class="nav">
@@ -407,14 +499,13 @@ function render() {
     <div class="panel">
       <div class="panel-head"><h3>📛 Overview</h3></div>
       <div class="panel-body">
+        <!-- RL_OVERVIEW_TRIMMED: board, RouterOS version and uptime moved to Diagnostics,
+             which reads them live rather than from the last heartbeat. -->
         <div class="kv-grid">
           <div class="kv-item"><div class="kv-label">Identity</div><div class="kv-value mono">${esc(dev.mikrotik_identity) || '<span class="empty">—</span>'}</div></div>
-          <div class="kv-item"><div class="kv-label">Model / Board</div><div class="kv-value">${esc(dev.mikrotik_board) || '<span class="empty">—</span>'}</div></div>
-          <div class="kv-item"><div class="kv-label">RouterOS Version</div><div class="kv-value">${esc(dev.mikrotik_version) || '<span class="empty">—</span>'}</div></div>
           <div class="kv-item"><div class="kv-label">MAC Address</div><div class="kv-value mono">${esc(dev.mikrotik_mac) || '<span class="empty">—</span>'}</div></div>
           <div class="kv-item"><div class="kv-label">WAN IP</div><div class="kv-value mono">${esc(dev.wan_ip) || '<span class="empty">—</span>'}</div></div>
           <div class="kv-item"><div class="kv-label">WireGuard IP</div><div class="kv-value mono">${esc(dev.wireguard_ip) || '<span class="empty">—</span>'}</div></div>
-          <div class="kv-item"><div class="kv-label">Uptime</div><div class="kv-value">${dev.uptime_seconds ? fmtDuration(dev.uptime_seconds) : '<span class="empty">—</span>'}</div></div>
           <div class="kv-item"><div class="kv-label">Hotspot Enabled</div><div class="kv-value">${dev.hotspot_enabled ? '✓ Yes' : '✗ No'}</div></div>
           <div class="kv-item"><div class="kv-label">PPPoE Enabled</div><div class="kv-value">${dev.pppoe_enabled ? '✓ Yes' : '✗ No'}</div></div>
         </div>
@@ -480,32 +571,9 @@ function render() {
       </div>
     </div>
 
-    <!-- Health -->
-    <div class="panel">
-      <div class="panel-head"><h3>💚 Health</h3></div>
-      <div class="panel-body">
-        <div class="gauge-grid">
-          <div class="gauge ${cpuClass}">
-            <div class="gauge-label">⚙️ CPU Load</div>
-            <div class="gauge-val">${cpu}%</div>
-            <div class="gauge-bar"><div class="gauge-bar-fill ${cpuClass}" style="width:${cpu}%"></div></div>
-          </div>
-          <div class="gauge ${memClass}">
-            <div class="gauge-label">🧠 Memory</div>
-            <div class="gauge-val">${memPct}%</div>
-            <div class="gauge-bar"><div class="gauge-bar-fill ${memClass}" style="width:${memPct}%"></div></div>
-            <div class="gauge-sub">${dev.memory_used_mb || 0} MB / ${dev.memory_total_mb || 0} MB</div>
-          </div>
-          <div class="gauge ${diskClass}">
-            <div class="gauge-label">💾 Disk</div>
-            <div class="gauge-val">${diskPct}%</div>
-            <div class="gauge-bar"><div class="gauge-bar-fill ${diskClass}" style="width:${diskPct}%"></div></div>
-            <div class="gauge-sub">${dev.disk_used_mb || 0} MB / ${dev.disk_total_mb || 0} MB</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
+    <!-- RL_HEALTH_PANEL_REMOVED: this showed CPU, memory and disk as bars from nas_devices —
+         values written at the last heartbeat. Diagnostics above shows the same three read live from
+         the router, so the two could disagree with nothing to say which was current. One source. -->
     <!-- Configuration -->
     <div class="panel">
       <div class="panel-head"><h3>⚙️ Configuration</h3></div>
