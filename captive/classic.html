@@ -1312,7 +1312,9 @@ function rlOpenSetupTv(){
   var el=document.getElementById('rl-setup-tv'); if(!el)return;
   el.style.display='flex';
   // pre-fill MAC with the connecting device's MAC if available
-  try { var m = (typeof mac!=='undefined'&&mac) ? mac : (new URLSearchParams(location.search).get('mac')||''); if(m) document.getElementById('rl-tv-mac').value=m.toUpperCase(); } catch(e){}
+  /* RL_TV_MAC_TYPED: only prefill an EMPTY field, so reopening the form cannot wipe an address
+     that was typed deliberately. */
+  try { var _f=document.getElementById('rl-tv-mac'); var m = (typeof mac!=='undefined'&&mac) ? mac : (new URLSearchParams(location.search).get('mac')||''); if(m && _f && !(_f.value||'').trim()) _f.value=m.toUpperCase(); } catch(e){}
 }
 function rlCloseSetupTv(){ var el=document.getElementById('rl-setup-tv'); if(el)el.style.display='none'; }
 async function rlSaveTv(){
@@ -1323,7 +1325,11 @@ async function rlSaveTv(){
   msg.style.color='var(--muted)'; msg.textContent='Saving…';
   try{
     var phone=(document.getElementById('phone')||{}).value||'';
-    var r=await fetch(API+'/captive/'+ISP_ID+'/tv/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,mac: (window.location.search.match(/[?&]mac=([^&]+)/) ? decodeURIComponent(RegExp.$1) : (typeof mac !== 'undefined' ? mac : null))})});
+    /* RL_TV_MAC_TYPED: mac2 was read from the input and validated on the line above, then thrown
+       away — the body re-read the PHONE's MAC from the URL, so every TV was saved against the
+       handset that registered it. Prefilling the field is a convenience; what the operator typed
+       is the answer. */
+    var r=await fetch(API+'/captive/'+ISP_ID+'/tv/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,mac:mac2})});
     var d=await r.json(); if(!r.ok) throw new Error(d.error||'failed');
     msg.style.color='#2ecc71'; msg.textContent='✓ Saved '+d.tv.name;
     setTimeout(rlCloseSetupTv, 900);

@@ -1812,6 +1812,132 @@ router.get('/:ispId/mpesa-health', async (req, res) => {
 
 // ── RL_TV_CRUD: saved TVs per ISP (name + MAC). Public portal endpoints, scoped by ispId + phone. ──
 function _normMac(m){ return String(m||'').trim().toUpperCase().replace(/[^0-9A-F:]/g,''); }
+/* RL_TV_ATTACH: a customer with a multi-device package adding a television to the voucher they
+   already hold. Two steps so the portal can tell them WHY before asking for anything else — being
+   refused after picking a TV is worse than being told up front that the package allows one device. */
+router.post('/:ispId/tv/check-voucher', async (req, res) => {
+  try {
+    const code = String(req.body.code || '').trim().toUpperCase();
+    if (!code) return res.status(400).json({ error: 'Enter your username.' });
+
+    const v = (await query(
+      `SELECT hv.id, hv.code, hv.status, hv.expires_at, hv.is_tv,
+              COALESCE(hp.simultaneous_sessions,1) AS allowed,
+              hp.name AS package_name, hp.bandwidth_down_mbps AS down, hp.bandwidth_up_mbps AS up
+         FROM hotspot_vouchers hv
+         LEFT JOIN hotspot_packages hp ON hp.id = hv.package_id
+        WHERE hv.isp_id = $1::uuid AND UPPER(hv.code) = $2 LIMIT 1`,
+      [req.params.ispId, code])).rows[0];
+
+    if (!v) return res.status(404).json({ error: 'That username was not found. Check it and try again.' });
+    if (v.is_tv) return res.status(400).json({ error: 'That code belongs to a TV already.' });
+    if (v.status !== 'active') return res.status(400).json({ error: 'That code is not active. If you have just paid, wait a moment and try again.' });
+    if (v.expires_at && new Date(v.expires_at) <= new Date()) return res.status(400).json({ error: 'That code has expired. Buy a package to continue.' });
+
+    /* count BOTH kinds against the limit — a television is a second device however it connects */
+    const phones = (await query('SELECT count(*)::int AS n FROM hotspot_voucher_devices WHERE voucher_id = $1::uuid', [v.id])).rows[0].n;
+    const tvs = (await query('SELECT count(*)::int AS n FROM hotspot_bound_devices WHERE active_voucher_id = $1::uuid', [v.id])).rows[0].n;
+    const used = phones + tvs;
+    const allowed = parseInt(v.allowed, 10) || 1;
+
+    if (used >= allowed) {
+      return res.status(403).json({
+        error: 'The ' + (v.package_name || 'package') + ' allows ' + allowed + ' device' +
+               (allowed > 1 ? 's' : '') + ' and ' + used + ' ' + (used === 1 ? 'is' : 'are') +
+               ' already using it. Buy a package with more devices to add a TV.'
+      });
+    }
+
+    res.json({
+      ok: true, code: v.code, package_name: v.package_name,
+      allowed, used, remaining: allowed - used,
+      expires_at: v.expires_at,
+      speed: (v.down ? v.down + ' Mbps' : null)
+    });
+  } catch (err) { next2(err, res); }
+});
+
+router.post('/:ispId/tv/attach', async (req, res) => {
+  try {
+    const code = String(req.body.code || '').trim().toUpperCase();
+    const tvId = String(req.body.tv_id || '').trim();
+    if (!code || !tvId) return res.status(400).json({ error: 'Pick a TV and enter your username.' });
+
+    const v = (await query(
+      `SELECT hv.id, hv.code, hv.status, hv.expires_at, hv.package_id,
+              COALESCE(hp.simultaneous_sessions,1) AS allowed, hp.name AS package_name,
+              hp.bandwidth_down_mbps AS down, hp.bandwidth_up_mbps AS up
+         FROM hotspot_vouchers hv
+         LEFT JOIN hotspot_packages hp ON hp.id = hv.package_id
+        WHERE hv.isp_id = $1::uuid AND UPPER(hv.code) = $2 LIMIT 1`,
+      [req.params.ispId, code])).rows[0];
+    if (!v) return res.status(404).json({ error: 'Username not found.' });
+    if (v.status !== 'active' || (v.expires_at && new Date(v.expires_at) <= new Date()))
+      return res.status(400).json({ error: 'That code is not active.' });
+
+    const tv = (await query(
+      'SELECT id, name, mac_address, active_voucher_id FROM hotspot_bound_devices WHERE id = $1::uuid AND isp_id = $2::uuid LIMIT 1',
+      [tvId, req.params.ispId])).rows[0];
+    if (!tv) return res.status(404).json({ error: 'TV not found.' });
+    if (tv.active_voucher_id === v.id) return res.status(400).json({ error: 'That TV is already on this code.' });
+
+    /* re-check at the moment of writing: the earlier check was for the customer's benefit, this
+       one is what actually protects the limit if two attempts race */
+    const phones = (await query('SELECT count(*)::int AS n FROM hotspot_voucher_devices WHERE voucher_id = $1::uuid', [v.id])).rows[0].n;
+    const tvs = (await query('SELECT count(*)::int AS n FROM hotspot_bound_devices WHERE active_voucher_id = $1::uuid', [v.id])).rows[0].n;
+    const allowed = parseInt(v.allowed, 10) || 1;
+    if (phones + tvs >= allowed) {
+      return res.status(403).json({ error: 'This code already has ' + (phones + tvs) + ' of ' + allowed + ' device(s) in use.' });
+    }
+
+    const mac = String(tv.mac_address || '').toUpperCase();
+
+    /* the TV inherits the voucher's package and expiry — it is not sold a plan of its own, so it
+       goes offline exactly when the voucher does */
+    await query(
+      `UPDATE hotspot_bound_devices
+          SET active_voucher_id = $1::uuid, package_id = $2::uuid, expires_at = $3,
+              is_bound = true, updated_at = NOW()
+        WHERE id = $4::uuid`,
+      [v.id, v.package_id, v.expires_at, tv.id]);
+
+    let bound = false;
+    try {
+      const mt = require('../utils/mikrotik');
+      const nas = (await query(
+        'SELECT id FROM nas_devices WHERE isp_id = $1::uuid AND wireguard_ip IS NOT NULL ORDER BY last_seen DESC NULLS LAST',
+        [req.params.ispId])).rows;
+      for (const n of nas) {
+        await mt.addIpBindingBypass(n.id, { mac_address: mac, comment: 'RumaLink-TV ' + mac });
+        const ip = await mt.findIpForMac(n.id, mac).catch(function(){ return null; });
+        const limit = (v.up || v.down) ? ((v.up || v.down) + 'M/' + (v.down || 0) + 'M') : null;
+        if (ip && limit && limit !== '0M/0M') {
+          await mt.applyQueueRateLimit(n.id, { username: 'tv-' + mac.replace(/:/g, ''), ip, max_limit: limit }).catch(function(){});
+        }
+        bound = true;
+      }
+    } catch (e) {
+      require('../utils/logger').error('[tv-attach] router: ' + e.message);
+    }
+
+    require('../utils/logger').info('[tv-attach] ' + tv.name + ' (' + mac + ') -> ' + v.code +
+      ' until ' + v.expires_at + (bound ? '' : ' (router not reached — tv-reconcile will bind it)'));
+
+    res.json({
+      ok: true, tv_name: tv.name, code: v.code,
+      expires_at: v.expires_at,
+      devices_used: phones + tvs + 1, devices_allowed: allowed,
+      /* say so plainly rather than claiming success — tv-reconcile binds it within the minute */
+      note: bound ? null : 'Saved. Your TV will come online shortly.'
+    });
+  } catch (err) { next2(err, res); }
+});
+
+function next2(err, res) {
+  require('../utils/logger').error('[tv-attach] ' + err.message);
+  res.status(500).json({ error: err.message });
+}
+
 router.post('/:ispId/tv/save', async (req, res) => {
   try {
     const { name, mac, phone } = req.body;

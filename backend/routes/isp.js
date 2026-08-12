@@ -1292,8 +1292,53 @@ router.delete('/users/:id', async (req, res) => {
      immediately, and hide it from the lists. The ISP sees a delete; the accounts stay whole. */
   try {
     const { type } = req.query;
-    if (type !== 'hotspot' && type !== 'pppoe') {
-      return res.status(400).json({ error: 'type must be hotspot or pppoe' });
+    /* RL_TV_DELETE: the users list returns TVs as type 'tv_hotspot', which this rejected — so the
+       row menu offered a Delete that could never work. A TV is not a voucher and not a subscriber:
+       it holds no RADIUS credentials and no session, because it is bypassed at the router by
+       IP-binding. Deleting one means removing that binding and its queue. */
+    if (type !== 'hotspot' && type !== 'pppoe' && type !== 'tv_hotspot' && type !== 'tv') {
+      return res.status(400).json({ error: 'type must be hotspot, pppoe or tv_hotspot' });
+    }
+
+    if (type === 'tv_hotspot' || type === 'tv') {
+      const tv = (await query(
+        'SELECT id, name, mac_address FROM hotspot_bound_devices WHERE id = $1::uuid AND isp_id = $2::uuid LIMIT 1',
+        [req.params.id, req.user.ispId])).rows[0];
+      if (!tv) return res.status(404).json({ error: 'TV not found' });
+      const mac = String(tv.mac_address || '').toUpperCase();
+
+      try {
+        const axios = require('axios');
+        const nas = (await query(
+          'SELECT wireguard_ip, mikrotik_api_user, mikrotik_api_password FROM nas_devices WHERE isp_id=$1::uuid AND wireguard_ip IS NOT NULL',
+          [req.user.ispId])).rows;
+        for (const n of nas) {
+          const b = 'http://' + n.wireguard_ip + '/rest';
+          const auth = { username: n.mikrotik_api_user, password: n.mikrotik_api_password };
+          const ok = { auth, timeout: 8000, validateStatus: function(){ return true; } };
+          /* the binding is what grants a TV access at all — remove it first, so access stops even
+             if the queue call then fails */
+          const binds = (await axios.get(b + '/ip/hotspot/ip-binding', ok)).data || [];
+          for (const bd of binds) {
+            if (String(bd['mac-address'] || '').toUpperCase() === mac) {
+              await axios.delete(b + '/ip/hotspot/ip-binding/' + encodeURIComponent(bd['.id']), { auth, timeout: 8000 }).catch(function(){});
+            }
+          }
+          const qs = (await axios.get(b + '/queue/simple', ok)).data || [];
+          for (const q2 of qs) {
+            if (String(q2.name || '').toUpperCase().indexOf(mac.replace(/:/g, '')) >= 0) {
+              await axios.delete(b + '/queue/simple/' + encodeURIComponent(q2['.id']), { auth, timeout: 8000 }).catch(function(){});
+            }
+          }
+        }
+      } catch (e) { require('../utils/logger').warn('[delete-tv] router cleanup: ' + e.message); }
+
+      /* the TV row itself carries no billing history, so it can genuinely go; its vouchers keep
+         their payment trail and simply stop pointing at a bound device */
+      await query('UPDATE hotspot_vouchers SET is_tv = false WHERE isp_id = $1::uuid AND UPPER(tv_mac) = $2', [req.user.ispId, mac]).catch(function(){});
+      await query('DELETE FROM hotspot_bound_devices WHERE id = $1::uuid AND isp_id = $2::uuid', [req.params.id, req.user.ispId]);
+      require('../utils/logger').info('[delete-tv] ' + tv.name + ' (' + mac + ') removed by isp ' + req.user.ispId);
+      return res.json({ ok: true });
     }
 
     if (type === 'hotspot') {

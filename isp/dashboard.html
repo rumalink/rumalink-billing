@@ -4509,7 +4509,7 @@ fetch('/captive/payment-spinner.html').then(r => r.text()).then(html => {
            means rows pass underneath it, so it carries the same background the surrounding cells
            are composed from: var(--card) with the wrapper's translucent tint on top. */
         + '<td class="rl-actions-cell"><button type="button" class="rl-dots" title="Actions"'
-        + ' onclick="event.stopPropagation();rlRowMenu(this,\'' + u.id + '\',\'' + (u.type === 'pppoe' ? 'pppoe' : 'hotspot') + '\',\'' + esc(u.username || '') + '\',\'' + esc(u.phone || '') + '\')">&#8942;</button></td>'
+        + ' onclick="event.stopPropagation();rlRowMenu(this,\'' + u.id + '\',\'' + (/* RL_ROW_MENU_TYPE: a TV is tv_hotspot, not hotspot — collapsing it here made the delete look for a voucher with a TV's id and report 'not found'. Pass the row's own type. */ u.type === 'pppoe' ? 'pppoe' : (u.type === 'tv_hotspot' ? 'tv_hotspot' : 'hotspot')) + '\',\'' + esc(u.username || '') + '\',\'' + esc(u.phone || '') + '\')">&#8942;</button></td>'
         + '</tr>';
     }).join('');
   }
