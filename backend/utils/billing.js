@@ -80,30 +80,15 @@ async function computeOwed(ispId, windowStart, windowEnd) {
   // PPPoE users active at any point in the window: sessions overlapping the window,
   // plus any subscriber currently active (covers always-on with no closed session).
   const ppp = await query(
-    /* RL_PPPOE_COUNT_FIX: this counted pppoe_sessions UNION status='active'. pppoe_sessions is
-       empty — its only writer is a RADIUS webhook FreeRADIUS never calls, because accounting goes
-       to radacct — so the count was really just "active right now". That billed a soft-deleted
-       subscriber still marked active, and missed everyone who expired partway through the cycle
-       despite them using the network for most of it. The intent stated at the top of this file is
-       "active at any point in the window"; this counts that. radacct is the real session record. */
-    `SELECT COUNT(DISTINCT u.id) AS cnt FROM (
-       SELECT s.id FROM pppoe_subscribers s
-         WHERE s.isp_id = $1::uuid
-           AND s.deleted_at IS NULL
-           AND s.status = 'active'
-       UNION
-       SELECT s.id FROM pppoe_subscribers s
-         WHERE s.isp_id = $1::uuid
-           AND s.next_billing_date >= $2::timestamptz
-           AND s.next_billing_date < $3::timestamptz
-       UNION
-       SELECT s.id FROM pppoe_subscribers s
-         JOIN radacct a ON a.username = s.username
-         WHERE s.isp_id = $1::uuid
-           AND a.acctstarttime < $3::timestamptz
-           AND (a.acctstoptime IS NULL OR a.acctstoptime >= $2::timestamptz)
-     ) u`,
-    [ispId, ws, we]
+    /* RL_PPPOE_COUNT_LIVE: bill the subscribers who exist when the invoice is raised — active or
+       expired — and nobody who has been deleted. It matches what All Users shows, so the invoice
+       can be checked against the dashboard instead of taken on trust.
+       The previous version also counted anyone with a session in the window, which swept in
+       accounts the ISP had since deleted: billing for customers they no longer have, with no
+       screen anywhere showing why the number was higher than their list. */
+    `SELECT COUNT(*) AS cnt FROM pppoe_subscribers
+      WHERE isp_id = $1::uuid AND deleted_at IS NULL`,
+    [ispId]
   );
   const pppoeUsers = parseInt(ppp.rows[0].cnt) || 0;
   const pppoeFee = Math.round(pppoeUsers * effPppoeFee * 100) / 100;
