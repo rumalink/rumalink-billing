@@ -195,7 +195,11 @@ router.post('/', async (req, res, next) => {
       RETURNING id, name, description, provision_token, provision_url, created_at
     `, [req.user.ispId, name, description || null, token, provisionUrl,
         antishare_enabled || false, antishare_max_devices || 1,
-        JSON.stringify(bridged_ports || ['ether2','ether3','ether4','wlan1'])]);
+        JSON.stringify(bridged_ports || ['ether2','ether3','ether4','wlan1']),
+        /* RL_WINBOX_PARAM: $9 was declared with no value, which would fail every device creation.
+           null when the range is full — the device still works, it just has no remote access, and
+           the warning above says so rather than the insert throwing. */
+        _winboxPort]);
 
     // Build the full one-command provisioning fetch that MikroTik pastes
     const provBody = [
