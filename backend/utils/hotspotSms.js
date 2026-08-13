@@ -32,6 +32,23 @@ async function sendSmsCompat(phone, message, isp) {
    retry, a webhook replay and the strand healer cannot each send their own copy — which would
    be three charged messages for one purchase. */
 async function sendPurchaseSms(paymentId, receipt) {
+  /* RL_SMS_CLAIM: three callers can reach this — the Daraja callback, the inline activation
+     behind the status poll, and strand-heal. Reading rl_purchase_sms and then sending is not
+     atomic: two of them arriving in the same second both saw it unset and both sent, which is
+     how a customer got the same TV message twice. Claim the flag with a conditional UPDATE and
+     let only the caller that actually changed a row continue — the database decides, not the
+     order they happen to arrive in. */
+  try {
+    const _claim = await query(
+      "UPDATE payments SET metadata = COALESCE(metadata,'{}'::jsonb) || jsonb_build_object('rl_purchase_sms','sending') " +
+      "WHERE id = $1::uuid AND COALESCE(metadata->>'rl_purchase_sms','') = '' RETURNING id",
+      [paymentId]);
+    if (!_claim.rows[0]) {
+      logger.info('[purchase-sms] ' + paymentId + ' already claimed by another path — not sending again');
+      return { ok: false, reason: 'already sent or in flight' };
+    }
+  } catch (e) { logger.warn('[purchase-sms] claim: ' + e.message); }
+
   try {
     const r = await query(
       "SELECT v.code, v.password, v.buyer_phone, v.expires_at, v.isp_id, v.is_tv, v.tv_mac, p.metadata AS pay_meta, " +

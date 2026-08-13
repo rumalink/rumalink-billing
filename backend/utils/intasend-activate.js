@@ -117,6 +117,13 @@ async function activateVoucher(paymentId) {
     } catch (e) { logger.error('[intasend-activate] TV bind: ' + e.message); }
 
     await syncRadius(v.id);
+    /* RL_ACTIVATE_TV_BIND: tvBind was called from the Daraja callback alone. Since the
+       payment-status poll started activating inline (for autologin), it gets there first and the
+       callback then skips as already-activated — so a TV purchase produced an ordinary phone
+       voucher with usable phone credentials, and only the SMS failsafe stopped them going out.
+       Whichever path activates must bind the TV; it cannot depend on which one wins. */
+    try { await require('./tvBind').bindTvForPayment(paymentId); }
+    catch (e) { logger.warn('[activate] tv bind: ' + e.message); }
     /* RL_INTASEND_PURCHASE_SMS: the confirmation is sent from the Daraja callback for that
        gateway; on the IntaSend path nothing sent it, so those customers paid and heard
        nothing. sendPurchaseSms is idempotent via the payment's rl_purchase_sms flag, so a
