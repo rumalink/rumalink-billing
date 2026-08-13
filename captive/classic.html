@@ -1040,7 +1040,12 @@ function rumalinkShowHotspotUnavailable(){
       + '#rl-pm .pay:disabled,#rl-lp .submit:disabled{opacity:.55;cursor:wait}'
       + '#rl-pm .cancel,#rl-lp .cancel{background:transparent;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.8);border-radius:10px;padding:14px 22px;cursor:pointer}'
       + '#rl-pm .x,#rl-lp .x{position:absolute;top:14px;right:14px;background:transparent;border:none;color:rgba(255,255,255,.5);font-size:1.5rem;cursor:pointer;line-height:1}'
-      + '#rl-already-paid-btn{position:fixed;top:14px;right:14px;background:rgba(0,212,170,.15);border:1px solid rgba(0,212,170,.4);color:#00d4aa;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:.85rem;z-index:9998;backdrop-filter:blur(6px);font-family:sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.3)}';
+      + '#rl-already-paid-btn{position:fixed;top:14px;right:14px;background:rgba(0,212,170,.15);border:1px solid rgba(0,212,170,.4);color:#00d4aa;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:.85rem;z-index:9998;backdrop-filter:blur(6px);font-family:sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.3)}'
+      /* RL_TV_BTN_STYLE: the same rule as the button above it — cloneNode copies attributes,
+         not ID-based CSS, so the first attempt inherited nothing and fell into normal flow.
+         Stacked at top:62px rather than measured at runtime: 14px + the button's height + a gap,
+         which cannot drift the way a getBoundingClientRect read before layout settles can. */
+      + '#rl-add-tv-btn{position:fixed;top:62px;right:14px;background:rgba(0,212,170,.15);border:1px solid rgba(0,212,170,.4);color:#00d4aa;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:.85rem;z-index:9998;backdrop-filter:blur(6px);font-family:sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.3)}';
     document.head.appendChild(st);
   }
 
@@ -1134,17 +1139,12 @@ function rumalinkShowHotspotUnavailable(){
       setTimeout(function(){ document.getElementById('rl-lp-code').focus(); }, 80);
     };
     document.body.appendChild(apBtn);
-    /* RL_TV_ADD_UI: sits directly under Already Paid? Login — the two belong together, both being
-       "I have paid, now connect something". */
-    var tvBtn = apBtn.cloneNode(false);
+    var tvBtn = document.createElement('button');
+    tvBtn.type = 'button';
     tvBtn.id = 'rl-add-tv-btn';
     tvBtn.textContent = '📺 Add a TV to my package';
     tvBtn.onclick = function(){ if (typeof rlTaOpen === 'function') rlTaOpen(); };
     document.body.appendChild(tvBtn);
-    try {
-      var _r = apBtn.getBoundingClientRect();
-      tvBtn.style.bottom = (parseInt(getComputedStyle(apBtn).bottom || '20', 10) + _r.height + 10) + 'px';
-    } catch (e) {}
 
   }
 
@@ -1402,6 +1402,7 @@ function rlClearTv(){ rlSelectedTv=null; window.rlSelectedTv=null; rlPersistTvSe
     <div id="rl-ta-step2" style="display:none">
       <div class="rl-ta-ok" id="rl-ta-summary"></div>
       <div class="rl-ta-hint">Choose the TV to add.</div>
+      <input id="rl-ta-search" type="text" placeholder="Search by name or MAC…" autocomplete="off" spellcheck="false" oninput="rlTaFilter(this.value)"/>
       <div id="rl-ta-list" class="rl-ta-list"></div>
       <button class="rl-ta-alt" type="button" onclick="rlTaNewTv()">+ My TV is not listed — set it up</button>
       <div id="rl-ta-msg2" class="rl-ta-msg"></div>
@@ -1430,6 +1431,7 @@ function rlClearTv(){ rlSelectedTv=null; window.rlSelectedTv=null; rlPersistTvSe
 .rl-ta-box h2{margin:0 0 14px;font-size:1.12rem}
 .rl-ta-x{position:absolute;top:12px;right:14px;background:none;border:none;font-size:1.5rem;color:#999;cursor:pointer;line-height:1}
 .rl-ta-hint{font-size:.84rem;color:#667;line-height:1.55;margin-bottom:12px}
+#rl-ta-search{width:100%;padding:10px 12px;border:1px solid #dde;border-radius:10px;font-size:.9rem;box-sizing:border-box;margin-bottom:9px;text-transform:none;font-family:inherit;letter-spacing:0}
 .rl-ta-box input[type=text]{width:100%;padding:12px;border:1px solid #dde;border-radius:10px;font-size:1rem;box-sizing:border-box;margin-bottom:10px;text-transform:uppercase;font-family:monospace;letter-spacing:1px}
 .rl-ta-go{width:100%;padding:13px;border:none;border-radius:10px;background:#00d4aa;color:#0d1530;font-weight:750;font-size:.98rem;cursor:pointer}
 .rl-ta-go[disabled]{opacity:.5;cursor:default}
@@ -1481,6 +1483,7 @@ function rlClearTv(){ rlSelectedTv=null; window.rlSelectedTv=null; rlPersistTvSe
 
   window.rlTaLoad = async function(){
     var box = el('rl-ta-list');
+    var sb = el('rl-ta-search'); if (sb) sb.value = '';
     box.innerHTML = '<div class="rl-ta-hint">Loading your TVs…</div>';
     try {
       var r = await fetch(API + '/captive/' + ISP_ID + '/tv/list');
@@ -1498,6 +1501,39 @@ function rlClearTv(){ rlSelectedTv=null; window.rlSelectedTv=null; rlPersistTvSe
         });
       });
     } catch (e) { box.innerHTML = '<div class="rl-ta-hint">Could not load your TVs.</div>'; }
+  };
+
+  window.rlTaFilter = function(q){
+    /* RL_TA_SEARCH: filters what is already loaded, so it responds as you type. Clearing a
+       selection that is no longer visible matters — otherwise you could search, pick a TV, search
+       again and add one you can no longer see. */
+    q = String(q || '').toLowerCase().trim();
+    var rows = document.querySelectorAll('#rl-ta-list .rl-ta-tv');
+    var shown = 0;
+    Array.prototype.forEach.call(rows, function(row){
+      var hay = (row.textContent || '').toLowerCase();
+      var hit = !q || hay.indexOf(q) !== -1;
+      row.style.display = hit ? 'flex' : 'none';
+      if (hit) shown++;
+      if (!hit && row.classList.contains('sel')) {
+        row.classList.remove('sel');
+        PICK = null;
+        var add = document.getElementById('rl-ta-add');
+        if (add) add.disabled = true;
+      }
+    });
+    var none = document.getElementById('rl-ta-none');
+    if (!shown && rows.length) {
+      if (!none) {
+        none = document.createElement('div');
+        none.id = 'rl-ta-none';
+        none.className = 'rl-ta-hint';
+        none.style.margin = '4px 0 0';
+        none.textContent = 'No TV matches that.';
+        document.getElementById('rl-ta-list').appendChild(none);
+      }
+      none.style.display = '';
+    } else if (none) { none.style.display = 'none'; }
   };
 
   window.rlTaNewTv = function(){

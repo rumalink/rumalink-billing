@@ -174,10 +174,24 @@ router.post('/', async (req, res, next) => {
     const token = uuidv4();
     const provisionUrl = `${process.env.BASE_URL}/api/provision/${token}`;
 
+    /* RL_WINBOX_ALLOC: winbox_port used to default to 8291 — the port on the ROUTER, not a
+       forwarding port on this server. Every device claimed the same number and none of them fell
+       inside the 20001-20050 range the firewall opens, so remote access only ever worked where
+       somebody assigned a port by hand. Take the next free one at creation. */
+    let _winboxPort = null;
+    try {
+      const _used = (await query('SELECT winbox_port FROM nas_devices WHERE winbox_port IS NOT NULL')).rows
+        .map(function (r) { return parseInt(r.winbox_port, 10); }).filter(function (n) { return n >= 20001 && n <= 20050; });
+      for (let _p = 20001; _p <= 20050; _p++) {
+        if (_used.indexOf(_p) === -1) { _winboxPort = _p; break; }
+      }
+      if (!_winboxPort) require('../utils/logger').warn('[nas] no free WinBox port in 20001-20050 — remote access unavailable for this device');
+    } catch (e) { require('../utils/logger').warn('[nas] winbox port: ' + e.message); }
+
     const result = await query(`
       INSERT INTO nas_devices (isp_id, name, description, provision_token, provision_url,
-        antishare_enabled, antishare_max_devices, bridged_ports)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        antishare_enabled, antishare_max_devices, bridged_ports, winbox_port)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING id, name, description, provision_token, provision_url, created_at
     `, [req.user.ispId, name, description || null, token, provisionUrl,
         antishare_enabled || false, antishare_max_devices || 1,

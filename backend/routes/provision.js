@@ -107,6 +107,15 @@ async function persistConfig(nas, cfg) {
   // v62.46: keep FreeRADIUS clients.conf in sync
   triggerRadiusClientsSync();
 
+  /* RL_WINBOX_AFTER_PROV: the forwarding service is oneshot at boot, so a router provisioned
+     today had no remote access until the server next restarted — with nothing to say why. */
+  try {
+    require('child_process').execFile('sudo', ['/usr/local/bin/rumalink-winbox.sh'], function (e) {
+      if (e) require('../utils/logger').warn('[provision] winbox forwards: ' + e.message);
+      else require('../utils/logger').info('[provision] WinBox forwards applied');
+    });
+  } catch (e) {}
+
   /* RL_SYNC_AFTER_PROVISION: read the freshly provisioned router and store what it actually
      runs, so the device page never shows placeholder addressing. Deferred a little to let
      the script finish applying on the router. Database-only; nothing is pushed back. */

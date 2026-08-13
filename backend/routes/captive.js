@@ -1834,10 +1834,21 @@ router.post('/:ispId/tv/check-voucher', async (req, res) => {
     if (v.status !== 'active') return res.status(400).json({ error: 'That code is not active. If you have just paid, wait a moment and try again.' });
     if (v.expires_at && new Date(v.expires_at) <= new Date()) return res.status(400).json({ error: 'That code has expired. Buy a package to continue.' });
 
-    /* count BOTH kinds against the limit — a television is a second device however it connects */
-    const phones = (await query('SELECT count(*)::int AS n FROM hotspot_voucher_devices WHERE voucher_id = $1::uuid', [v.id])).rows[0].n;
-    const tvs = (await query('SELECT count(*)::int AS n FROM hotspot_bound_devices WHERE active_voucher_id = $1::uuid', [v.id])).rows[0].n;
-    const used = phones + tvs;
+    /* RL_TV_COUNT_ONLINE: the limit is about how many devices are online AT ONCE, so count what is
+       actually connected — open RADIUS sessions on this code, plus bound televisions. The old count
+       read hotspot_voucher_devices, which is only written when someone REDEEMS a code; a customer
+       who paid instead counted zero however many phones were browsing, and was offered the last
+       slot for a TV on top. Counting live sessions also lets a slot free itself: disconnect the
+       phone and the TV can take its place, which is what "two at once" means. */
+    const _realm = v.code + '@' + String(req.params.ispId).replace(/-/g,'').slice(0,8).toLowerCase();
+    const online = (await query(
+      "SELECT count(DISTINCT UPPER(COALESCE(callingstationid,'?')))::int AS n " +
+      "FROM radacct WHERE username = $1 AND acctstoptime IS NULL", [_realm])).rows[0].n;
+    const tvs = (await query(
+      'SELECT count(*)::int AS n FROM hotspot_bound_devices ' +
+      'WHERE active_voucher_id = $1::uuid AND is_bound = true ' +
+      'AND (expires_at IS NULL OR expires_at > NOW())', [v.id])).rows[0].n;
+    const used = online + tvs;
     const allowed = parseInt(v.allowed, 10) || 1;
 
     if (used >= allowed) {
@@ -1883,11 +1894,24 @@ router.post('/:ispId/tv/attach', async (req, res) => {
 
     /* re-check at the moment of writing: the earlier check was for the customer's benefit, this
        one is what actually protects the limit if two attempts race */
-    const phones = (await query('SELECT count(*)::int AS n FROM hotspot_voucher_devices WHERE voucher_id = $1::uuid', [v.id])).rows[0].n;
-    const tvs = (await query('SELECT count(*)::int AS n FROM hotspot_bound_devices WHERE active_voucher_id = $1::uuid', [v.id])).rows[0].n;
+    /* RL_TV_COUNT_ONLINE: the limit is about how many devices are online AT ONCE, so count what is
+       actually connected — open RADIUS sessions on this code, plus bound televisions. The old count
+       read hotspot_voucher_devices, which is only written when someone REDEEMS a code; a customer
+       who paid instead counted zero however many phones were browsing, and was offered the last
+       slot for a TV on top. Counting live sessions also lets a slot free itself: disconnect the
+       phone and the TV can take its place, which is what "two at once" means. */
+    const _realm = v.code + '@' + String(req.params.ispId).replace(/-/g,'').slice(0,8).toLowerCase();
+    const online = (await query(
+      "SELECT count(DISTINCT UPPER(COALESCE(callingstationid,'?')))::int AS n " +
+      "FROM radacct WHERE username = $1 AND acctstoptime IS NULL", [_realm])).rows[0].n;
+    const tvs = (await query(
+      'SELECT count(*)::int AS n FROM hotspot_bound_devices ' +
+      'WHERE active_voucher_id = $1::uuid AND is_bound = true ' +
+      'AND (expires_at IS NULL OR expires_at > NOW())', [v.id])).rows[0].n;
+    const used = online + tvs;
     const allowed = parseInt(v.allowed, 10) || 1;
-    if (phones + tvs >= allowed) {
-      return res.status(403).json({ error: 'This code already has ' + (phones + tvs) + ' of ' + allowed + ' device(s) in use.' });
+    if (used >= allowed) {
+      return res.status(403).json({ error: 'This code already has ' + used + ' device' + (used > 1 ? 's' : '') + ' online and allows ' + allowed + '. Disconnect one, or buy a package with more devices.' });
     }
 
     const mac = String(tv.mac_address || '').toUpperCase();
