@@ -1134,9 +1134,10 @@ async function monitorDevice(deviceId) {
         const link = s.link;
         // Only manage FAILOVER links that are a primary (the one we want to leave when bad).
         const isPrimary = (link.role === 'failover_primary') || (link.failover_priority === 1);
+        const hardDown = isPrimary && (s.linkUp === false || s.internetOk === false);
 
         // RL_HARDDOWN: primary offline or no-internet must fail over (not just quality).
-        if (isPrimary && (s.linkUp === false || s.internetOk === false)) {
+        if (hardDown) {
           try {
             const _t = await detectLinkType(dev, link, { dhcp: dhcps });
             if (_t.type === 'pppoe') {
@@ -1302,7 +1303,9 @@ async function monitorDevice(deviceId) {
         // (not just on doPark/doUnpark). Fixes the stuck "parked=true but distance=1" desync.
         {
           const healthyDistance = link.failover_priority ? parseInt(link.failover_priority) : (link.position || 1);
-          const desiredDist = parked ? PARKED_DISTANCE : healthyDistance;
+          const hardDownPrimary = hardDown;
+          const effectiveParked = (parked || hardDownPrimary);
+          const desiredDist = effectiveParked ? PARKED_DISTANCE : healthyDistance;
           try {
             const t = await detectLinkType(dev, link, { dhcp: s.dhcp ? [s.dhcp] : null });
             let curDist = null, patched = false;
@@ -1347,14 +1350,14 @@ async function monitorDevice(deviceId) {
               const rts2 = await mtCall(dev, 'GET', '/ip/route');
               for (const r of (rts2||[])) {
                 if ((r.comment||'').includes(`via=wan${link.position};`)) {
-                  const wantDisabled = parked ? 'true' : 'false';
+                  const wantDisabled = effectiveParked ? 'true' : 'false';
                   if (String(r.disabled) !== wantDisabled) await mtCall(dev, 'PATCH', '/ip/route/' + r['.id'], { disabled: wantDisabled });
                 }
               }
             } catch(e){}
             if (doPark) { try { await flushLinkConnections(dev, link); } catch(_e){} }
             if (patched || doPark || doUnpark) {
-              logger.info(`[mwan-quality] ${dev.name} WAN${link.position} [${t.type}]: ${parked ? 'PARKED dist='+PARKED_DISTANCE+' (→ backup)' : 'ACTIVE dist='+healthyDistance}${patched ? ' [router corrected '+curDist+'→'+desiredDist+']' : ''} lat=${q.latencyMs}ms jit=${q.jitterMs}ms loss=${q.lossPct}%`);
+              logger.info(`[mwan-quality] ${dev.name} WAN${link.position} [${t.type}]: ${effectiveParked ? 'PARKED dist='+PARKED_DISTANCE+' (→ backup)' : 'ACTIVE dist='+healthyDistance}${patched ? ' [router corrected '+curDist+'→'+desiredDist+']' : ''} lat=${q.latencyMs}ms jit=${q.jitterMs}ms loss=${q.lossPct}%`);
             }
             /* RL_FAILOVER_SMS: this used to INSERT a nas_event on EVERY pass — three identical
                'wan_quality_recovered' rows inside 40 seconds — and told the ISP nothing. A link could
