@@ -1,3 +1,7 @@
+/* RL_RADCHECK_UPSERT: three paths can publish a voucher's credentials and they are not
+   atomic — two ran together, both deleted the old rows, then both inserted, leaving one
+   voucher with two different passwords and no way for the customer to satisfy both.
+   Upserting means the last writer corrects the value instead of adding to it. */
 const express = require('express');
 const RL_RADIUS_NATIVE = true; // RUMALINK: hotspot auth via RADIUS; skip local-user/mac-cookie creation
 const { effectiveHotspotRate } = require('../utils/effectiveRate');
@@ -62,7 +66,7 @@ async function syncVoucherRadius(voucher, packageData) {
     
     // Insert Cleartext-Password
     await query(
-      "INSERT INTO radcheck (username, attribute, op, value) VALUES ($1, 'Cleartext-Password', ':=', $2)",
+      "INSERT INTO radcheck (username, attribute, op, value) VALUES ($1, 'Cleartext-Password', ':=', $2) ON CONFLICT (username, attribute) DO UPDATE SET value = EXCLUDED.value, op = EXCLUDED.op",
       [realmedUser, _rlPw] /* RUMALINK_SYNC_SELFETCH */
     );
     
@@ -73,7 +77,7 @@ async function syncVoucherRadius(voucher, packageData) {
         const down = packageData.bandwidth_down_mbps || packageData.bandwidth_up_mbps;
         const rateLimit = up + 'M/' + down + 'M';
         await query(
-          "INSERT INTO radreply (username, attribute, op, value) VALUES ($1, 'Mikrotik-Rate-Limit', ':=', $2)",
+          "INSERT INTO radreply (username, attribute, op, value) VALUES ($1, 'Mikrotik-Rate-Limit', ':=', $2) ON CONFLICT (username, attribute) DO UPDATE SET value = EXCLUDED.value, op = EXCLUDED.op",
           [realmedUser, rateLimit]
         );
       }
@@ -87,7 +91,7 @@ async function syncVoucherRadius(voucher, packageData) {
       }
       if (timeoutSeconds && timeoutSeconds > 0) {
         await query(
-          "INSERT INTO radreply (username, attribute, op, value) VALUES ($1, 'Session-Timeout', ':=', $2)",
+          "INSERT INTO radreply (username, attribute, op, value) VALUES ($1, 'Session-Timeout', ':=', $2) ON CONFLICT (username, attribute) DO UPDATE SET value = EXCLUDED.value, op = EXCLUDED.op",
           [realmedUser, String(timeoutSeconds)]
         );
       }
@@ -96,7 +100,7 @@ async function syncVoucherRadius(voucher, packageData) {
       if (packageData.data_limit_mb) {
         const bytes = packageData.data_limit_mb * 1024 * 1024;
         await query(
-          "INSERT INTO radreply (username, attribute, op, value) VALUES ($1, 'Mikrotik-Total-Limit', ':=', $2)",
+          "INSERT INTO radreply (username, attribute, op, value) VALUES ($1, 'Mikrotik-Total-Limit', ':=', $2) ON CONFLICT (username, attribute) DO UPDATE SET value = EXCLUDED.value, op = EXCLUDED.op",
           [realmedUser, String(bytes)]
         );
       }
@@ -104,7 +108,7 @@ async function syncVoucherRadius(voucher, packageData) {
       // v62.20: Mikrotik-Group from package's mikrotik_profile (Mikrotik user-profile name)
       if (packageData.mikrotik_profile) {
         await query(
-          "INSERT INTO radreply (username, attribute, op, value) VALUES ($1, 'Mikrotik-Group', ':=', $2)",
+          "INSERT INTO radreply (username, attribute, op, value) VALUES ($1, 'Mikrotik-Group', ':=', $2) ON CONFLICT (username, attribute) DO UPDATE SET value = EXCLUDED.value, op = EXCLUDED.op",
           [realmedUser, packageData.mikrotik_profile]
         );
       }
@@ -1377,7 +1381,7 @@ async function syncRadiusForVoucher(voucherId) {
     // RL_SYNC2_FIX: Cleartext-Password = REAL voucher password, at realmed username
     await query(
       `INSERT INTO radcheck (username, attribute, op, value)
-       VALUES ($1, 'Cleartext-Password', ':=', $2)`,
+       VALUES ($1, 'Cleartext-Password', ':=', $2) ON CONFLICT (username, attribute) DO UPDATE SET value = EXCLUDED.value, op = EXCLUDED.op`,
       [radiusUsername(r.code, r.isp_id), r.password || r.code] /* RL_PW_REAL: login flows send the voucher PASSWORD (validate-voucher / SMS); code only as fallback */
     );
 
@@ -1394,7 +1398,7 @@ async function syncRadiusForVoucher(voucherId) {
       if (Number.isFinite(_n) && _n > 0) {
         await query(
           `INSERT INTO radcheck (username, attribute, op, value)
-           VALUES ($1, 'Simultaneous-Use', ':=', $2)`,
+           VALUES ($1, 'Simultaneous-Use', ':=', $2) ON CONFLICT (username, attribute) DO UPDATE SET value = EXCLUDED.value, op = EXCLUDED.op`,
           [radiusUsername(r.code, r.isp_id), String(_n)]);
       }
     } catch (e) { logger.warn('[RADIUS-SYNC] simultaneous-use: ' + e.message); }
@@ -1404,7 +1408,7 @@ async function syncRadiusForVoucher(voucherId) {
       const seconds = Math.max(60, Math.floor((new Date(r.expires_at).getTime() - Date.now()) / 1000));
       await query(
         `INSERT INTO radreply (username, attribute, op, value)
-         VALUES ($1, 'Session-Timeout', ':=', $2)`,
+         VALUES ($1, 'Session-Timeout', ':=', $2) ON CONFLICT (username, attribute) DO UPDATE SET value = EXCLUDED.value, op = EXCLUDED.op`,
         [radiusUsername(r.code, r.isp_id), String(seconds)]
       );
     }
@@ -1414,7 +1418,7 @@ async function syncRadiusForVoucher(voucherId) {
       const rate = (r.bandwidth_up_mbps || 0) + 'M/' + (r.bandwidth_down_mbps || 0) + 'M';
       await query(
         `INSERT INTO radreply (username, attribute, op, value)
-         VALUES ($1, 'Mikrotik-Rate-Limit', ':=', $2)`,
+         VALUES ($1, 'Mikrotik-Rate-Limit', ':=', $2) ON CONFLICT (username, attribute) DO UPDATE SET value = EXCLUDED.value, op = EXCLUDED.op`,
         [radiusUsername(r.code, r.isp_id), rate]
       );
     }
