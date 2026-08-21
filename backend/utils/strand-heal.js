@@ -1,3 +1,6 @@
+/* RL_STRAND_UPSERT: these plain INSERTs now hit the unique index and throw — the log showed
+   'mac creds: duplicate key value violates unique constraint', which meant MAC auto-reconnect
+   credentials silently stopped being written. Upsert instead. */
 // utils/strand-heal.js — RL_STRAND_HEAL v2
 // Every minute, keep the purchase chain true to policy:
 //  A) paid payment with NO voucher -> REUSE the buyer's own voucher (even expired: refresh package+expiry);
@@ -239,19 +242,19 @@ async function pass(onlyPaymentId) { /* RL_HEAL_ONE: when given, heal just that 
       "INSERT INTO radcheck (username, attribute, op, value) " +
       "SELECT UPPER(v.used_by_mac), 'Cleartext-Password', ':=', 'RLMACAUTH' FROM hotspot_vouchers v " +
       "WHERE v.status='active' AND v.expires_at>NOW() AND v.used_by_mac IS NOT NULL AND (v.is_tv IS NOT TRUE) " +
-      "AND v.used_by_mac ~ '" + macRe + "' " +
+      "AND v.used_by_mac ~ '" ON CONFLICT (username, attribute) DO UPDATE SET value = EXCLUDED.value, op = EXCLUDED.op + macRe + "' " +
       "AND NOT EXISTS (SELECT 1 FROM radcheck rc WHERE rc.username=UPPER(v.used_by_mac) AND rc.attribute='Cleartext-Password')");
     await query("DELETE FROM radreply WHERE username ~ '" + macRe + "' AND attribute IN ('Session-Timeout','Mikrotik-Rate-Limit')");
     await query(
       "INSERT INTO radreply (username, attribute, op, value) " +
       "SELECT DISTINCT ON (UPPER(v.used_by_mac)) UPPER(v.used_by_mac), 'Session-Timeout', ':=', GREATEST(60, EXTRACT(EPOCH FROM (v.expires_at - NOW()))::int)::text FROM hotspot_vouchers v " +
-      "WHERE v.status='active' AND v.expires_at>NOW() AND v.used_by_mac IS NOT NULL AND (v.is_tv IS NOT TRUE) AND v.used_by_mac ~ '" + macRe + "' " +
+      "WHERE v.status='active' AND v.expires_at>NOW() AND v.used_by_mac IS NOT NULL AND (v.is_tv IS NOT TRUE) AND v.used_by_mac ~ '" ON CONFLICT (username, attribute) DO UPDATE SET value = EXCLUDED.value, op = EXCLUDED.op + macRe + "' " +
       "ORDER BY UPPER(v.used_by_mac), (v.payment_id IS NOT NULL) DESC, v.updated_at DESC NULLS LAST, v.created_at DESC" /* RL_MAC_STICKY */);
     await query(
       "INSERT INTO radreply (username, attribute, op, value) " +
       "SELECT DISTINCT ON (UPPER(v.used_by_mac)) UPPER(v.used_by_mac), 'Mikrotik-Rate-Limit', ':=', COALESCE(hp.bandwidth_up_mbps,5)::text || 'M/' || COALESCE(hp.bandwidth_down_mbps,5)::text || 'M' /* RL_MAC_RATE_REAL */ " +
       "FROM hotspot_vouchers v LEFT JOIN hotspot_packages hp ON hp.id=v.package_id " +
-      "WHERE v.status='active' AND v.expires_at>NOW() AND v.used_by_mac IS NOT NULL AND (v.is_tv IS NOT TRUE) AND v.used_by_mac ~ '" + macRe + "' " +
+      "WHERE v.status='active' AND v.expires_at>NOW() AND v.used_by_mac IS NOT NULL AND (v.is_tv IS NOT TRUE) AND v.used_by_mac ~ '" ON CONFLICT (username, attribute) DO UPDATE SET value = EXCLUDED.value, op = EXCLUDED.op + macRe + "' " +
       "ORDER BY UPPER(v.used_by_mac), (hp.bandwidth_down_mbps IS NOT NULL) DESC, (v.payment_id IS NOT NULL) DESC, v.updated_at DESC NULLS LAST, v.created_at DESC" /* RL_MAC_STICKY */);
   } catch (e) { logger.warn('[strand-heal] mac creds: ' + e.message); }
 
